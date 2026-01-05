@@ -1,82 +1,283 @@
-import { motion } from 'motion/react';
-import { ArrowRightLeft, FileImage, Upload } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ArrowRightLeft, Check, Loader2, FolderOpen, Sparkles } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { ImageDropzone } from '@/components/ImageDropzone';
+import type { ImageInfo, ConversionResult, ImageFormat } from '@/types/image';
+import { formatLabels, formatDescriptions } from '@/types/image';
+
+const outputFormats: ImageFormat[] = ['png', 'jpg', 'webp', 'gif', 'bmp', 'tiff'];
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+};
 
 const ConvertPage = () => {
+  const [images, setImages] = useState<ImageInfo[]>([]);
+  const [targetFormat, setTargetFormat] = useState<ImageFormat>('webp');
+  const [quality, setQuality] = useState(85);
+  const [outputDir, setOutputDir] = useState<string | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
+  const [results, setResults] = useState<ConversionResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+
+  const handleSelectOutputDir = async () => {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+    });
+    if (selected) {
+      setOutputDir(selected as string);
+    }
+  };
+
+  const handleConvert = async () => {
+    if (images.length === 0) return;
+
+    setIsConverting(true);
+    setShowResults(false);
+
+    try {
+      const paths = images.map((img) => img.path);
+      const conversionResults = await invoke<ConversionResult[]>('convert_images_batch', {
+        inputPaths: paths,
+        options: {
+          format: targetFormat,
+          quality,
+          output_dir: outputDir,
+        },
+      });
+
+      setResults(conversionResults);
+      setShowResults(true);
+    } catch (error) {
+      console.error('Conversion failed:', error);
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const successCount = results.filter((r) => r.success).length;
+  const totalSaved = results.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="flex flex-col items-center justify-center h-full p-8"
-    >
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.5, ease: 'easeOut' }}
-        className="relative mb-8"
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-full blur-3xl" />
-        <div className="relative p-6 rounded-2xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-violet-500/20">
-          <ArrowRightLeft className="w-16 h-16 text-violet-500" strokeWidth={1.5} />
-        </div>
-      </motion.div>
-
-      <motion.h1
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.4 }}
-        className="text-3xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent mb-3"
-      >
-        Convert Images
-      </motion.h1>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.4 }}
-        className="text-muted-foreground text-center max-w-md mb-8"
-      >
-        Transform your images between formats. Support for PNG, JPEG, WebP, AVIF, and more.
-      </motion.p>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.4 }}
-        className="w-full max-w-lg"
-      >
-        <div className="group relative border-2 border-dashed border-violet-500/30 hover:border-violet-500/60 rounded-2xl p-12 transition-all duration-300 cursor-pointer bg-gradient-to-br from-violet-500/5 to-fuchsia-500/5 hover:from-violet-500/10 hover:to-fuchsia-500/10">
-          <div className="flex flex-col items-center gap-4">
-            <div className="p-4 rounded-xl bg-violet-500/10 group-hover:bg-violet-500/20 transition-colors">
-              <Upload className="w-8 h-8 text-violet-500" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-foreground">Drop images here</p>
-              <p className="text-sm text-muted-foreground mt-1">or click to browse</p>
-            </div>
+    <div className="h-full overflow-auto">
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-4"
+        >
+          <div className="p-3 rounded-2xl bg-primary/10">
+            <ArrowRightLeft className="w-6 h-6 text-primary" />
           </div>
-        </div>
-      </motion.div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Convert Images</h1>
+            <p className="text-sm text-muted-foreground">
+              Transform your images to different formats
+            </p>
+          </div>
+        </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5, duration: 0.4 }}
-        className="flex gap-3 mt-8"
-      >
-        {['PNG', 'JPEG', 'WebP', 'AVIF'].map((format, i) => (
-          <motion.span
-            key={format}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.6 + i * 0.1, duration: 0.3 }}
-            className="px-3 py-1.5 text-xs font-medium rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
-          >
-            {format}
-          </motion.span>
-        ))}
-      </motion.div>
-    </motion.div>
+        {/* Dropzone */}
+        <ImageDropzone images={images} onImagesChange={setImages} />
+
+        {/* Options */}
+        <AnimatePresence>
+          {images.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              {/* Format Selection */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">
+                  Output Format
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {outputFormats.map((format) => (
+                    <motion.button
+                      key={format}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setTargetFormat(format)}
+                      className={cn(
+                        'relative p-3 rounded-xl border-2 transition-all duration-200',
+                        targetFormat === format
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
+                      )}
+                    >
+                      {targetFormat === format && (
+                        <motion.div
+                          layoutId="formatIndicator"
+                          className="absolute inset-0 rounded-xl bg-primary/5"
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        />
+                      )}
+                      <span
+                        className={cn(
+                          'relative text-sm font-semibold',
+                          targetFormat === format ? 'text-primary' : 'text-foreground'
+                        )}
+                      >
+                        {formatLabels[format]}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDescriptions[targetFormat]}
+                </p>
+              </div>
+
+              {/* Quality Slider (for lossy formats) */}
+              {(targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'webp') && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">
+                      Quality
+                    </label>
+                    <span className="text-sm font-mono text-primary">{quality}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={100}
+                    value={quality}
+                    onChange={(e) => setQuality(Number(e.target.value))}
+                    className="w-full accent-primary"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Smaller file</span>
+                    <span>Better quality</span>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Output Directory */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">
+                  Output Location
+                </label>
+                <Button
+                  variant="outline"
+                  onClick={handleSelectOutputDir}
+                  className="w-full justify-start gap-2 h-12"
+                >
+                  <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                  <span className="truncate text-left flex-1">
+                    {outputDir || 'Same as original (click to change)'}
+                  </span>
+                </Button>
+              </div>
+
+              {/* Convert Button */}
+              <Button
+                onClick={handleConvert}
+                disabled={isConverting || images.length === 0}
+                size="lg"
+                className="w-full h-14 text-lg gap-3"
+              >
+                {isConverting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Converting {images.length} images...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Convert {images.length} image{images.length !== 1 ? 's' : ''} to{' '}
+                    {formatLabels[targetFormat]}
+                  </>
+                )}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Results */}
+        <AnimatePresence>
+          {showResults && results.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-4"
+            >
+              <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-primary/20">
+                    <Check className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Conversion Complete
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {successCount} of {results.length} images converted successfully
+                      {totalSaved > 0 && (
+                        <span className="text-primary ml-1">
+                          • Saved {formatFileSize(Math.abs(totalSaved))}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Individual Results */}
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                {results.map((result, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={cn(
+                      'flex items-center justify-between p-3 rounded-xl',
+                      result.success ? 'bg-muted/50' : 'bg-destructive/10'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={cn(
+                          'w-2 h-2 rounded-full',
+                          result.success ? 'bg-primary' : 'bg-destructive'
+                        )}
+                      />
+                      <span className="text-sm truncate">
+                        {result.output_path?.split(/[/\\]/).pop() || `Image ${index + 1}`}
+                      </span>
+                    </div>
+                    {result.success && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                        {formatFileSize(result.original_size)} → {formatFileSize(result.new_size)}
+                      </span>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 };
 
