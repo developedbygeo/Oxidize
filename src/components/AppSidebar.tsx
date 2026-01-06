@@ -56,14 +56,14 @@ const navItems = [
 const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
   return (
     <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader className="p-5 pb-4">
+      <SidebarHeader className="p-5 pb-4 group-data-[collapsible=icon]:p-3">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex items-center gap-3"
+          className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center"
         >
-          <div className="relative group-data-[collapsible=icon]:mx-auto">
+          <div className="relative">
             <motion.div
               className="absolute inset-0 bg-primary/30 rounded-2xl blur-xl"
               animate={{
@@ -76,7 +76,7 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
                 ease: 'easeInOut',
               }}
             />
-            <div className="relative p-2.5 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
+            <div className="relative p-2.5 rounded-2xl bg-linear-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
               <Hexagon className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
             </div>
           </div>
@@ -87,10 +87,10 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
         </motion.div>
       </SidebarHeader>
 
-      <SidebarContent className="px-3">
+      <SidebarContent className="px-3 group-data-[collapsible=icon]:px-1.5">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5">
+            <SidebarMenu className="gap-3 group-data-[collapsible=icon]:items-center">
               {navItems.map((item, index) => {
                 const isActive = currentPage === item.id;
                 return (
@@ -107,6 +107,7 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
                         size="lg"
                         className={cn(
                           'relative overflow-hidden transition-all duration-300 rounded-xl h-auto py-3',
+                          'group-data-[collapsible=icon]:size-12! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:justify-center',
                           isActive
                             ? 'bg-foreground shadow-lg shadow-foreground/25'
                             : 'hover:bg-sidebar-accent'
@@ -122,16 +123,18 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
                         )}
                         <div
                           className={cn(
-                            'p-2 rounded-lg transition-colors',
+                            'p-2 rounded-lg transition-colors shrink-0',
+                            'group-data-[collapsible=icon]:p-2.5',
                             isActive ? 'bg-background/15' : 'bg-sidebar-accent'
                           )}
                         >
                           <item.icon
                             className={cn(
-                              'w-4 h-4 transition-colors',
+                              'w-3 h-3 transition-colors',
+                              'group-data-[collapsible=icon]:w-5 group-data-[collapsible=icon]:h-5',
                               isActive ? 'text-primary' : 'text-muted-foreground'
                             )}
-                            strokeWidth={2}
+                            strokeWidth={1.5}
                           />
                         </div>
                         <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
