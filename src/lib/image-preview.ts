@@ -4,7 +4,7 @@
  * but run in the browser for instant visual feedback
  */
 
-export interface PreviewOptions {
+export type PreviewOptions = {
   brightness: number;      // -100 to +100
   contrast: number;        // -100 to +100
   saturation: number;      // -100 to +100
@@ -13,7 +13,7 @@ export interface PreviewOptions {
   hueShift: number;        // -180 to +180
   temperature: number;     // -100 to +100
   whiteBalance: 'auto' | 'daylight' | 'cloudy' | 'tungsten' | 'fluorescent';
-}
+};
 
 // Default options (no adjustments)
 export const defaultPreviewOptions: PreviewOptions = {
@@ -321,10 +321,10 @@ export function hasAdjustments(options: PreviewOptions): boolean {
 
 import type { EffectType } from '@/types/image';
 
-export interface EffectPreviewOptions {
+export type EffectPreviewOptions = {
   effect: EffectType;
   intensity: number; // 0-100
-}
+};
 
 // Apply grayscale effect
 function applyGrayscale(data: Uint8ClampedArray, intensity: number): void {

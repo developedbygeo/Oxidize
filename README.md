@@ -18,9 +18,14 @@ Both Beautify and Effects pages feature real-time canvas-based previews, allowin
 
 Oxidize uses industry-leading compression libraries for maximum quality and size reduction:
 
-- **PNG**: oxipng for lossless optimization, imagequant for lossy color quantization
-- **JPEG**: mozjpeg for superior compression ratios
-- **WebP**: Native WebP encoding with quality control
+| Format | Method | Typical Savings |
+|--------|--------|-----------------|
+| **PNG** | oxipng (lossless) + exoquant color quantization (lossy) | ~75% |
+| **JPEG** | mozjpeg for superior compression | ~67% |
+| **WebP** | Native WebP encoding with quality control | ~87% |
+| **GIF** | Color reduction with Floyd-Steinberg dithering | Varies |
+| **BMP** | Converts to optimized PNG (BMP is uncompressed) | ~75% |
+| **TIFF** | Converts to optimized PNG (TIFF is often uncompressed) | ~75% |
 
 ## Tech Stack
 
@@ -37,7 +42,7 @@ Oxidize uses industry-leading compression libraries for maximum quality and size
 - Tauri 2
 - Rust
 - rayon (parallel processing)
-- image, oxipng, mozjpeg, webp crates
+- image, oxipng, mozjpeg, webp, gif, exoquant crates
 
 ## Getting Started
 
@@ -91,7 +96,16 @@ oxidize/
 │   ├── types/              # TypeScript types
 │   └── styles/             # Global styles
 ├── src-tauri/              # Tauri/Rust backend
-│   ├── src/                # Rust source code
+│   ├── src/
+│   │   ├── lib.rs          # App entry point and command registration
+│   │   ├── types.rs        # Shared types (ImageInfo, results, options)
+│   │   ├── utils.rs        # Format detection utilities
+│   │   ├── loader.rs       # Image loading and preview generation
+│   │   ├── convert.rs      # Format conversion
+│   │   ├── compress.rs     # PNG/JPEG/WebP/GIF/BMP/TIFF compression
+│   │   ├── beautify.rs     # Image adjustments (brightness, contrast, etc.)
+│   │   ├── effects.rs      # Visual effects (grayscale, sepia, blur, etc.)
+│   │   └── commands.rs     # File explorer commands
 │   ├── capabilities/       # Permission configs
 │   └── Cargo.toml          # Rust dependencies
 └── package.json
