@@ -1016,6 +1016,456 @@ fn open_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+// ==================== EFFECTS STRUCTS ====================
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EffectOptions {
+    pub effect: String,    // "grayscale", "sepia", "vintage", "blur", "sharpen", "invert", "vignette", "noise", "pixelate", "posterize"
+    pub intensity: u8,     // 0-100
+    pub output_dir: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EffectResult {
+    pub success: bool,
+    pub input_path: String,
+    pub output_path: Option<String>,
+    pub error: Option<String>,
+    pub original_size: u64,
+    pub new_size: u64,
+}
+
+// ==================== EFFECTS HELPER FUNCTIONS ====================
+
+/// Apply grayscale effect
+fn apply_grayscale(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    let grayscale = img.grayscale();
+
+    if intensity >= 1.0 {
+        return grayscale;
+    }
+
+    // Blend between original and grayscale
+    blend_images(img, &grayscale, intensity)
+}
+
+/// Apply sepia tone effect
+fn apply_sepia(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    let mut result = img.clone();
+
+    if let Some(rgba) = result.as_mut_rgba8() {
+        for pixel in rgba.pixels_mut() {
+            let r = pixel[0] as f32;
+            let g = pixel[1] as f32;
+            let b = pixel[2] as f32;
+
+            // Sepia formula
+            let sepia_r = (0.393 * r + 0.769 * g + 0.189 * b).min(255.0);
+            let sepia_g = (0.349 * r + 0.686 * g + 0.168 * b).min(255.0);
+            let sepia_b = (0.272 * r + 0.534 * g + 0.131 * b).min(255.0);
+
+            // Blend with intensity
+            pixel[0] = (r + (sepia_r - r) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[1] = (g + (sepia_g - g) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[2] = (b + (sepia_b - b) * intensity).clamp(0.0, 255.0) as u8;
+        }
+    } else if let Some(rgb) = result.as_mut_rgb8() {
+        for pixel in rgb.pixels_mut() {
+            let r = pixel[0] as f32;
+            let g = pixel[1] as f32;
+            let b = pixel[2] as f32;
+
+            let sepia_r = (0.393 * r + 0.769 * g + 0.189 * b).min(255.0);
+            let sepia_g = (0.349 * r + 0.686 * g + 0.168 * b).min(255.0);
+            let sepia_b = (0.272 * r + 0.534 * g + 0.131 * b).min(255.0);
+
+            pixel[0] = (r + (sepia_r - r) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[1] = (g + (sepia_g - g) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[2] = (b + (sepia_b - b) * intensity).clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    result
+}
+
+/// Apply vintage/retro effect
+fn apply_vintage(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    let mut result = img.clone();
+
+    // Vintage: slight sepia + reduced contrast + vignette hint
+    if let Some(rgba) = result.as_mut_rgba8() {
+        for pixel in rgba.pixels_mut() {
+            let r = pixel[0] as f32;
+            let g = pixel[1] as f32;
+            let b = pixel[2] as f32;
+
+            // Warm vintage tone with slightly faded look
+            let vintage_r = (r * 1.1 + 20.0).min(255.0);
+            let vintage_g = (g * 0.95 + 10.0).min(255.0);
+            let vintage_b = (b * 0.8).min(255.0);
+
+            // Reduce contrast slightly
+            let contrast_factor = 0.9;
+            let final_r = ((vintage_r - 128.0) * contrast_factor + 128.0).clamp(0.0, 255.0);
+            let final_g = ((vintage_g - 128.0) * contrast_factor + 128.0).clamp(0.0, 255.0);
+            let final_b = ((vintage_b - 128.0) * contrast_factor + 128.0).clamp(0.0, 255.0);
+
+            pixel[0] = (r + (final_r - r) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[1] = (g + (final_g - g) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[2] = (b + (final_b - b) * intensity).clamp(0.0, 255.0) as u8;
+        }
+    } else if let Some(rgb) = result.as_mut_rgb8() {
+        for pixel in rgb.pixels_mut() {
+            let r = pixel[0] as f32;
+            let g = pixel[1] as f32;
+            let b = pixel[2] as f32;
+
+            let vintage_r = (r * 1.1 + 20.0).min(255.0);
+            let vintage_g = (g * 0.95 + 10.0).min(255.0);
+            let vintage_b = (b * 0.8).min(255.0);
+
+            let contrast_factor = 0.9;
+            let final_r = ((vintage_r - 128.0) * contrast_factor + 128.0).clamp(0.0, 255.0);
+            let final_g = ((vintage_g - 128.0) * contrast_factor + 128.0).clamp(0.0, 255.0);
+            let final_b = ((vintage_b - 128.0) * contrast_factor + 128.0).clamp(0.0, 255.0);
+
+            pixel[0] = (r + (final_r - r) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[1] = (g + (final_g - g) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[2] = (b + (final_b - b) * intensity).clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    result
+}
+
+/// Apply blur effect
+fn apply_blur_effect(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    // Map intensity 0-1 to blur sigma 0-10
+    let sigma = intensity * 10.0;
+    img.blur(sigma)
+}
+
+/// Apply sharpen effect
+fn apply_sharpen_effect(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    // Use the existing sharpness function, mapping intensity to 0-100 range
+    apply_sharpness(img, intensity * 100.0)
+}
+
+/// Apply invert colors effect
+fn apply_invert(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    let mut result = img.clone();
+
+    if let Some(rgba) = result.as_mut_rgba8() {
+        for pixel in rgba.pixels_mut() {
+            let inv_r = 255 - pixel[0];
+            let inv_g = 255 - pixel[1];
+            let inv_b = 255 - pixel[2];
+
+            pixel[0] = (pixel[0] as f32 + (inv_r as f32 - pixel[0] as f32) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[1] = (pixel[1] as f32 + (inv_g as f32 - pixel[1] as f32) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[2] = (pixel[2] as f32 + (inv_b as f32 - pixel[2] as f32) * intensity).clamp(0.0, 255.0) as u8;
+        }
+    } else if let Some(rgb) = result.as_mut_rgb8() {
+        for pixel in rgb.pixels_mut() {
+            let inv_r = 255 - pixel[0];
+            let inv_g = 255 - pixel[1];
+            let inv_b = 255 - pixel[2];
+
+            pixel[0] = (pixel[0] as f32 + (inv_r as f32 - pixel[0] as f32) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[1] = (pixel[1] as f32 + (inv_g as f32 - pixel[1] as f32) * intensity).clamp(0.0, 255.0) as u8;
+            pixel[2] = (pixel[2] as f32 + (inv_b as f32 - pixel[2] as f32) * intensity).clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    result
+}
+
+/// Apply vignette effect (dark corners)
+fn apply_vignette(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    let mut result = img.clone();
+    let (width, height) = img.dimensions();
+    let center_x = width as f32 / 2.0;
+    let center_y = height as f32 / 2.0;
+    let max_dist = (center_x * center_x + center_y * center_y).sqrt();
+
+    if let Some(rgba) = result.as_mut_rgba8() {
+        for (x, y, pixel) in rgba.enumerate_pixels_mut() {
+            let dx = x as f32 - center_x;
+            let dy = y as f32 - center_y;
+            let dist = (dx * dx + dy * dy).sqrt() / max_dist;
+
+            // Vignette falloff - stronger near edges
+            let vignette = 1.0 - (dist * dist * intensity);
+            let vignette = vignette.max(0.0);
+
+            pixel[0] = (pixel[0] as f32 * vignette).clamp(0.0, 255.0) as u8;
+            pixel[1] = (pixel[1] as f32 * vignette).clamp(0.0, 255.0) as u8;
+            pixel[2] = (pixel[2] as f32 * vignette).clamp(0.0, 255.0) as u8;
+        }
+    } else if let Some(rgb) = result.as_mut_rgb8() {
+        for (x, y, pixel) in rgb.enumerate_pixels_mut() {
+            let dx = x as f32 - center_x;
+            let dy = y as f32 - center_y;
+            let dist = (dx * dx + dy * dy).sqrt() / max_dist;
+
+            let vignette = 1.0 - (dist * dist * intensity);
+            let vignette = vignette.max(0.0);
+
+            pixel[0] = (pixel[0] as f32 * vignette).clamp(0.0, 255.0) as u8;
+            pixel[1] = (pixel[1] as f32 * vignette).clamp(0.0, 255.0) as u8;
+            pixel[2] = (pixel[2] as f32 * vignette).clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    result
+}
+
+/// Apply noise/grain effect
+fn apply_noise(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut result = img.clone();
+    let noise_amount = intensity * 50.0; // Max noise range
+
+    if let Some(rgba) = result.as_mut_rgba8() {
+        for (x, y, pixel) in rgba.enumerate_pixels_mut() {
+            // Simple pseudo-random noise based on position
+            let mut hasher = DefaultHasher::new();
+            (x, y).hash(&mut hasher);
+            let hash = hasher.finish();
+            let noise = ((hash % 1000) as f32 / 500.0 - 1.0) * noise_amount;
+
+            pixel[0] = (pixel[0] as f32 + noise).clamp(0.0, 255.0) as u8;
+            pixel[1] = (pixel[1] as f32 + noise).clamp(0.0, 255.0) as u8;
+            pixel[2] = (pixel[2] as f32 + noise).clamp(0.0, 255.0) as u8;
+        }
+    } else if let Some(rgb) = result.as_mut_rgb8() {
+        for (x, y, pixel) in rgb.enumerate_pixels_mut() {
+            let mut hasher = DefaultHasher::new();
+            (x, y).hash(&mut hasher);
+            let hash = hasher.finish();
+            let noise = ((hash % 1000) as f32 / 500.0 - 1.0) * noise_amount;
+
+            pixel[0] = (pixel[0] as f32 + noise).clamp(0.0, 255.0) as u8;
+            pixel[1] = (pixel[1] as f32 + noise).clamp(0.0, 255.0) as u8;
+            pixel[2] = (pixel[2] as f32 + noise).clamp(0.0, 255.0) as u8;
+        }
+    }
+
+    result
+}
+
+/// Apply pixelate effect
+fn apply_pixelate(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    let (width, height) = img.dimensions();
+    // Map intensity to block size (2-50 pixels)
+    let block_size = (2.0 + intensity * 48.0) as u32;
+    let block_size = block_size.max(1);
+
+    // Downscale and upscale to create pixelation
+    let small_width = (width / block_size).max(1);
+    let small_height = (height / block_size).max(1);
+
+    let small = img.resize_exact(small_width, small_height, image::imageops::FilterType::Nearest);
+    small.resize_exact(width, height, image::imageops::FilterType::Nearest)
+}
+
+/// Apply posterize effect (reduce color levels)
+fn apply_posterize(img: &DynamicImage, intensity: f32) -> DynamicImage {
+    if intensity == 0.0 {
+        return img.clone();
+    }
+
+    let mut result = img.clone();
+    // Map intensity to number of levels (256 down to 2)
+    let levels = (256.0 - intensity * 250.0).max(2.0) as u8;
+    let step = 256.0 / levels as f32;
+
+    if let Some(rgba) = result.as_mut_rgba8() {
+        for pixel in rgba.pixels_mut() {
+            for i in 0..3 {
+                let val = pixel[i] as f32;
+                let posterized = ((val / step).floor() * step).clamp(0.0, 255.0);
+                pixel[i] = posterized as u8;
+            }
+        }
+    } else if let Some(rgb) = result.as_mut_rgb8() {
+        for pixel in rgb.pixels_mut() {
+            for i in 0..3 {
+                let val = pixel[i] as f32;
+                let posterized = ((val / step).floor() * step).clamp(0.0, 255.0);
+                pixel[i] = posterized as u8;
+            }
+        }
+    }
+
+    result
+}
+
+/// Blend two images together
+fn blend_images(img1: &DynamicImage, img2: &DynamicImage, factor: f32) -> DynamicImage {
+    let mut result = img1.clone();
+    let (width, height) = img1.dimensions();
+
+    if let (Some(rgba1), Some(rgba2), Some(res)) =
+        (img1.as_rgba8(), img2.as_rgba8(), result.as_mut_rgba8())
+    {
+        for y in 0..height {
+            for x in 0..width {
+                let p1 = rgba1.get_pixel(x, y);
+                let p2 = rgba2.get_pixel(x, y);
+                let res_pixel = res.get_pixel_mut(x, y);
+
+                for i in 0..3 {
+                    res_pixel[i] = (p1[i] as f32 + (p2[i] as f32 - p1[i] as f32) * factor)
+                        .clamp(0.0, 255.0) as u8;
+                }
+            }
+        }
+    }
+
+    result
+}
+
+/// Apply effect based on type
+fn apply_effect(img: &DynamicImage, effect: &str, intensity: f32) -> DynamicImage {
+    match effect {
+        "grayscale" => apply_grayscale(img, intensity),
+        "sepia" => apply_sepia(img, intensity),
+        "vintage" => apply_vintage(img, intensity),
+        "blur" => apply_blur_effect(img, intensity),
+        "sharpen" => apply_sharpen_effect(img, intensity),
+        "invert" => apply_invert(img, intensity),
+        "vignette" => apply_vignette(img, intensity),
+        "noise" => apply_noise(img, intensity),
+        "pixelate" => apply_pixelate(img, intensity),
+        "posterize" => apply_posterize(img, intensity),
+        _ => img.clone(),
+    }
+}
+
+// ==================== EFFECTS COMMANDS ====================
+
+#[tauri::command]
+fn apply_image_effect(input_path: String, options: EffectOptions) -> Result<EffectResult, String> {
+    let input = Path::new(&input_path);
+    let original_size = std::fs::metadata(&input_path)
+        .map(|m| m.len())
+        .unwrap_or(0);
+
+    let format_str = detect_format(input).unwrap_or_else(|| "png".to_string());
+
+    let img = ImageReader::open(&input_path)
+        .map_err(|e| e.to_string())?
+        .decode()
+        .map_err(|e| e.to_string())?;
+
+    // Convert intensity from 0-100 to 0-1
+    let intensity = options.intensity as f32 / 100.0;
+
+    // Apply the effect
+    let result_img = apply_effect(&img, &options.effect, intensity);
+
+    // Determine output path
+    let output_dir = options
+        .output_dir
+        .clone()
+        .map(|d| Path::new(&d).to_path_buf())
+        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
+
+    let stem = input.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+    let output_path = output_dir.join(format!("{}_{}.{}", stem, options.effect, format_str));
+
+    // Save with appropriate encoder
+    let output_data = match format_str.as_str() {
+        "jpg" | "jpeg" => compress_jpeg_mozjpeg(&result_img, 92)?,
+        "webp" => compress_webp(&result_img, 92)?,
+        "png" => {
+            let mut buffer = Cursor::new(Vec::new());
+            result_img.write_to(&mut buffer, ImageFormat::Png)
+                .map_err(|e| e.to_string())?;
+            buffer.into_inner()
+        }
+        _ => {
+            let format = get_format_from_string(&format_str).unwrap_or(ImageFormat::Png);
+            let mut buffer = Cursor::new(Vec::new());
+            result_img.write_to(&mut buffer, format)
+                .map_err(|e| e.to_string())?;
+            buffer.into_inner()
+        }
+    };
+
+    let new_size = output_data.len() as u64;
+    std::fs::write(&output_path, output_data).map_err(|e| e.to_string())?;
+
+    Ok(EffectResult {
+        success: true,
+        input_path,
+        output_path: Some(output_path.to_string_lossy().to_string()),
+        error: None,
+        original_size,
+        new_size,
+    })
+}
+
+#[tauri::command]
+fn apply_image_effects_batch(
+    input_paths: Vec<String>,
+    options: EffectOptions,
+) -> Vec<EffectResult> {
+    input_paths
+        .par_iter()
+        .map(|path| {
+            apply_image_effect(path.clone(), options.clone())
+                .unwrap_or_else(|e| EffectResult {
+                    success: false,
+                    input_path: path.clone(),
+                    output_path: None,
+                    error: Some(e),
+                    original_size: 0,
+                    new_size: 0,
+                })
+        })
+        .collect()
+}
+
 /// Reveal a file in its parent folder (select it in explorer)
 #[tauri::command]
 fn reveal_file(path: String) -> Result<(), String> {
@@ -1070,6 +1520,8 @@ pub fn run() {
             compress_images_batch,
             beautify_image,
             beautify_images_batch,
+            apply_image_effect,
+            apply_image_effects_batch,
             get_supported_formats,
             check_path_exists,
             open_folder,
