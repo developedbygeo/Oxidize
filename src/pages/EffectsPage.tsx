@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useReducer, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Wand2,
@@ -19,9 +19,9 @@ import { EffectsPreview, type EffectPreviewOptions } from '@/components/EffectsP
 import type { ImageInfo, EffectType, EffectResult, OperationHistoryItem } from '@/types/image';
 import { effectsList as effects } from '@/types/image';
 
-interface EffectsPageProps {
+type EffectsPageProps = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
-}
+};
 
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -31,17 +31,79 @@ const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+type EffectsState = {
+  images: ImageInfo[];
+  selectedEffect: EffectType;
+  intensity: number;
+  outputDir: string | null;
+  isProcessing: boolean;
+  results: EffectResult[];
+  showResults: boolean;
+  previewIndex: number;
+  previewSrc: string;
+  isLoadingPreview: boolean;
+};
+
+type EffectsAction =
+  | { type: 'SET_IMAGES'; payload: ImageInfo[] }
+  | { type: 'SET_SELECTED_EFFECT'; payload: EffectType }
+  | { type: 'SET_INTENSITY'; payload: number }
+  | { type: 'SET_OUTPUT_DIR'; payload: string | null }
+  | { type: 'START_PROCESSING' }
+  | { type: 'FINISH_PROCESSING'; payload: EffectResult[] }
+  | { type: 'SET_PREVIEW_INDEX'; payload: number }
+  | { type: 'SET_PREVIEW_SRC'; payload: string }
+  | { type: 'SET_LOADING_PREVIEW'; payload: boolean }
+  | { type: 'REMOVE_IMAGE'; payload: number };
+
+const initialState: EffectsState = {
+  images: [],
+  selectedEffect: 'grayscale',
+  intensity: 50,
+  outputDir: null,
+  isProcessing: false,
+  results: [],
+  showResults: false,
+  previewIndex: 0,
+  previewSrc: '',
+  isLoadingPreview: false,
+};
+
+const effectsReducer = (state: EffectsState, action: EffectsAction): EffectsState => {
+  switch (action.type) {
+    case 'SET_IMAGES':
+      return { ...state, images: action.payload };
+    case 'SET_SELECTED_EFFECT':
+      return { ...state, selectedEffect: action.payload };
+    case 'SET_INTENSITY':
+      return { ...state, intensity: action.payload };
+    case 'SET_OUTPUT_DIR':
+      return { ...state, outputDir: action.payload };
+    case 'START_PROCESSING':
+      return { ...state, isProcessing: true, showResults: false };
+    case 'FINISH_PROCESSING':
+      return { ...state, isProcessing: false, results: action.payload, showResults: true };
+    case 'SET_PREVIEW_INDEX':
+      return { ...state, previewIndex: action.payload };
+    case 'SET_PREVIEW_SRC':
+      return { ...state, previewSrc: action.payload };
+    case 'SET_LOADING_PREVIEW':
+      return { ...state, isLoadingPreview: action.payload };
+    case 'REMOVE_IMAGE': {
+      const newImages = state.images.filter((_, i) => i !== action.payload);
+      const newPreviewIndex = state.previewIndex >= newImages.length
+        ? Math.max(0, newImages.length - 1)
+        : state.previewIndex;
+      return { ...state, images: newImages, previewIndex: newPreviewIndex };
+    }
+    default:
+      return state;
+  }
+};
+
 const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
-  const [images, setImages] = useState<ImageInfo[]>([]);
-  const [selectedEffect, setSelectedEffect] = useState<EffectType>('grayscale');
-  const [intensity, setIntensity] = useState(50);
-  const [outputDir, setOutputDir] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [results, setResults] = useState<EffectResult[]>([]);
-  const [showResults, setShowResults] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState(0);
-  const [previewSrc, setPreviewSrc] = useState<string>('');
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [state, dispatch] = useReducer(effectsReducer, initialState);
+  const { images, selectedEffect, intensity, outputDir, isProcessing, results, showResults, previewIndex, previewSrc, isLoadingPreview } = state;
 
   // Convert to preview options format
   const previewOptions = useMemo<EffectPreviewOptions>(() => ({
@@ -55,12 +117,12 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   // Fetch full image for preview when selection changes
   useEffect(() => {
     if (!previewImage) {
-      setPreviewSrc('');
+      dispatch({ type: 'SET_PREVIEW_SRC', payload: '' });
       return;
     }
 
     let cancelled = false;
-    setIsLoadingPreview(true);
+    dispatch({ type: 'SET_LOADING_PREVIEW', payload: true });
 
     // Fetch preview image (capped at 800px for good balance of quality and performance)
     invoke<string>('get_image_preview', {
@@ -69,19 +131,19 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     })
       .then((src) => {
         if (!cancelled) {
-          setPreviewSrc(src);
+          dispatch({ type: 'SET_PREVIEW_SRC', payload: src });
         }
       })
       .catch((error) => {
         console.error('Failed to load preview:', error);
         // Fall back to thumbnail
         if (!cancelled) {
-          setPreviewSrc(previewImage.thumbnail);
+          dispatch({ type: 'SET_PREVIEW_SRC', payload: previewImage.thumbnail });
         }
       })
       .finally(() => {
         if (!cancelled) {
-          setIsLoadingPreview(false);
+          dispatch({ type: 'SET_LOADING_PREVIEW', payload: false });
         }
       });
 
@@ -96,23 +158,14 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
       multiple: false,
     });
     if (selected) {
-      setOutputDir(selected as string);
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages);
-    if (previewIndex >= newImages.length) {
-      setPreviewIndex(Math.max(0, newImages.length - 1));
+      dispatch({ type: 'SET_OUTPUT_DIR', payload: selected as string });
     }
   };
 
   const handleApplyEffect = async () => {
     if (images.length === 0) return;
 
-    setIsProcessing(true);
-    setShowResults(false);
+    dispatch({ type: 'START_PROCESSING' });
 
     try {
       const paths = images.map((img) => img.path);
@@ -127,8 +180,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
         options,
       });
 
-      setResults(effectResults);
-      setShowResults(true);
+      dispatch({ type: 'FINISH_PROCESSING', payload: effectResults });
 
       // Add to history
       const successCount = effectResults.filter((r) => r.success).length;
@@ -153,8 +205,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
       }
     } catch (error) {
       console.error('Effect application failed:', error);
-    } finally {
-      setIsProcessing(false);
+      dispatch({ type: 'FINISH_PROCESSING', payload: [] });
     }
   };
 
@@ -185,8 +236,8 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
 
           {/* Dropzone */}
           <ImageDropzone images={images} onImagesChange={(newImages) => {
-            setImages(newImages);
-            setPreviewIndex(0);
+            dispatch({ type: 'SET_IMAGES', payload: newImages });
+            dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
           }} />
 
           {/* Effect preview tiles */}
@@ -253,7 +304,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.03 }}
-                  onClick={() => setPreviewIndex(index)}
+                  onClick={() => dispatch({ type: 'SET_PREVIEW_INDEX', payload: index })}
                   className={cn(
                     'relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all group',
                     previewIndex === index
@@ -270,7 +321,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveImage(index);
+                      dispatch({ type: 'REMOVE_IMAGE', payload: index });
                     }}
                     className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                   >
@@ -285,9 +336,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
               {/* Add more button */}
               <ImageDropzone
                 images={images}
-                onImagesChange={(newImages) => {
-                  setImages(newImages);
-                }}
+                onImagesChange={(newImages) => dispatch({ type: 'SET_IMAGES', payload: newImages })}
                 compact
                 className="shrink-0 w-14 h-14"
               />
@@ -313,7 +362,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                     key={effect.type}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedEffect(effect.type)}
+                    onClick={() => dispatch({ type: 'SET_SELECTED_EFFECT', payload: effect.type })}
                     className={cn(
                       'relative p-3 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden',
                       selectedEffect === effect.type
@@ -365,7 +414,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                   min={0}
                   max={100}
                   step={1}
-                  onValueChange={(values) => setIntensity(values[0])}
+                  onValueChange={(values) => dispatch({ type: 'SET_INTENSITY', payload: values[0] })}
                   className="**:data-[slot=slider-track]:h-1.5 **:data-[slot=slider-range]:bg-violet-500 **:data-[slot=slider-thumb]:border-violet-500 **:data-[slot=slider-thumb]:size-4"
                 />
                 <div className="flex justify-between text-[10px] text-muted-foreground">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useReducer, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Eye, EyeOff, Columns2, Loader2 } from 'lucide-react';
 import { debounce } from 'lodash-es';
@@ -11,21 +11,66 @@ import {
   hasAdjustments,
 } from '@/lib/image-preview';
 
-interface ImagePreviewProps {
+type ImagePreviewProps = {
   src: string;
   options: PreviewOptions;
   className?: string;
-}
+};
 
 type ViewMode = 'adjusted' | 'original' | 'split';
 
+type PreviewState = {
+  viewMode: ViewMode;
+  isProcessing: boolean;
+  originalUrl: string;
+  adjustedUrl: string;
+  splitPosition: number;
+  isDragging: boolean;
+};
+
+type PreviewAction =
+  | { type: 'SET_VIEW_MODE'; payload: ViewMode }
+  | { type: 'SET_PROCESSING'; payload: boolean }
+  | { type: 'SET_ORIGINAL_URL'; payload: string }
+  | { type: 'SET_ADJUSTED_URL'; payload: string }
+  | { type: 'SET_URLS'; payload: { original: string; adjusted: string } }
+  | { type: 'SET_SPLIT_POSITION'; payload: number }
+  | { type: 'SET_DRAGGING'; payload: boolean };
+
+const initialState: PreviewState = {
+  viewMode: 'adjusted',
+  isProcessing: false,
+  originalUrl: '',
+  adjustedUrl: '',
+  splitPosition: 50,
+  isDragging: false,
+};
+
+const previewReducer = (state: PreviewState, action: PreviewAction): PreviewState => {
+  switch (action.type) {
+    case 'SET_VIEW_MODE':
+      return { ...state, viewMode: action.payload };
+    case 'SET_PROCESSING':
+      return { ...state, isProcessing: action.payload };
+    case 'SET_ORIGINAL_URL':
+      return { ...state, originalUrl: action.payload };
+    case 'SET_ADJUSTED_URL':
+      return { ...state, adjustedUrl: action.payload };
+    case 'SET_URLS':
+      return { ...state, originalUrl: action.payload.original, adjustedUrl: action.payload.adjusted };
+    case 'SET_SPLIT_POSITION':
+      return { ...state, splitPosition: action.payload };
+    case 'SET_DRAGGING':
+      return { ...state, isDragging: action.payload };
+    default:
+      return state;
+  }
+};
+
 const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('adjusted');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [originalUrl, setOriginalUrl] = useState<string>('');
-  const [adjustedUrl, setAdjustedUrl] = useState<string>('');
-  const [splitPosition, setSplitPosition] = useState(50);
-  const [isDragging, setIsDragging] = useState(false);
+  const [state, dispatch] = useReducer(previewReducer, initialState);
+  const { viewMode, isProcessing, originalUrl, adjustedUrl, splitPosition, isDragging } = state;
+
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -48,8 +93,8 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
           imageData.width,
           imageData.height
         );
-        setOriginalUrl(canvas.toDataURL('image/png'));
-        setAdjustedUrl(canvas.toDataURL('image/png'));
+        const url = canvas.toDataURL('image/png');
+        dispatch({ type: 'SET_URLS', payload: { original: url, adjusted: url } });
       } catch (error) {
         console.error('Failed to load image:', error);
       }
@@ -70,7 +115,7 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
         if (processingRef.current) return;
 
         processingRef.current = true;
-        setIsProcessing(true);
+        dispatch({ type: 'SET_PROCESSING', payload: true });
 
         requestAnimationFrame(() => {
           try {
@@ -83,11 +128,11 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
 
             const adjusted = applyAdjustments(freshData, opts);
             ctxRef.current!.putImageData(adjusted, 0, 0);
-            setAdjustedUrl(canvasRef.current!.toDataURL('image/png'));
+            dispatch({ type: 'SET_ADJUSTED_URL', payload: canvasRef.current!.toDataURL('image/png') });
           } catch (error) {
             console.error('Failed to apply adjustments:', error);
           } finally {
-            setIsProcessing(false);
+            dispatch({ type: 'SET_PROCESSING', payload: false });
             processingRef.current = false;
           }
         });
@@ -104,7 +149,7 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
   // Handle split view dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (viewMode !== 'split') return;
-    setIsDragging(true);
+    dispatch({ type: 'SET_DRAGGING', payload: true });
     e.preventDefault();
   }, [viewMode]);
 
@@ -113,15 +158,15 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = Math.max(10, Math.min(90, (x / rect.width) * 100));
-    setSplitPosition(percentage);
+    dispatch({ type: 'SET_SPLIT_POSITION', payload: percentage });
   }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
+    dispatch({ type: 'SET_DRAGGING', payload: false });
   }, []);
 
   const handleMouseLeave = useCallback(() => {
-    setIsDragging(false);
+    dispatch({ type: 'SET_DRAGGING', payload: false });
   }, []);
 
   const showAdjusted = hasAdjustments(options);
@@ -134,7 +179,7 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setViewMode('adjusted')}
+          onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'adjusted' })}
           className={cn(
             'h-7 px-2 text-xs',
             viewMode === 'adjusted' && 'bg-amber-500/20 text-amber-500'
@@ -146,7 +191,7 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setViewMode('original')}
+          onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'original' })}
           className={cn(
             'h-7 px-2 text-xs',
             viewMode === 'original' && 'bg-amber-500/20 text-amber-500'
@@ -158,7 +203,7 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setViewMode('split')}
+          onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'split' })}
           className={cn(
             'h-7 px-2 text-xs',
             viewMode === 'split' && 'bg-amber-500/20 text-amber-500'

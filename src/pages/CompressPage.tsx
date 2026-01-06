@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Minimize2, Check, Loader2, FolderOpen, Zap, TrendingDown, ExternalLink } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import type { ImageInfo, CompressionResult, OperationHistoryItem } from '@/types/image';
 
-interface CompressPageProps {
+type CompressPageProps = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
-}
+};
 
 type CompressionLevel = 'lossless' | 'balanced' | 'maximum';
 
@@ -29,15 +29,64 @@ const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+type CompressState = {
+  images: ImageInfo[];
+  compressionLevel: CompressionLevel;
+  customQuality: number;
+  useCustom: boolean;
+  outputDir: string | null;
+  isCompressing: boolean;
+  results: CompressionResult[];
+  showResults: boolean;
+};
+
+type CompressAction =
+  | { type: 'SET_IMAGES'; payload: ImageInfo[] }
+  | { type: 'SET_COMPRESSION_LEVEL'; payload: CompressionLevel }
+  | { type: 'SET_CUSTOM_QUALITY'; payload: number }
+  | { type: 'SET_USE_CUSTOM'; payload: boolean }
+  | { type: 'SET_OUTPUT_DIR'; payload: string | null }
+  | { type: 'START_COMPRESSING' }
+  | { type: 'FINISH_COMPRESSING'; payload: CompressionResult[] }
+  | { type: 'RESET_RESULTS' };
+
+const initialState: CompressState = {
+  images: [],
+  compressionLevel: 'balanced',
+  customQuality: 80,
+  useCustom: false,
+  outputDir: null,
+  isCompressing: false,
+  results: [],
+  showResults: false,
+};
+
+const compressReducer = (state: CompressState, action: CompressAction): CompressState => {
+  switch (action.type) {
+    case 'SET_IMAGES':
+      return { ...state, images: action.payload };
+    case 'SET_COMPRESSION_LEVEL':
+      return { ...state, compressionLevel: action.payload, useCustom: false };
+    case 'SET_CUSTOM_QUALITY':
+      return { ...state, customQuality: action.payload, useCustom: true };
+    case 'SET_USE_CUSTOM':
+      return { ...state, useCustom: action.payload };
+    case 'SET_OUTPUT_DIR':
+      return { ...state, outputDir: action.payload };
+    case 'START_COMPRESSING':
+      return { ...state, isCompressing: true, showResults: false };
+    case 'FINISH_COMPRESSING':
+      return { ...state, isCompressing: false, results: action.payload, showResults: true };
+    case 'RESET_RESULTS':
+      return { ...state, results: [], showResults: false };
+    default:
+      return state;
+  }
+};
+
 const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
-  const [images, setImages] = useState<ImageInfo[]>([]);
-  const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>('balanced');
-  const [customQuality, setCustomQuality] = useState(80);
-  const [useCustom, setUseCustom] = useState(false);
-  const [outputDir, setOutputDir] = useState<string | null>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
-  const [results, setResults] = useState<CompressionResult[]>([]);
-  const [showResults, setShowResults] = useState(false);
+  const [state, dispatch] = useReducer(compressReducer, initialState);
+  const { images, compressionLevel, customQuality, useCustom, outputDir, isCompressing, results, showResults } = state;
 
   const handleSelectOutputDir = async () => {
     const selected = await open({
@@ -45,15 +94,14 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
       multiple: false,
     });
     if (selected) {
-      setOutputDir(selected as string);
+      dispatch({ type: 'SET_OUTPUT_DIR', payload: selected as string });
     }
   };
 
   const handleCompress = async () => {
     if (images.length === 0) return;
 
-    setIsCompressing(true);
-    setShowResults(false);
+    dispatch({ type: 'START_COMPRESSING' });
 
     try {
       const paths = images.map((img) => img.path);
@@ -70,8 +118,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
         },
       });
 
-      setResults(compressionResults);
-      setShowResults(true);
+      dispatch({ type: 'FINISH_COMPRESSING', payload: compressionResults });
 
       // Add to history
       const successCount = compressionResults.filter((r) => r.success).length;
@@ -100,8 +147,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
       }
     } catch (error) {
       console.error('Compression failed:', error);
-    } finally {
-      setIsCompressing(false);
+      dispatch({ type: 'FINISH_COMPRESSING', payload: [] });
     }
   };
 
@@ -134,7 +180,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
         </motion.div>
 
         {/* Dropzone */}
-        <ImageDropzone images={images} onImagesChange={setImages} />
+        <ImageDropzone images={images} onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })} />
 
         {/* Options */}
         <AnimatePresence>
@@ -156,10 +202,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                       key={level}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setCompressionLevel(level);
-                        setUseCustom(false);
-                      }}
+                      onClick={() => dispatch({ type: 'SET_COMPRESSION_LEVEL', payload: level })}
                       className={cn(
                         'relative p-4 rounded-xl border-2 transition-all duration-200 text-left',
                         !useCustom && compressionLevel === level
@@ -198,7 +241,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setUseCustom(!useCustom)}
+                      onClick={() => dispatch({ type: 'SET_USE_CUSTOM', payload: !useCustom })}
                       className={cn(
                         'text-xs',
                         useCustom ? 'text-emerald-500' : 'text-muted-foreground'
@@ -217,10 +260,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                       min={10}
                       max={100}
                       value={customQuality}
-                      onChange={(e) => {
-                        setCustomQuality(Number(e.target.value));
-                        setUseCustom(true);
-                      }}
+                      onChange={(e) => dispatch({ type: 'SET_CUSTOM_QUALITY', payload: Number(e.target.value) })}
                       className="w-full accent-emerald-500"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">

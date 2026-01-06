@@ -46,11 +46,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { OperationHistoryItem, OperationType } from '@/types/image';
 
-interface HistoryPageProps {
+type HistoryPageProps = {
   history: OperationHistoryItem[];
   onRemoveHistory: (id: string) => void;
   onClearHistory: () => void;
-}
+};
 
 const operationIcons: Record<OperationType, typeof ArrowRightLeft> = {
   convert: ArrowRightLeft,

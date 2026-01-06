@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRightLeft, Check, Loader2, FolderOpen, Sparkles, ExternalLink } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -10,9 +10,9 @@ import { ImageDropzone } from '@/components/ImageDropzone';
 import type { ImageInfo, ConversionResult, ImageFormat, OperationHistoryItem } from '@/types/image';
 import { formatLabels, formatDescriptions } from '@/types/image';
 
-interface ConvertPageProps {
+type ConvertPageProps = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
-}
+};
 
 const outputFormats: ImageFormat[] = ['png', 'jpg', 'webp', 'gif', 'bmp', 'tiff'];
 
@@ -24,14 +24,56 @@ const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+type ConvertState = {
+  images: ImageInfo[];
+  targetFormat: ImageFormat;
+  quality: number;
+  outputDir: string | null;
+  isConverting: boolean;
+  results: ConversionResult[];
+  showResults: boolean;
+};
+
+type ConvertAction =
+  | { type: 'SET_IMAGES'; payload: ImageInfo[] }
+  | { type: 'SET_TARGET_FORMAT'; payload: ImageFormat }
+  | { type: 'SET_QUALITY'; payload: number }
+  | { type: 'SET_OUTPUT_DIR'; payload: string | null }
+  | { type: 'START_CONVERTING' }
+  | { type: 'FINISH_CONVERTING'; payload: ConversionResult[] };
+
+const initialState: ConvertState = {
+  images: [],
+  targetFormat: 'webp',
+  quality: 85,
+  outputDir: null,
+  isConverting: false,
+  results: [],
+  showResults: false,
+};
+
+const convertReducer = (state: ConvertState, action: ConvertAction): ConvertState => {
+  switch (action.type) {
+    case 'SET_IMAGES':
+      return { ...state, images: action.payload };
+    case 'SET_TARGET_FORMAT':
+      return { ...state, targetFormat: action.payload };
+    case 'SET_QUALITY':
+      return { ...state, quality: action.payload };
+    case 'SET_OUTPUT_DIR':
+      return { ...state, outputDir: action.payload };
+    case 'START_CONVERTING':
+      return { ...state, isConverting: true, showResults: false };
+    case 'FINISH_CONVERTING':
+      return { ...state, isConverting: false, results: action.payload, showResults: true };
+    default:
+      return state;
+  }
+};
+
 const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
-  const [images, setImages] = useState<ImageInfo[]>([]);
-  const [targetFormat, setTargetFormat] = useState<ImageFormat>('webp');
-  const [quality, setQuality] = useState(85);
-  const [outputDir, setOutputDir] = useState<string | null>(null);
-  const [isConverting, setIsConverting] = useState(false);
-  const [results, setResults] = useState<ConversionResult[]>([]);
-  const [showResults, setShowResults] = useState(false);
+  const [state, dispatch] = useReducer(convertReducer, initialState);
+  const { images, targetFormat, quality, outputDir, isConverting, results, showResults } = state;
 
   const handleSelectOutputDir = async () => {
     const selected = await open({
@@ -39,15 +81,14 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
       multiple: false,
     });
     if (selected) {
-      setOutputDir(selected as string);
+      dispatch({ type: 'SET_OUTPUT_DIR', payload: selected as string });
     }
   };
 
   const handleConvert = async () => {
     if (images.length === 0) return;
 
-    setIsConverting(true);
-    setShowResults(false);
+    dispatch({ type: 'START_CONVERTING' });
 
     try {
       const paths = images.map((img) => img.path);
@@ -60,8 +101,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
         },
       });
 
-      setResults(conversionResults);
-      setShowResults(true);
+      dispatch({ type: 'FINISH_CONVERTING', payload: conversionResults });
 
       // Add to history
       const successCount = conversionResults.filter((r) => r.success).length;
@@ -88,8 +128,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
       }
     } catch (error) {
       console.error('Conversion failed:', error);
-    } finally {
-      setIsConverting(false);
+      dispatch({ type: 'FINISH_CONVERTING', payload: [] });
     }
   };
 
@@ -117,7 +156,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
         </motion.div>
 
         {/* Dropzone */}
-        <ImageDropzone images={images} onImagesChange={setImages} />
+        <ImageDropzone images={images} onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })} />
 
         {/* Options */}
         <AnimatePresence>
@@ -139,7 +178,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                       key={format}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setTargetFormat(format)}
+                      onClick={() => dispatch({ type: 'SET_TARGET_FORMAT', payload: format })}
                       className={cn(
                         'relative p-3 rounded-xl border-2 transition-all duration-200',
                         targetFormat === format
@@ -189,7 +228,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                     min={10}
                     max={100}
                     value={quality}
-                    onChange={(e) => setQuality(Number(e.target.value))}
+                    onChange={(e) => dispatch({ type: 'SET_QUALITY', payload: Number(e.target.value) })}
                     className="w-full accent-primary"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useReducer, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
@@ -27,11 +27,11 @@ import { ImageDropzone } from '@/components/ImageDropzone';
 import { ImagePreview, type PreviewOptions } from '@/components/ImagePreview';
 import type { ImageInfo, BeautifyOptions, BeautifyResult, WhiteBalancePreset, OperationHistoryItem } from '@/types/image';
 
-interface BeautifyPageProps {
+type BeautifyPageProps = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
-}
+};
 
-interface AdjustmentSliderProps {
+type AdjustmentSliderProps = {
   label: string;
   value: number;
   min: number;
@@ -39,7 +39,7 @@ interface AdjustmentSliderProps {
   onChange: (value: number) => void;
   icon: React.ReactNode;
   unit?: string;
-}
+};
 
 const AdjustmentSlider = ({ label, value, min, max, onChange, icon, unit = '' }: AdjustmentSliderProps) => (
   <div className="space-y-2">
@@ -74,7 +74,18 @@ const whiteBalancePresets: { value: WhiteBalancePreset; label: string; icon: str
   { value: 'fluorescent', label: 'Fluo', icon: '🔦' },
 ];
 
-const defaultAdjustments = {
+type Adjustments = {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  sharpness: number;
+  exposure: number;
+  hue_shift: number;
+  temperature: number;
+  white_balance: WhiteBalancePreset;
+};
+
+const defaultAdjustments: Adjustments = {
   brightness: 0,
   contrast: 0,
   saturation: 0,
@@ -82,7 +93,7 @@ const defaultAdjustments = {
   exposure: 0,
   hue_shift: 0,
   temperature: 0,
-  white_balance: 'daylight' as WhiteBalancePreset,
+  white_balance: 'daylight',
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -93,16 +104,77 @@ const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+type BeautifyState = {
+  images: ImageInfo[];
+  adjustments: Adjustments;
+  outputDir: string | null;
+  isBeautifying: boolean;
+  results: BeautifyResult[];
+  showResults: boolean;
+  previewIndex: number;
+  previewSrc: string;
+  isLoadingPreview: boolean;
+};
+
+type BeautifyAction =
+  | { type: 'SET_IMAGES'; payload: ImageInfo[] }
+  | { type: 'SET_ADJUSTMENT'; payload: Partial<Adjustments> }
+  | { type: 'RESET_ADJUSTMENTS' }
+  | { type: 'SET_OUTPUT_DIR'; payload: string | null }
+  | { type: 'START_BEAUTIFYING' }
+  | { type: 'FINISH_BEAUTIFYING'; payload: BeautifyResult[] }
+  | { type: 'SET_PREVIEW_INDEX'; payload: number }
+  | { type: 'SET_PREVIEW_SRC'; payload: string }
+  | { type: 'SET_LOADING_PREVIEW'; payload: boolean }
+  | { type: 'REMOVE_IMAGE'; payload: number };
+
+const initialState: BeautifyState = {
+  images: [],
+  adjustments: defaultAdjustments,
+  outputDir: null,
+  isBeautifying: false,
+  results: [],
+  showResults: false,
+  previewIndex: 0,
+  previewSrc: '',
+  isLoadingPreview: false,
+};
+
+const beautifyReducer = (state: BeautifyState, action: BeautifyAction): BeautifyState => {
+  switch (action.type) {
+    case 'SET_IMAGES':
+      return { ...state, images: action.payload };
+    case 'SET_ADJUSTMENT':
+      return { ...state, adjustments: { ...state.adjustments, ...action.payload } };
+    case 'RESET_ADJUSTMENTS':
+      return { ...state, adjustments: defaultAdjustments };
+    case 'SET_OUTPUT_DIR':
+      return { ...state, outputDir: action.payload };
+    case 'START_BEAUTIFYING':
+      return { ...state, isBeautifying: true, showResults: false };
+    case 'FINISH_BEAUTIFYING':
+      return { ...state, isBeautifying: false, results: action.payload, showResults: true };
+    case 'SET_PREVIEW_INDEX':
+      return { ...state, previewIndex: action.payload };
+    case 'SET_PREVIEW_SRC':
+      return { ...state, previewSrc: action.payload };
+    case 'SET_LOADING_PREVIEW':
+      return { ...state, isLoadingPreview: action.payload };
+    case 'REMOVE_IMAGE': {
+      const newImages = state.images.filter((_, i) => i !== action.payload);
+      const newPreviewIndex = state.previewIndex >= newImages.length
+        ? Math.max(0, newImages.length - 1)
+        : state.previewIndex;
+      return { ...state, images: newImages, previewIndex: newPreviewIndex };
+    }
+    default:
+      return state;
+  }
+};
+
 const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
-  const [images, setImages] = useState<ImageInfo[]>([]);
-  const [adjustments, setAdjustments] = useState(defaultAdjustments);
-  const [outputDir, setOutputDir] = useState<string | null>(null);
-  const [isBeautifying, setIsBeautifying] = useState(false);
-  const [results, setResults] = useState<BeautifyResult[]>([]);
-  const [showResults, setShowResults] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState(0);
-  const [previewSrc, setPreviewSrc] = useState<string>('');
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [state, dispatch] = useReducer(beautifyReducer, initialState);
+  const { images, adjustments, outputDir, isBeautifying, results, showResults, previewIndex, previewSrc, isLoadingPreview } = state;
 
   // Convert adjustments to preview options format
   const previewOptions = useMemo<PreviewOptions>(() => ({
@@ -122,12 +194,12 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
   // Fetch full image for preview when selection changes
   useEffect(() => {
     if (!previewImage) {
-      setPreviewSrc('');
+      dispatch({ type: 'SET_PREVIEW_SRC', payload: '' });
       return;
     }
 
     let cancelled = false;
-    setIsLoadingPreview(true);
+    dispatch({ type: 'SET_LOADING_PREVIEW', payload: true });
 
     // Fetch preview image (capped at 800px for good balance of quality and performance)
     invoke<string>('get_image_preview', {
@@ -136,19 +208,19 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     })
       .then((src) => {
         if (!cancelled) {
-          setPreviewSrc(src);
+          dispatch({ type: 'SET_PREVIEW_SRC', payload: src });
         }
       })
       .catch((error) => {
         console.error('Failed to load preview:', error);
         // Fall back to thumbnail
         if (!cancelled) {
-          setPreviewSrc(previewImage.thumbnail);
+          dispatch({ type: 'SET_PREVIEW_SRC', payload: previewImage.thumbnail });
         }
       })
       .finally(() => {
         if (!cancelled) {
-          setIsLoadingPreview(false);
+          dispatch({ type: 'SET_LOADING_PREVIEW', payload: false });
         }
       });
 
@@ -163,19 +235,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
       multiple: false,
     });
     if (selected) {
-      setOutputDir(selected as string);
-    }
-  };
-
-  const handleReset = () => {
-    setAdjustments(defaultAdjustments);
-  };
-
-  const handleRemoveImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages);
-    if (previewIndex >= newImages.length) {
-      setPreviewIndex(Math.max(0, newImages.length - 1));
+      dispatch({ type: 'SET_OUTPUT_DIR', payload: selected as string });
     }
   };
 
@@ -187,8 +247,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
   const handleBeautify = async () => {
     if (images.length === 0) return;
 
-    setIsBeautifying(true);
-    setShowResults(false);
+    dispatch({ type: 'START_BEAUTIFYING' });
 
     try {
       const paths = images.map((img) => img.path);
@@ -202,8 +261,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
         options,
       });
 
-      setResults(beautifyResults);
-      setShowResults(true);
+      dispatch({ type: 'FINISH_BEAUTIFYING', payload: beautifyResults });
 
       // Add to history
       const successCount = beautifyResults.filter((r) => r.success).length;
@@ -235,8 +293,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
       }
     } catch (error) {
       console.error('Beautification failed:', error);
-    } finally {
-      setIsBeautifying(false);
+      dispatch({ type: 'FINISH_BEAUTIFYING', payload: [] });
     }
   };
 
@@ -266,8 +323,8 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
 
           {/* Dropzone */}
           <ImageDropzone images={images} onImagesChange={(newImages) => {
-            setImages(newImages);
-            setPreviewIndex(0);
+            dispatch({ type: 'SET_IMAGES', payload: newImages });
+            dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
           }} />
         </div>
       </div>
@@ -307,7 +364,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.03 }}
-                  onClick={() => setPreviewIndex(index)}
+                  onClick={() => dispatch({ type: 'SET_PREVIEW_INDEX', payload: index })}
                   className={cn(
                     'relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all group',
                     previewIndex === index
@@ -324,7 +381,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveImage(index);
+                      dispatch({ type: 'REMOVE_IMAGE', payload: index });
                     }}
                     className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                   >
@@ -339,9 +396,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
               {/* Add more button */}
               <ImageDropzone
                 images={images}
-                onImagesChange={(newImages) => {
-                  setImages(newImages);
-                }}
+                onImagesChange={(newImages) => dispatch({ type: 'SET_IMAGES', payload: newImages })}
                 compact
                 className="shrink-0 w-14 h-14"
               />
@@ -366,7 +421,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleReset}
+                    onClick={() => dispatch({ type: 'RESET_ADJUSTMENTS' })}
                     className="h-6 px-2 text-[10px] text-muted-foreground hover:text-amber-500"
                   >
                     <RotateCcw className="w-3 h-3 mr-1" />
@@ -380,7 +435,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   value={adjustments.brightness}
                   min={-100}
                   max={100}
-                  onChange={(v) => setAdjustments((prev) => ({ ...prev, brightness: v }))}
+                  onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { brightness: v } })}
                   icon={<Sun className="w-3.5 h-3.5 text-amber-500" />}
                 />
                 <AdjustmentSlider
@@ -388,7 +443,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   value={adjustments.contrast}
                   min={-100}
                   max={100}
-                  onChange={(v) => setAdjustments((prev) => ({ ...prev, contrast: v }))}
+                  onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { contrast: v } })}
                   icon={<Contrast className="w-3.5 h-3.5 text-amber-500" />}
                 />
                 <AdjustmentSlider
@@ -396,7 +451,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   value={adjustments.saturation}
                   min={-100}
                   max={100}
-                  onChange={(v) => setAdjustments((prev) => ({ ...prev, saturation: v }))}
+                  onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { saturation: v } })}
                   icon={<Droplets className="w-3.5 h-3.5 text-amber-500" />}
                 />
                 <AdjustmentSlider
@@ -404,7 +459,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   value={adjustments.sharpness}
                   min={-100}
                   max={100}
-                  onChange={(v) => setAdjustments((prev) => ({ ...prev, sharpness: v }))}
+                  onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { sharpness: v } })}
                   icon={<Focus className="w-3.5 h-3.5 text-amber-500" />}
                 />
                 <AdjustmentSlider
@@ -412,7 +467,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   value={adjustments.exposure}
                   min={-100}
                   max={100}
-                  onChange={(v) => setAdjustments((prev) => ({ ...prev, exposure: v }))}
+                  onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { exposure: v } })}
                   icon={<Aperture className="w-3.5 h-3.5 text-amber-500" />}
                 />
               </div>
@@ -436,7 +491,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                         key={preset.value}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => setAdjustments((prev) => ({ ...prev, white_balance: preset.value }))}
+                        onClick={() => dispatch({ type: 'SET_ADJUSTMENT', payload: { white_balance: preset.value } })}
                         className={cn(
                           'p-1.5 rounded-md border transition-all duration-200 text-center',
                           adjustments.white_balance === preset.value
@@ -461,7 +516,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   value={adjustments.hue_shift}
                   min={-180}
                   max={180}
-                  onChange={(v) => setAdjustments((prev) => ({ ...prev, hue_shift: v }))}
+                  onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { hue_shift: v } })}
                   icon={<Palette className="w-3.5 h-3.5 text-amber-500" />}
                   unit="°"
                 />
@@ -470,7 +525,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   value={adjustments.temperature}
                   min={-100}
                   max={100}
-                  onChange={(v) => setAdjustments((prev) => ({ ...prev, temperature: v }))}
+                  onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { temperature: v } })}
                   icon={<Thermometer className="w-3.5 h-3.5 text-amber-500" />}
                 />
                 <div className="flex justify-between text-[10px] text-muted-foreground -mt-1 px-1">
