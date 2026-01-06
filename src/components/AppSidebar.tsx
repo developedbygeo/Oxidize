@@ -15,10 +15,10 @@ import { cn } from '@/lib/utils';
 
 type Page = 'convert' | 'compress' | 'beautify' | 'effects' | 'history';
 
-interface AppSidebarProps {
+type AppSidebarProps = {
   currentPage: Page;
   onNavigate: (page: Page) => void;
-}
+};
 
 const navItems = [
   {

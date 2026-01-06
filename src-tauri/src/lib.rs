@@ -111,84 +111,93 @@ fn compress_png_oxipng(input_data: &[u8], quality: u8) -> Result<Vec<u8>, String
     Ok(result)
 }
 
-/// Lossy PNG compression using color quantization
+/// Lossy PNG compression using color quantization with exoquant
 fn compress_png_lossy(input_data: &[u8], quality: u8) -> Result<Vec<u8>, String> {
-    use imagequant::{Attributes, RGBA};
-    use lodepng::RGBA as LodepngRGBA;
+    use exoquant::{Color, Quantizer, SimpleColorSpace, Remapper, Histogram, ditherer, optimizer};
+    use exoquant::optimizer::Optimizer;
 
-    // Decode PNG
-    let decoded = lodepng::decode32(input_data)
+    // Decode PNG using the image crate
+    let img = image::load_from_memory(input_data)
         .map_err(|e| format!("Failed to decode PNG: {}", e))?;
 
-    let width = decoded.width;
-    let height = decoded.height;
+    let rgba = img.to_rgba8();
+    let (width, height) = (rgba.width() as usize, rgba.height() as usize);
 
-    // Convert to imagequant format
-    let pixels: Vec<RGBA> = decoded
-        .buffer
-        .iter()
-        .map(|p| RGBA::new(p.r, p.g, p.b, p.a))
+    // Convert to exoquant Color format
+    let pixels: Vec<Color> = rgba
+        .pixels()
+        .map(|p| Color::new(p[0], p[1], p[2], p[3]))
         .collect();
 
-    // Set up quantization
-    let mut attr = Attributes::new();
-    // Map quality (10-100) to imagequant quality (0-100)
-    let iq_quality = quality.max(10).min(100);
-    attr.set_quality(0, iq_quality)
-        .map_err(|e| format!("Failed to set quality: {:?}", e))?;
+    // Map quality to number of colors (lower quality = fewer colors)
+    // quality 100 = 256 colors, quality 10 = ~16 colors
+    let num_colors = if quality >= 90 {
+        256
+    } else if quality >= 70 {
+        192
+    } else if quality >= 50 {
+        128
+    } else if quality >= 30 {
+        64
+    } else {
+        32
+    };
 
-    let mut img = attr
-        .new_image(pixels, width, height, 0.0)
-        .map_err(|e| format!("Failed to create image: {:?}", e))?;
+    // Create histogram from pixels
+    let histogram: Histogram = pixels.iter().cloned().collect();
 
-    let mut quantized = attr
-        .quantize(&mut img)
-        .map_err(|e| format!("Quantization failed: {:?}", e))?;
+    // Quantize the image
+    let colorspace = SimpleColorSpace::default();
+    let mut quantizer = Quantizer::new(&histogram, &colorspace);
 
-    quantized.set_dithering_level(1.0)
-        .map_err(|e| format!("Failed to set dithering: {:?}", e))?;
-
-    let (palette, pixels) = quantized
-        .remapped(&mut img)
-        .map_err(|e| format!("Remapping failed: {:?}", e))?;
-
-    // Encode back to PNG using lodepng
-    let mut encoder = lodepng::Encoder::new();
-    for color in &palette {
-        encoder
-            .info_png_mut()
-            .color
-            .palette_add(LodepngRGBA {
-                r: color.r,
-                g: color.g,
-                b: color.b,
-                a: color.a,
-            })
-            .map_err(|e| format!("Failed to add palette: {:?}", e))?;
-    }
-    encoder.info_png_mut().color.set_colortype(lodepng::ColorType::PALETTE);
-    encoder.info_png_mut().color.set_bitdepth(8);
-    encoder.info_raw_mut().set_colortype(lodepng::ColorType::PALETTE);
-    encoder.info_raw_mut().set_bitdepth(8);
-
-    // Copy palette to raw info
-    for color in &palette {
-        encoder
-            .info_raw_mut()
-            .palette_add(LodepngRGBA {
-                r: color.r,
-                g: color.g,
-                b: color.b,
-                a: color.a,
-            })
-            .map_err(|e| format!("Failed to add raw palette: {:?}", e))?;
+    // Build palette up to num_colors
+    while quantizer.num_colors() < num_colors {
+        quantizer.step();
     }
 
-    let result = encoder
-        .encode(&pixels, width, height)
-        .map_err(|e| format!("PNG encoding failed: {:?}", e))?;
+    // Get and optimize palette
+    let palette = quantizer.colors(&colorspace);
+    let optimizer = optimizer::KMeans;
+    let palette = optimizer.optimize_palette(&colorspace, &palette, &histogram, 4);
 
-    Ok(result)
+    // Remap pixels to palette with dithering
+    let ditherer = ditherer::FloydSteinberg::new();
+    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+    let indexed_pixels: Vec<u8> = remapper.remap(&pixels, width);
+
+    // Create indexed PNG
+    let mut output = Vec::new();
+    {
+        use std::io::Cursor;
+
+        let mut cursor = Cursor::new(&mut output);
+
+        // Create PNG encoder for indexed image
+        let mut encoder = png::Encoder::new(&mut cursor, width as u32, height as u32);
+        encoder.set_color(png::ColorType::Indexed);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder.set_compression(png::Compression::Best);
+
+        // Create palette for PNG (RGB only)
+        let png_palette: Vec<u8> = palette.iter()
+            .flat_map(|c| [c.r, c.g, c.b])
+            .collect();
+        encoder.set_palette(png_palette);
+
+        // Set transparency (tRNS) if any alpha < 255
+        let trns: Vec<u8> = palette.iter().map(|c| c.a).collect();
+        if trns.iter().any(|&a| a < 255) {
+            encoder.set_trns(trns);
+        }
+
+        let mut writer = encoder.write_header()
+            .map_err(|e| format!("Failed to write PNG header: {}", e))?;
+
+        writer.write_image_data(&indexed_pixels)
+            .map_err(|e| format!("Failed to write PNG data: {}", e))?;
+    }
+
+    Ok(output)
 }
 
 /// Compress JPEG using mozjpeg for better compression

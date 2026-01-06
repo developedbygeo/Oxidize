@@ -5,10 +5,10 @@ const HISTORY_FILE = 'oxidize/history.json';
 const HISTORY_DIR = 'oxidize';
 const MAX_HISTORY_ITEMS = 100;
 
-interface HistoryData {
+type HistoryData = {
   version: number;
   items: OperationHistoryItem[];
-}
+};
 
 async function ensureDir(): Promise<void> {
   const dirExists = await exists(HISTORY_DIR, { baseDir: BaseDirectory.AppData });

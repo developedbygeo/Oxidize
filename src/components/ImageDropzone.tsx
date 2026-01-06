@@ -7,13 +7,13 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { ImageInfo } from '@/types/image';
 
-interface ImageDropzoneProps {
+type ImageDropzoneProps = {
   images: ImageInfo[];
   onImagesChange: (images: ImageInfo[]) => void;
   maxImages?: number;
   compact?: boolean;
   className?: string;
-}
+};
 
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
