@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowRightLeft, Minimize2, Sparkles, Wand2, Hexagon } from 'lucide-react';
+import { ArrowRightLeft, Minimize2, Sparkles, Wand2, Hexagon, History } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
-type Page = 'convert' | 'compress' | 'beautify' | 'effects';
+type Page = 'convert' | 'compress' | 'beautify' | 'effects' | 'history';
 
 interface AppSidebarProps {
   currentPage: Page;
@@ -44,6 +44,12 @@ const navItems = [
     label: 'Effects',
     description: 'Apply filters',
     icon: Wand2,
+  },
+  {
+    id: 'history' as const,
+    label: 'History',
+    description: 'View past operations',
+    icon: History,
   },
 ];
 

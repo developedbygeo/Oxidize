@@ -6,8 +6,12 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ImageDropzone } from '@/components/ImageDropzone';
-import type { ImageInfo, ConversionResult, ImageFormat } from '@/types/image';
+import type { ImageInfo, ConversionResult, ImageFormat, OperationHistoryItem } from '@/types/image';
 import { formatLabels, formatDescriptions } from '@/types/image';
+
+interface ConvertPageProps {
+  onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
+}
 
 const outputFormats: ImageFormat[] = ['png', 'jpg', 'webp', 'gif', 'bmp', 'tiff'];
 
@@ -19,7 +23,7 @@ const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
-const ConvertPage = () => {
+const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
   const [images, setImages] = useState<ImageInfo[]>([]);
   const [targetFormat, setTargetFormat] = useState<ImageFormat>('webp');
   const [quality, setQuality] = useState(85);
@@ -57,6 +61,30 @@ const ConvertPage = () => {
 
       setResults(conversionResults);
       setShowResults(true);
+
+      // Add to history
+      const successCount = conversionResults.filter((r) => r.success).length;
+      if (successCount > 0 && onOperationComplete) {
+        const firstSuccess = conversionResults.find((r) => r.success && r.output_path);
+        // Get directory from output path, preserving original separators
+        const getDir = (filePath: string) => {
+          const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+          return lastSep > 0 ? filePath.slice(0, lastSep) : filePath;
+        };
+        const dir = (firstSuccess?.output_path && getDir(firstSuccess.output_path)) ||
+          outputDir ||
+          (images[0]?.path && getDir(images[0].path)) ||
+          '';
+        const totalSaved = conversionResults.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
+
+        onOperationComplete({
+          type: 'convert',
+          fileCount: successCount,
+          outputDir: dir,
+          details: `Converted to ${formatLabels[targetFormat]}`,
+          totalSaved: totalSaved > 0 ? totalSaved : undefined,
+        });
+      }
     } catch (error) {
       console.error('Conversion failed:', error);
     } finally {

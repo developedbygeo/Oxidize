@@ -22,6 +22,20 @@ export interface ConversionOptions {
   output_dir: string | null;
 }
 
+export interface CompressionOptions {
+  quality: number;
+  output_dir: string | null;
+}
+
+export interface CompressionResult {
+  success: boolean;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+  savings_percent: number;
+}
+
 export type ImageFormat = 'png' | 'jpg' | 'jpeg' | 'webp' | 'gif' | 'bmp' | 'ico' | 'tiff';
 
 export const formatLabels: Record<ImageFormat, string> = {
@@ -45,3 +59,16 @@ export const formatDescriptions: Record<ImageFormat, string> = {
   ico: 'Icon format for Windows',
   tiff: 'High quality, large files',
 };
+
+export type OperationType = 'convert' | 'compress' | 'beautify' | 'effects';
+
+export interface OperationHistoryItem {
+  id: string;
+  type: OperationType;
+  timestamp: number;
+  fileCount: number;
+  outputDir: string;
+  details: string;
+  totalSaved?: number;
+  savingsPercent?: number;
+}
