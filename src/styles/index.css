@@ -4,6 +4,20 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: 'Ubuntu', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --text-xs: clamp(0.75rem, 0.7rem + 0.2vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.825rem + 0.2vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.95rem + 0.2vw, 1.0625rem);
+  --text-lg: clamp(1.125rem, 1.05rem + 0.3vw, 1.1875rem);
+  --text-xl: clamp(1.25rem, 1.15rem + 0.4vw, 1.375rem);
+  --text-2xl: clamp(1.5rem, 1.35rem + 0.6vw, 1.75rem);
+  --text-3xl: clamp(1.875rem, 1.65rem + 0.9vw, 2.25rem);
+  --text-4xl: clamp(2.25rem, 1.9rem + 1.4vw, 3rem);
+  --text-5xl: clamp(3rem, 2.4rem + 2.4vw, 4rem);
+  --text-6xl: clamp(3.75rem, 2.9rem + 3.4vw, 5rem);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -77,9 +91,6 @@
   --sidebar-accent-foreground: oklch(0.3179 0.053 292.2928);
   --sidebar-border: oklch(0.9415 0.0135 295.314);
   --sidebar-ring: oklch(0.5908 0.157 300.7915);
-  --font-sans: Ubuntu Sans, ui-sans-serif, sans-serif, system-ui;
-  --font-serif: Abhaya Libre, ui-serif, serif;
-  --font-mono: JetBrains Mono, monospace;
   --radius: 1.525rem;
   --shadow-x: 0px;
   --shadow-y: 4px;
@@ -137,9 +148,6 @@
   --sidebar-accent-foreground: oklch(0.9508 0.0148 294.4651);
   --sidebar-border: oklch(0.3433 0.0556 293.293);
   --sidebar-ring: oklch(0.7715 0.1305 301.8295);
-  --font-sans: Ubuntu Sans, ui-sans-serif, sans-serif, system-ui;
-  --font-serif: Abhaya Libre, ui-serif, serif;
-  --font-mono: JetBrains Mono, monospace;
   --radius: 1.525rem;
   --shadow-x: 0px;
   --shadow-y: 4px;
@@ -196,9 +204,6 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-  --font-serif: var(--font-serif);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -219,7 +224,42 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-size: var(--text-base);
+    line-height: 1.6;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  h1 { font-size: var(--text-4xl); }
+  h2 { font-size: var(--text-3xl); }
+  h3 { font-size: var(--text-2xl); }
+  h4 { font-size: var(--text-xl); }
+  h5 { font-size: var(--text-lg); }
+  h6 { font-size: var(--text-base); }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
   }
 }
+
+.text-xs { font-size: var(--text-xs) !important; }
+.text-sm { font-size: var(--text-sm) !important; }
+.text-base { font-size: var(--text-base) !important; }
+.text-lg { font-size: var(--text-lg) !important; }
+.text-xl { font-size: var(--text-xl) !important; }
+.text-2xl { font-size: var(--text-2xl) !important; }
+.text-3xl { font-size: var(--text-3xl) !important; }
+.text-4xl { font-size: var(--text-4xl) !important; }
+.text-5xl { font-size: var(--text-5xl) !important; }
+.text-6xl { font-size: var(--text-6xl) !important; }

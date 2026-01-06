@@ -36,6 +36,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
+    "tailwindcss-fluid-type": "^2.0.7",
     "zod": "^4.3.5"
   },
   "devDependencies": {

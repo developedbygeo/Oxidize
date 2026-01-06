@@ -82,7 +82,7 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="font-bold text-xl tracking-tight text-foreground">Oxidize</span>
-            <span className="text-[11px] text-muted-foreground font-medium -mt-0.5">Image Studio</span>
+            <span className="text-xs text-muted-foreground font-medium -mt-0.5">Image Studio</span>
           </div>
         </motion.div>
       </SidebarHeader>
@@ -148,7 +148,7 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
                           </span>
                           <span
                             className={cn(
-                              'text-[11px] leading-tight',
+                              'text-xs leading-tight',
                               isActive ? 'text-primary/70' : 'text-muted-foreground'
                             )}
                           >
@@ -173,7 +173,7 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
           className="group-data-[collapsible=icon]:hidden"
         >
           <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
-            <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+            <p className="text-xs text-muted-foreground text-center leading-relaxed">
               Powered by <span className="font-semibold text-foreground">Rust</span> &{' '}
               <span className="font-semibold text-foreground">React</span>
             </p>

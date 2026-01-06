@@ -88,7 +88,7 @@ const App = () => {
             <span className="text-sm font-semibold text-foreground">
               {pageTitles[currentPage]}
             </span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {pageSubtitles[currentPage]}
             </span>
           </motion.div>
