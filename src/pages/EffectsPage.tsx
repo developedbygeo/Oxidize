@@ -11,7 +11,8 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, resolveOutputDir } from '@/lib/utils';
+import { createProcessToast } from '@/lib/process-toast';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ImageDropzone } from '@/components/ImageDropzone';
@@ -105,16 +106,13 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   const [state, dispatch] = useReducer(effectsReducer, initialState);
   const { images, selectedEffect, intensity, outputDir, isProcessing, results, showResults, previewIndex, previewSrc, isLoadingPreview } = state;
 
-  // Convert to preview options format
   const previewOptions = useMemo<EffectPreviewOptions>(() => ({
     effect: selectedEffect,
     intensity,
   }), [selectedEffect, intensity]);
 
-  // Get current preview image
   const previewImage = images[previewIndex];
 
-  // Fetch full image for preview when selection changes
   useEffect(() => {
     if (!previewImage) {
       dispatch({ type: 'SET_PREVIEW_SRC', payload: '' });
@@ -124,7 +122,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     let cancelled = false;
     dispatch({ type: 'SET_LOADING_PREVIEW', payload: true });
 
-    // Fetch preview image (capped at 800px for good balance of quality and performance)
     invoke<string>('get_image_preview', {
       path: previewImage.path,
       maxDimension: 800
@@ -136,7 +133,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
       })
       .catch((error) => {
         console.error('Failed to load preview:', error);
-        // Fall back to thumbnail
         if (!cancelled) {
           dispatch({ type: 'SET_PREVIEW_SRC', payload: previewImage.thumbnail });
         }
@@ -165,7 +161,12 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   const handleApplyEffect = async () => {
     if (images.length === 0) return;
 
+    const effectInfo = effects.find(e => e.type === selectedEffect);
     dispatch({ type: 'START_PROCESSING' });
+    const processToast = createProcessToast({
+      action: effectInfo?.label || selectedEffect,
+      itemCount: images.length,
+    });
 
     try {
       const paths = images.map((img) => img.path);
@@ -182,20 +183,18 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
 
       dispatch({ type: 'FINISH_PROCESSING', payload: effectResults });
 
-      // Add to history
       const successCount = effectResults.filter((r) => r.success).length;
-      if (successCount > 0 && onOperationComplete) {
-        const firstSuccess = effectResults.find((r) => r.success && r.output_path);
-        const getDir = (filePath: string) => {
-          const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-          return lastSep > 0 ? filePath.slice(0, lastSep) : filePath;
-        };
-        const dir = (firstSuccess?.output_path && getDir(firstSuccess.output_path)) ||
-          outputDir ||
-          (images[0]?.path && getDir(images[0].path)) ||
-          '';
+      const failCount = effectResults.length - successCount;
 
-        const effectInfo = effects.find(e => e.type === selectedEffect);
+      processToast.finish({ successCount, failCount });
+
+      if (successCount > 0 && onOperationComplete) {
+        const dir = resolveOutputDir({
+          results: effectResults.filter((r) => r.success),
+          fallbackDir: outputDir,
+          fallbackPath: images[0]?.path,
+        });
+
         onOperationComplete({
           type: 'effects',
           fileCount: successCount,
@@ -205,6 +204,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
       }
     } catch (error) {
       console.error('Effect application failed:', error);
+      processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
       dispatch({ type: 'FINISH_PROCESSING', payload: [] });
     }
   };
@@ -212,12 +212,10 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   const successCount = results.filter((r) => r.success).length;
   const selectedEffectInfo = effects.find(e => e.type === selectedEffect);
 
-  // No images - show dropzone
   if (images.length === 0) {
     return (
       <div className="h-full overflow-auto">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -234,13 +232,11 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
             </div>
           </motion.div>
 
-          {/* Dropzone */}
           <ImageDropzone images={images} onImagesChange={(newImages) => {
             dispatch({ type: 'SET_IMAGES', payload: newImages });
             dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
           }} />
 
-          {/* Effect preview tiles */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -271,14 +267,10 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     );
   }
 
-  // Has images - show side-by-side editor layout
   return (
     <div className="h-full flex flex-col">
-      {/* Main content - side by side */}
       <div className="flex-1 flex min-h-0">
-        {/* Left side - Preview (takes up most space) */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border/50">
-          {/* Preview area */}
           <div className="flex-1 min-h-0 relative">
             {isLoadingPreview && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
@@ -295,7 +287,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
             )}
           </div>
 
-          {/* Thumbnail strip */}
           <div className="border-t border-border/50 p-3 bg-muted/30">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {images.map((img, index) => (
@@ -317,7 +308,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                     alt={img.name}
                     className="w-full h-full object-cover"
                   />
-                  {/* Remove button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -327,13 +317,11 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  {/* Selection indicator */}
                   {previewIndex === index && (
                     <div className="absolute inset-0 bg-violet-500/10" />
                   )}
                 </motion.button>
               ))}
-              {/* Add more button */}
               <ImageDropzone
                 images={images}
                 onImagesChange={(newImages) => dispatch({ type: 'SET_IMAGES', payload: newImages })}
@@ -348,10 +336,8 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
           </div>
         </div>
 
-        {/* Right side - Controls */}
         <div className="w-80 flex flex-col bg-background overflow-hidden shrink-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Effect Selection */}
             <div className="space-y-3">
               <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
                 Select Effect
@@ -370,7 +356,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                         : 'border-border/50 hover:border-violet-500/50 hover:bg-muted/50'
                     )}
                   >
-                    {/* Gradient background on hover/select */}
                     <div className={cn(
                       'absolute inset-0 bg-linear-to-br opacity-0 transition-opacity',
                       effect.gradient,
@@ -397,7 +382,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
               </div>
             </div>
 
-            {/* Intensity Slider */}
             <div className="space-y-3">
               <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
                 Intensity
@@ -424,7 +408,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
               </div>
             </div>
 
-            {/* Output Directory */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-foreground">
                 Output Location
@@ -441,7 +424,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
               </Button>
             </div>
 
-            {/* Results */}
             <AnimatePresence>
               {showResults && results.length > 0 && (
                 <motion.div
@@ -466,7 +448,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                     </div>
                   </div>
 
-                  {/* Individual Results */}
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {results.map((result, index) => (
                       <motion.button
@@ -520,7 +501,6 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
             </AnimatePresence>
           </div>
 
-          {/* Apply Effect Button - fixed at bottom */}
           <div className="p-4 border-t border-border/50 bg-background">
             <Button
               onClick={handleApplyEffect}

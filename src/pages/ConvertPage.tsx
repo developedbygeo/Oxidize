@@ -4,7 +4,8 @@ import { ArrowRightLeft, Check, Loader2, FolderOpen, Sparkles, ExternalLink } fr
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, resolveOutputDir } from '@/lib/utils';
+import { createProcessToast } from '@/lib/process-toast';
 import { Button } from '@/components/ui/button';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import type { ImageInfo, ConversionResult, ImageFormat, OperationHistoryItem } from '@/types/image';
@@ -89,6 +90,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
     if (images.length === 0) return;
 
     dispatch({ type: 'START_CONVERTING' });
+    const processToast = createProcessToast({ action: 'Conversion', itemCount: images.length });
 
     try {
       const paths = images.map((img) => img.path);
@@ -103,20 +105,22 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
 
       dispatch({ type: 'FINISH_CONVERTING', payload: conversionResults });
 
-      // Add to history
       const successCount = conversionResults.filter((r) => r.success).length;
+      const failCount = conversionResults.length - successCount;
+      const totalSaved = conversionResults.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
+
+      processToast.finish({
+        successCount,
+        failCount,
+        extraInfo: `converted to ${formatLabels[targetFormat]}`,
+      });
+
       if (successCount > 0 && onOperationComplete) {
-        const firstSuccess = conversionResults.find((r) => r.success && r.output_path);
-        // Get directory from output path, preserving original separators
-        const getDir = (filePath: string) => {
-          const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-          return lastSep > 0 ? filePath.slice(0, lastSep) : filePath;
-        };
-        const dir = (firstSuccess?.output_path && getDir(firstSuccess.output_path)) ||
-          outputDir ||
-          (images[0]?.path && getDir(images[0].path)) ||
-          '';
-        const totalSaved = conversionResults.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
+        const dir = resolveOutputDir({
+          results: conversionResults.filter((r) => r.success),
+          fallbackDir: outputDir,
+          fallbackPath: images[0]?.path,
+        });
 
         onOperationComplete({
           type: 'convert',
@@ -128,6 +132,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
       }
     } catch (error) {
       console.error('Conversion failed:', error);
+      processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
       dispatch({ type: 'FINISH_CONVERTING', payload: [] });
     }
   };
@@ -138,7 +143,6 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -155,10 +159,8 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
           </div>
         </motion.div>
 
-        {/* Dropzone */}
         <ImageDropzone images={images} onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })} />
 
-        {/* Options */}
         <AnimatePresence>
           {images.length > 0 && (
             <motion.div
@@ -167,7 +169,6 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Format Selection */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">
                   Output Format
@@ -209,7 +210,6 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                 </p>
               </div>
 
-              {/* Quality Slider (for lossy formats) */}
               {(targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'webp') && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -238,7 +238,6 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                 </motion.div>
               )}
 
-              {/* Output Directory */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">
                   Output Location
@@ -255,7 +254,6 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                 </Button>
               </div>
 
-              {/* Convert Button */}
               <Button
                 onClick={handleConvert}
                 disabled={isConverting || images.length === 0}
@@ -279,7 +277,6 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
           )}
         </AnimatePresence>
 
-        {/* Results */}
         <AnimatePresence>
           {showResults && results.length > 0 && (
             <motion.div
@@ -309,7 +306,6 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                 </div>
               </div>
 
-              {/* Individual Results */}
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {results.map((result, index) => (
                   <motion.button

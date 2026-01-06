@@ -4,7 +4,8 @@ import { Minimize2, Check, Loader2, FolderOpen, Zap, TrendingDown, ExternalLink 
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, resolveOutputDir } from '@/lib/utils';
+import { createProcessToast } from '@/lib/process-toast';
 import { Button } from '@/components/ui/button';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import type { ImageInfo, CompressionResult, OperationHistoryItem } from '@/types/image';
@@ -102,10 +103,10 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
     if (images.length === 0) return;
 
     dispatch({ type: 'START_COMPRESSING' });
+    const processToast = createProcessToast({ action: 'Compression', itemCount: images.length });
 
     try {
       const paths = images.map((img) => img.path);
-      // For lossless, always use 100. For lossy, use custom or preset quality
       const quality = compressionLevel === 'lossless'
         ? 100
         : (useCustom ? customQuality : compressionPresets[compressionLevel].quality);
@@ -120,33 +121,38 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
 
       dispatch({ type: 'FINISH_COMPRESSING', payload: compressionResults });
 
-      // Add to history
       const successCount = compressionResults.filter((r) => r.success).length;
+      const failCount = compressionResults.length - successCount;
+      const totalSavedBytes = compressionResults.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
+      const avgSavingsPercent = compressionResults.length > 0
+        ? compressionResults.reduce((acc, r) => acc + r.savings_percent, 0) / compressionResults.length
+        : 0;
+
+      processToast.finish({
+        successCount,
+        failCount,
+        extraInfo: avgSavingsPercent > 0 ? `${avgSavingsPercent.toFixed(1)}% saved` : undefined,
+      });
+
       if (successCount > 0 && onOperationComplete) {
-        const firstSuccess = compressionResults.find((r) => r.success && r.output_path);
-        // Get directory from output path, preserving original separators
-        const getDir = (filePath: string) => {
-          const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-          return lastSep > 0 ? filePath.slice(0, lastSep) : filePath;
-        };
-        const dir = (firstSuccess?.output_path && getDir(firstSuccess.output_path)) ||
-          outputDir ||
-          (images[0]?.path && getDir(images[0].path)) ||
-          '';
-        const totalSaved = compressionResults.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
-        const avgSavingsPercent = compressionResults.reduce((acc, r) => acc + r.savings_percent, 0) / compressionResults.length;
+        const dir = resolveOutputDir({
+          results: compressionResults.filter((r) => r.success),
+          fallbackDir: outputDir,
+          fallbackPath: images[0]?.path,
+        });
 
         onOperationComplete({
           type: 'compress',
           fileCount: successCount,
           outputDir: dir,
           details: compressionLevel === 'lossless' ? 'Lossless compression' : `Quality ${useCustom ? customQuality : compressionPresets[compressionLevel].quality}%`,
-          totalSaved: totalSaved > 0 ? totalSaved : undefined,
+          totalSaved: totalSavedBytes > 0 ? totalSavedBytes : undefined,
           savingsPercent: avgSavingsPercent > 0 ? avgSavingsPercent : undefined,
         });
       }
     } catch (error) {
       console.error('Compression failed:', error);
+      processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
       dispatch({ type: 'FINISH_COMPRESSING', payload: [] });
     }
   };
@@ -162,7 +168,6 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -179,10 +184,8 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
           </div>
         </motion.div>
 
-        {/* Dropzone */}
         <ImageDropzone images={images} onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })} />
 
-        {/* Options */}
         <AnimatePresence>
           {images.length > 0 && (
             <motion.div
@@ -191,7 +194,6 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Compression Level */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">
                   Compression Level
@@ -226,7 +228,6 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                 </div>
               </div>
 
-              {/* Custom Quality - only show for lossy modes */}
               {compressionLevel !== 'lossless' && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -271,7 +272,6 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                 </motion.div>
               )}
 
-              {/* Output Directory */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">
                   Output Location
@@ -288,7 +288,6 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                 </Button>
               </div>
 
-              {/* Compress Button */}
               <Button
                 onClick={handleCompress}
                 disabled={isCompressing || images.length === 0}
@@ -311,7 +310,6 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
           )}
         </AnimatePresence>
 
-        {/* Results */}
         <AnimatePresence>
           {showResults && results.length > 0 && (
             <motion.div
@@ -347,7 +345,6 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                 </div>
               </div>
 
-              {/* Individual Results */}
               <div className="space-y-2 max-h-50 overflow-y-auto">
                 {results.map((result, index) => (
                   <motion.button

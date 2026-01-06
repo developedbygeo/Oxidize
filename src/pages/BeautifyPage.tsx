@@ -20,7 +20,8 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, resolveOutputDir, formatAdjustmentDetails } from '@/lib/utils';
+import { createProcessToast } from '@/lib/process-toast';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ImageDropzone } from '@/components/ImageDropzone';
@@ -176,7 +177,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
   const [state, dispatch] = useReducer(beautifyReducer, initialState);
   const { images, adjustments, outputDir, isBeautifying, results, showResults, previewIndex, previewSrc, isLoadingPreview } = state;
 
-  // Convert adjustments to preview options format
   const previewOptions = useMemo<PreviewOptions>(() => ({
     brightness: adjustments.brightness,
     contrast: adjustments.contrast,
@@ -188,10 +188,8 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     whiteBalance: adjustments.white_balance,
   }), [adjustments]);
 
-  // Get current preview image
   const previewImage = images[previewIndex];
 
-  // Fetch full image for preview when selection changes
   useEffect(() => {
     if (!previewImage) {
       dispatch({ type: 'SET_PREVIEW_SRC', payload: '' });
@@ -201,7 +199,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     let cancelled = false;
     dispatch({ type: 'SET_LOADING_PREVIEW', payload: true });
 
-    // Fetch preview image (capped at 800px for good balance of quality and performance)
     invoke<string>('get_image_preview', {
       path: previewImage.path,
       maxDimension: 800
@@ -213,7 +210,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
       })
       .catch((error) => {
         console.error('Failed to load preview:', error);
-        // Fall back to thumbnail
         if (!cancelled) {
           dispatch({ type: 'SET_PREVIEW_SRC', payload: previewImage.thumbnail });
         }
@@ -248,6 +244,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     if (images.length === 0) return;
 
     dispatch({ type: 'START_BEAUTIFYING' });
+    const processToast = createProcessToast({ action: 'Beautification', itemCount: images.length });
 
     try {
       const paths = images.map((img) => img.path);
@@ -263,26 +260,24 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
 
       dispatch({ type: 'FINISH_BEAUTIFYING', payload: beautifyResults });
 
-      // Add to history
       const successCount = beautifyResults.filter((r) => r.success).length;
-      if (successCount > 0 && onOperationComplete) {
-        const firstSuccess = beautifyResults.find((r) => r.success && r.output_path);
-        const getDir = (filePath: string) => {
-          const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-          return lastSep > 0 ? filePath.slice(0, lastSep) : filePath;
-        };
-        const dir = (firstSuccess?.output_path && getDir(firstSuccess.output_path)) ||
-          outputDir ||
-          (images[0]?.path && getDir(images[0].path)) ||
-          '';
+      const failCount = beautifyResults.length - successCount;
 
-        // Build details string
-        const changes: string[] = [];
-        if (adjustments.brightness !== 0) changes.push(`Brightness ${adjustments.brightness > 0 ? '+' : ''}${adjustments.brightness}`);
-        if (adjustments.contrast !== 0) changes.push(`Contrast ${adjustments.contrast > 0 ? '+' : ''}${adjustments.contrast}`);
-        if (adjustments.saturation !== 0) changes.push(`Saturation ${adjustments.saturation > 0 ? '+' : ''}${adjustments.saturation}`);
-        if (adjustments.white_balance !== 'daylight') changes.push(`WB: ${adjustments.white_balance}`);
-        const details = changes.length > 0 ? changes.slice(0, 3).join(', ') : 'No adjustments';
+      processToast.finish({ successCount, failCount });
+
+      if (successCount > 0 && onOperationComplete) {
+        const dir = resolveOutputDir({
+          results: beautifyResults.filter((r) => r.success),
+          fallbackDir: outputDir,
+          fallbackPath: images[0]?.path,
+        });
+
+        const details = formatAdjustmentDetails([
+          { label: 'Brightness', value: adjustments.brightness },
+          { label: 'Contrast', value: adjustments.contrast },
+          { label: 'Saturation', value: adjustments.saturation },
+          { label: 'WB', value: adjustments.white_balance, defaultValue: 'daylight' },
+        ]);
 
         onOperationComplete({
           type: 'beautify',
@@ -293,18 +288,17 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
       }
     } catch (error) {
       console.error('Beautification failed:', error);
+      processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
       dispatch({ type: 'FINISH_BEAUTIFYING', payload: [] });
     }
   };
 
   const successCount = results.filter((r) => r.success).length;
 
-  // No images - show dropzone
   if (images.length === 0) {
     return (
       <div className="h-full overflow-auto">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -321,7 +315,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             </div>
           </motion.div>
 
-          {/* Dropzone */}
           <ImageDropzone images={images} onImagesChange={(newImages) => {
             dispatch({ type: 'SET_IMAGES', payload: newImages });
             dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
@@ -331,14 +324,10 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     );
   }
 
-  // Has images - show side-by-side editor layout
   return (
     <div className="h-full flex flex-col">
-      {/* Main content - side by side */}
       <div className="flex-1 flex min-h-0">
-        {/* Left side - Preview (takes up most space) */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border/50">
-          {/* Preview area */}
           <div className="flex-1 min-h-0 relative">
             {isLoadingPreview && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
@@ -355,7 +344,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             )}
           </div>
 
-          {/* Thumbnail strip */}
           <div className="border-t border-border/50 p-3 bg-muted/30">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {images.map((img, index) => (
@@ -377,7 +365,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                     alt={img.name}
                     className="w-full h-full object-cover"
                   />
-                  {/* Remove button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -387,13 +374,11 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  {/* Selection indicator */}
                   {previewIndex === index && (
                     <div className="absolute inset-0 bg-amber-500/10" />
                   )}
                 </motion.button>
               ))}
-              {/* Add more button */}
               <ImageDropzone
                 images={images}
                 onImagesChange={(newImages) => dispatch({ type: 'SET_IMAGES', payload: newImages })}
@@ -408,10 +393,8 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
           </div>
         </div>
 
-        {/* Right side - Controls */}
         <div className="w-80 flex flex-col bg-background overflow-hidden shrink-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Basic Adjustments */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
@@ -473,13 +456,11 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
               </div>
             </div>
 
-            {/* Color Correction */}
             <div className="space-y-3">
               <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
                 Color Correction
               </h2>
               <div className="space-y-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-                {/* White Balance Presets */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <CircleDot className="w-3.5 h-3.5 text-amber-500" />
@@ -535,7 +516,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
               </div>
             </div>
 
-            {/* Output Directory */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-foreground">
                 Output Location
@@ -552,7 +532,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
               </Button>
             </div>
 
-            {/* Results */}
             <AnimatePresence>
               {showResults && results.length > 0 && (
                 <motion.div
@@ -577,7 +556,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                     </div>
                   </div>
 
-                  {/* Individual Results */}
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {results.map((result, index) => (
                       <motion.button
@@ -631,7 +609,6 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             </AnimatePresence>
           </div>
 
-          {/* Beautify Button - fixed at bottom */}
           <div className="p-4 border-t border-border/50 bg-background">
             <Button
               onClick={handleBeautify}
