@@ -36,6 +36,29 @@ export interface CompressionResult {
   savings_percent: number;
 }
 
+export type WhiteBalancePreset = 'auto' | 'daylight' | 'cloudy' | 'tungsten' | 'fluorescent';
+
+export interface BeautifyOptions {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  sharpness: number;
+  exposure: number;
+  hue_shift: number;
+  temperature: number;
+  white_balance: WhiteBalancePreset;
+  output_dir: string | null;
+}
+
+export interface BeautifyResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
 export type ImageFormat = 'png' | 'jpg' | 'jpeg' | 'webp' | 'gif' | 'bmp' | 'ico' | 'tiff';
 
 export const formatLabels: Record<ImageFormat, string> = {

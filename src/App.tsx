@@ -105,7 +105,7 @@ const App = () => {
             >
               {currentPage === 'convert' && <ConvertPage onOperationComplete={addToHistory} />}
               {currentPage === 'compress' && <CompressPage onOperationComplete={addToHistory} />}
-              {currentPage === 'beautify' && <BeautifyPage />}
+              {currentPage === 'beautify' && <BeautifyPage onOperationComplete={addToHistory} />}
               {currentPage === 'effects' && <EffectsPage />}
               {currentPage === 'history' && (
                 <HistoryPage

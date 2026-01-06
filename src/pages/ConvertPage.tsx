@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRightLeft, Check, Loader2, FolderOpen, Sparkles } from 'lucide-react';
+import { ArrowRightLeft, Check, Loader2, FolderOpen, Sparkles, ExternalLink } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ImageDropzone } from '@/components/ImageDropzone';
@@ -272,14 +273,28 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
               {/* Individual Results */}
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {results.map((result, index) => (
-                  <motion.div
+                  <motion.button
                     key={index}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
+                    onClick={async () => {
+                      if (result.success && result.output_path) {
+                        try {
+                          await invoke('reveal_file', { path: result.output_path });
+                        } catch {
+                          toast.error('File not found', {
+                            description: 'The output file may have been moved or deleted.',
+                          });
+                        }
+                      }
+                    }}
+                    disabled={!result.success || !result.output_path}
                     className={cn(
-                      'flex items-center justify-between p-3 rounded-xl',
-                      result.success ? 'bg-muted/50' : 'bg-destructive/10'
+                      'w-full flex items-center justify-between p-3 rounded-xl transition-colors',
+                      result.success
+                        ? 'bg-muted/50 hover:bg-muted cursor-pointer'
+                        : 'bg-destructive/10 cursor-default'
                     )}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -294,11 +309,14 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                       </span>
                     </div>
                     {result.success && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-                        {formatFileSize(result.original_size)} → {formatFileSize(result.new_size)}
-                      </span>
+                      <div className="flex items-center gap-2 ml-2">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatFileSize(result.original_size)} → {formatFileSize(result.new_size)}
+                        </span>
+                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                      </div>
                     )}
-                  </motion.div>
+                  </motion.button>
                 ))}
               </div>
             </motion.div>

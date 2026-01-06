@@ -11,6 +11,8 @@ interface ImageDropzoneProps {
   images: ImageInfo[];
   onImagesChange: (images: ImageInfo[]) => void;
   maxImages?: number;
+  compact?: boolean;
+  className?: string;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -25,6 +27,8 @@ const ImageDropzone = ({
   images,
   onImagesChange,
   maxImages = 50,
+  compact = false,
+  className,
 }: ImageDropzoneProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -87,8 +91,32 @@ const ImageDropzone = ({
     onImagesChange([]);
   }, [onImagesChange]);
 
+  // Compact version - small add button for thumbnail strips
+  if (compact) {
+    return (
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={handleSelectFiles}
+        disabled={isLoading}
+        className={cn(
+          'flex items-center justify-center rounded-lg border-2 border-dashed border-border/50 bg-muted/30',
+          'hover:border-primary/50 hover:bg-primary/5 transition-all',
+          isLoading && 'pointer-events-none opacity-70',
+          className
+        )}
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+        ) : (
+          <Upload className="w-4 h-4 text-muted-foreground" />
+        )}
+      </motion.button>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className={cn('space-y-4', className)}>
       {/* Dropzone */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
