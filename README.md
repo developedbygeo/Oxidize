@@ -6,9 +6,13 @@ A fast, modern desktop image processing app built with Tauri 2, React 19, and Ru
 
 - **Convert** - Transform images between formats (PNG, JPG, WebP, GIF, BMP, ICO, TIFF)
 - **Compress** - Reduce file sizes with advanced compression algorithms
-- **Beautify** - Enhance images with filters and adjustments (coming soon)
-- **Effects** - Apply visual effects and transformations (coming soon)
+- **Beautify** - Enhance images with brightness, contrast, saturation, sharpness, exposure, hue shift, temperature, and white balance adjustments
+- **Effects** - Apply visual effects including grayscale, sepia, vintage, blur, sharpen, invert, vignette, noise, pixelate, and posterize
 - **History** - Track all operations with persistent history
+
+### Real-Time Preview
+
+Both Beautify and Effects pages feature real-time canvas-based previews, allowing you to see adjustments instantly before applying them. The preview uses debounced processing for smooth slider interactions.
 
 ### Compression Technology
 
@@ -27,6 +31,7 @@ Oxidize uses industry-leading compression libraries for maximum quality and size
 - TanStack React Table
 - Motion (animations)
 - ShadCN/ui components
+- Lodash (debouncing)
 
 **Backend**
 - Tauri 2
@@ -69,8 +74,20 @@ pnpm tauri build
 oxidize/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
+│   │   ├── ui/             # ShadCN-style base components
+│   │   ├── ImageDropzone   # Drag-and-drop image upload
+│   │   ├── ImagePreview    # Real-time beautify preview
+│   │   └── EffectsPreview  # Real-time effects preview
 │   ├── pages/              # Page components
+│   │   ├── ConvertPage     # Image format conversion
+│   │   ├── CompressPage    # Image compression
+│   │   ├── BeautifyPage    # Image adjustments
+│   │   ├── EffectsPage     # Visual effects
+│   │   └── HistoryPage     # Operation history
 │   ├── lib/                # Utilities and stores
+│   │   ├── utils.ts        # Class merging utilities
+│   │   ├── history-store   # Persistent history storage
+│   │   └── image-preview   # Canvas-based preview processing
 │   ├── types/              # TypeScript types
 │   └── styles/             # Global styles
 ├── src-tauri/              # Tauri/Rust backend
@@ -87,3 +104,5 @@ oxidize/
 ## License
 
 MIT
+
+See [LICENSES.md](LICENSES.md) for third-party dependency licenses.
