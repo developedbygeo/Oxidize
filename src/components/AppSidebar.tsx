@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowRightLeft, Minimize2, Sparkles, Wand2, Hexagon, History } from 'lucide-react';
+import { ArrowRightLeft, Minimize2, Sparkles, Wand2, History } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -63,12 +63,12 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
           transition={{ duration: 0.5, ease: 'easeOut' }}
           className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center"
         >
-          <div className="relative">
+          <div className="relative shrink-0">
             <motion.div
-              className="absolute inset-0 bg-primary/30 rounded-2xl blur-xl"
+              className="absolute inset-0 bg-cyan-500/20 rounded-2xl blur-xl"
               animate={{
-                scale: [1, 1.1, 1],
-                opacity: [0.3, 0.5, 0.3],
+                scale: [1, 1.15, 1],
+                opacity: [0.2, 0.4, 0.2],
               }}
               transition={{
                 duration: 3,
@@ -76,9 +76,7 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
                 ease: 'easeInOut',
               }}
             />
-            <div className="relative p-2.5 rounded-2xl bg-linear-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
-              <Hexagon className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
-            </div>
+            <img src="/logo.svg" alt="Oxidize" className="relative w-10 h-10 rounded-full drop-shadow-lg" />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="font-bold text-xl tracking-tight text-foreground">Oxidize</span>
