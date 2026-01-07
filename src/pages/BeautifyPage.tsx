@@ -26,7 +26,13 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import { ImagePreview, type PreviewOptions } from '@/components/ImagePreview';
-import type { ImageInfo, BeautifyOptions, BeautifyResult, WhiteBalancePreset, OperationHistoryItem } from '@/types/image';
+import type {
+  ImageInfo,
+  BeautifyOptions,
+  BeautifyResult,
+  WhiteBalancePreset,
+  OperationHistoryItem,
+} from '@/types/image';
 
 type BeautifyPageProps = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
@@ -49,11 +55,15 @@ const AdjustmentSlider = ({ label, value, min, max, onChange, icon, unit = '' }:
         {icon}
         <span className="text-xs font-medium text-foreground">{label}</span>
       </div>
-      <span className={cn(
-        'text-xs font-mono tabular-nums',
-        value === 0 ? 'text-muted-foreground' : 'text-amber-500'
-      )}>
-        {value > 0 ? '+' : ''}{value}{unit}
+      <span
+        className={cn(
+          'text-xs font-mono tabular-nums',
+          value === 0 ? 'text-muted-foreground' : 'text-amber-500'
+        )}
+      >
+        {value > 0 ? '+' : ''}
+        {value}
+        {unit}
       </span>
     </div>
     <Slider
@@ -163,9 +173,8 @@ const beautifyReducer = (state: BeautifyState, action: BeautifyAction): Beautify
       return { ...state, isLoadingPreview: action.payload };
     case 'REMOVE_IMAGE': {
       const newImages = state.images.filter((_, i) => i !== action.payload);
-      const newPreviewIndex = state.previewIndex >= newImages.length
-        ? Math.max(0, newImages.length - 1)
-        : state.previewIndex;
+      const newPreviewIndex =
+        state.previewIndex >= newImages.length ? Math.max(0, newImages.length - 1) : state.previewIndex;
       return { ...state, images: newImages, previewIndex: newPreviewIndex };
     }
     default:
@@ -175,18 +184,31 @@ const beautifyReducer = (state: BeautifyState, action: BeautifyAction): Beautify
 
 const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
   const [state, dispatch] = useReducer(beautifyReducer, initialState);
-  const { images, adjustments, outputDir, isBeautifying, results, showResults, previewIndex, previewSrc, isLoadingPreview } = state;
+  const {
+    images,
+    adjustments,
+    outputDir,
+    isBeautifying,
+    results,
+    showResults,
+    previewIndex,
+    previewSrc,
+    isLoadingPreview,
+  } = state;
 
-  const previewOptions = useMemo<PreviewOptions>(() => ({
-    brightness: adjustments.brightness,
-    contrast: adjustments.contrast,
-    saturation: adjustments.saturation,
-    sharpness: adjustments.sharpness,
-    exposure: adjustments.exposure,
-    hueShift: adjustments.hue_shift,
-    temperature: adjustments.temperature,
-    whiteBalance: adjustments.white_balance,
-  }), [adjustments]);
+  const previewOptions = useMemo<PreviewOptions>(
+    () => ({
+      brightness: adjustments.brightness,
+      contrast: adjustments.contrast,
+      saturation: adjustments.saturation,
+      sharpness: adjustments.sharpness,
+      exposure: adjustments.exposure,
+      hueShift: adjustments.hue_shift,
+      temperature: adjustments.temperature,
+      whiteBalance: adjustments.white_balance,
+    }),
+    [adjustments]
+  );
 
   const previewImage = images[previewIndex];
 
@@ -201,7 +223,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
 
     invoke<string>('get_image_preview', {
       path: previewImage.path,
-      maxDimension: 800
+      maxDimension: 800,
     })
       .then((src) => {
         if (!cancelled) {
@@ -307,18 +329,21 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             <div className="p-3 rounded-2xl bg-amber-500/10">
               <Sparkles className="w-6 h-6 text-amber-500" />
             </div>
-            <div>
+            <div className="space-y-1">
               <h1 className="text-2xl font-bold text-foreground">Beautify Images</h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm tracking-wide text-muted-foreground">
                 Enhance your images with adjustments and color correction
               </p>
             </div>
           </motion.div>
 
-          <ImageDropzone images={images} onImagesChange={(newImages) => {
-            dispatch({ type: 'SET_IMAGES', payload: newImages });
-            dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
-          }} />
+          <ImageDropzone
+            images={images}
+            onImagesChange={(newImages) => {
+              dispatch({ type: 'SET_IMAGES', payload: newImages });
+              dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
+            }}
+          />
         </div>
       </div>
     );
@@ -360,11 +385,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                       : 'border-border/50 hover:border-amber-500/50'
                   )}
                 >
-                  <img
-                    src={img.thumbnail}
-                    alt={img.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={img.thumbnail} alt={img.name} className="w-full h-full object-cover" />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -374,9 +395,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  {previewIndex === index && (
-                    <div className="absolute inset-0 bg-amber-500/10" />
-                  )}
+                  {previewIndex === index && <div className="absolute inset-0 bg-amber-500/10" />}
                 </motion.button>
               ))}
               <ImageDropzone
@@ -472,7 +491,9 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                         key={preset.value}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => dispatch({ type: 'SET_ADJUSTMENT', payload: { white_balance: preset.value } })}
+                        onClick={() =>
+                          dispatch({ type: 'SET_ADJUSTMENT', payload: { white_balance: preset.value } })
+                        }
                         className={cn(
                           'p-1.5 rounded-md border transition-all duration-200 text-center',
                           adjustments.white_balance === preset.value
@@ -481,10 +502,14 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                         )}
                       >
                         <span className="block text-sm">{preset.icon}</span>
-                        <span className={cn(
-                          'block text-[9px] mt-0.5',
-                          adjustments.white_balance === preset.value ? 'text-amber-500 font-medium' : 'text-muted-foreground'
-                        )}>
+                        <span
+                          className={cn(
+                            'block text-[9px] mt-0.5',
+                            adjustments.white_balance === preset.value
+                              ? 'text-amber-500 font-medium'
+                              : 'text-muted-foreground'
+                          )}
+                        >
                           {preset.label}
                         </span>
                       </motion.button>
@@ -517,18 +542,14 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">
-                Output Location
-              </label>
+              <label className="text-xs font-medium text-foreground">Output Location</label>
               <Button
                 variant="outline"
                 onClick={handleSelectOutputDir}
                 className="w-full justify-start gap-2 h-9 text-xs"
               >
                 <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="truncate text-left flex-1">
-                  {outputDir || 'Same as original'}
-                </span>
+                <span className="truncate text-left flex-1">{outputDir || 'Same as original'}</span>
               </Button>
             </div>
 
@@ -546,9 +567,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                         <Check className="w-3.5 h-3.5 text-amber-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground">
-                          Complete
-                        </p>
+                        <p className="text-xs font-semibold text-foreground">Complete</p>
                         <p className="text-[10px] text-muted-foreground">
                           {successCount}/{results.length} enhanced
                         </p>

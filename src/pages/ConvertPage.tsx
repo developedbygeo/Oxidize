@@ -151,15 +151,18 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
           <div className="p-3 rounded-2xl bg-primary/10">
             <ArrowRightLeft className="w-6 h-6 text-primary" />
           </div>
-          <div>
+          <div className="space-y-1">
             <h1 className="text-2xl font-bold text-foreground">Convert Images</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm tracking-wide text-muted-foreground">
               Transform your images to different formats
             </p>
           </div>
         </motion.div>
 
-        <ImageDropzone images={images} onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })} />
+        <ImageDropzone
+          images={images}
+          onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })}
+        />
 
         <AnimatePresence>
           {images.length > 0 && (
@@ -170,9 +173,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
               className="space-y-6"
             >
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">
-                  Output Format
-                </label>
+                <label className="text-sm font-medium text-foreground">Output Format</label>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {outputFormats.map((format) => (
                     <motion.button
@@ -205,9 +206,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                     </motion.button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatDescriptions[targetFormat]}
-                </p>
+                <p className="text-xs text-muted-foreground">{formatDescriptions[targetFormat]}</p>
               </div>
 
               {(targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'webp') && (
@@ -218,9 +217,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                   className="space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">
-                      Quality
-                    </label>
+                    <label className="text-sm font-medium text-foreground">Quality</label>
                     <span className="text-sm font-mono text-primary">{quality}%</span>
                   </div>
                   <input
@@ -239,9 +236,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
               )}
 
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">
-                  Output Location
-                </label>
+                <label className="text-sm font-medium text-foreground">Output Location</label>
                 <Button
                   variant="outline"
                   onClick={handleSelectOutputDir}
@@ -291,9 +286,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                     <Check className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">
-                      Conversion Complete
-                    </p>
+                    <p className="font-semibold text-foreground">Conversion Complete</p>
                     <p className="text-sm text-muted-foreground">
                       {successCount} of {results.length} images converted successfully
                       {totalSaved > 0 && (

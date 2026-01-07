@@ -158,9 +158,7 @@ const HistoryPage = ({ history, onRemoveHistory, onClearHistory }: HistoryPagePr
               <div className={cn('p-2 rounded-lg', operationColors[type])}>
                 <Icon className="w-4 h-4" />
               </div>
-              <span className="font-medium text-sm text-foreground">
-                {operationLabels[type]}
-              </span>
+              <span className="font-medium text-sm text-foreground">{operationLabels[type]}</span>
             </div>
           );
         },
@@ -242,13 +240,9 @@ const HistoryPage = ({ history, onRemoveHistory, onClearHistory }: HistoryPagePr
               <div className="flex items-center gap-2">
                 <TrendingDown className="w-4 h-4 text-emerald-500" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-emerald-500">
-                    {formatFileSize(saved)}
-                  </span>
+                  <span className="text-sm font-medium text-emerald-500">{formatFileSize(saved)}</span>
                   {percent && (
-                    <span className="text-xs text-muted-foreground">
-                      {percent.toFixed(1)}% smaller
-                    </span>
+                    <span className="text-xs text-muted-foreground">{percent.toFixed(1)}% smaller</span>
                   )}
                 </div>
               </div>
@@ -283,9 +277,7 @@ const HistoryPage = ({ history, onRemoveHistory, onClearHistory }: HistoryPagePr
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 cursor-help">
                   <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {formatTimeAgo(timestamp)}
-                  </span>
+                  <span className="text-sm text-muted-foreground">{formatTimeAgo(timestamp)}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom">
@@ -369,9 +361,9 @@ const HistoryPage = ({ history, onRemoveHistory, onClearHistory }: HistoryPagePr
               <div className="p-3 rounded-2xl bg-muted">
                 <History className="w-6 h-6 text-foreground" />
               </div>
-              <div>
+              <div className="space-y-1">
                 <h1 className="text-2xl font-bold text-foreground">Operation History</h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm tracking-wide text-muted-foreground">
                   View and manage your recent image operations
                 </p>
               </div>
@@ -408,11 +400,7 @@ const HistoryPage = ({ history, onRemoveHistory, onClearHistory }: HistoryPagePr
 
           {/* History Table */}
           {history.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               <div className="rounded-xl border border-border/50 overflow-hidden">
                 <table className="w-full">
                   <thead>
@@ -448,7 +436,8 @@ const HistoryPage = ({ history, onRemoveHistory, onClearHistory }: HistoryPagePr
               {/* Pagination */}
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}{' '}
+                  to{' '}
                   {Math.min(
                     (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
                     table.getFilteredRowModel().rows.length

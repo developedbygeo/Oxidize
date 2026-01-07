@@ -1,13 +1,6 @@
 import { useReducer, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  Wand2,
-  Check,
-  Loader2,
-  FolderOpen,
-  X,
-  ExternalLink,
-} from 'lucide-react';
+import { Wand2, Check, Loader2, FolderOpen, X, ExternalLink } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
@@ -92,9 +85,8 @@ const effectsReducer = (state: EffectsState, action: EffectsAction): EffectsStat
       return { ...state, isLoadingPreview: action.payload };
     case 'REMOVE_IMAGE': {
       const newImages = state.images.filter((_, i) => i !== action.payload);
-      const newPreviewIndex = state.previewIndex >= newImages.length
-        ? Math.max(0, newImages.length - 1)
-        : state.previewIndex;
+      const newPreviewIndex =
+        state.previewIndex >= newImages.length ? Math.max(0, newImages.length - 1) : state.previewIndex;
       return { ...state, images: newImages, previewIndex: newPreviewIndex };
     }
     default:
@@ -104,12 +96,26 @@ const effectsReducer = (state: EffectsState, action: EffectsAction): EffectsStat
 
 const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   const [state, dispatch] = useReducer(effectsReducer, initialState);
-  const { images, selectedEffect, intensity, outputDir, isProcessing, results, showResults, previewIndex, previewSrc, isLoadingPreview } = state;
-
-  const previewOptions = useMemo<EffectPreviewOptions>(() => ({
-    effect: selectedEffect,
+  const {
+    images,
+    selectedEffect,
     intensity,
-  }), [selectedEffect, intensity]);
+    outputDir,
+    isProcessing,
+    results,
+    showResults,
+    previewIndex,
+    previewSrc,
+    isLoadingPreview,
+  } = state;
+
+  const previewOptions = useMemo<EffectPreviewOptions>(
+    () => ({
+      effect: selectedEffect,
+      intensity,
+    }),
+    [selectedEffect, intensity]
+  );
 
   const previewImage = images[previewIndex];
 
@@ -124,7 +130,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
 
     invoke<string>('get_image_preview', {
       path: previewImage.path,
-      maxDimension: 800
+      maxDimension: 800,
     })
       .then((src) => {
         if (!cancelled) {
@@ -161,7 +167,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   const handleApplyEffect = async () => {
     if (images.length === 0) return;
 
-    const effectInfo = effects.find(e => e.type === selectedEffect);
+    const effectInfo = effects.find((e) => e.type === selectedEffect);
     dispatch({ type: 'START_PROCESSING' });
     const processToast = createProcessToast({
       action: effectInfo?.label || selectedEffect,
@@ -210,7 +216,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   };
 
   const successCount = results.filter((r) => r.success).length;
-  const selectedEffectInfo = effects.find(e => e.type === selectedEffect);
+  const selectedEffectInfo = effects.find((e) => e.type === selectedEffect);
 
   if (images.length === 0) {
     return (
@@ -224,18 +230,21 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
             <div className="p-3 rounded-2xl bg-violet-500/10">
               <Wand2 className="w-6 h-6 text-violet-500" />
             </div>
-            <div>
+            <div className="space-y-1">
               <h1 className="text-2xl font-bold text-foreground">Apply Effects</h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm tracking-wide text-muted-foreground">
                 Transform your images with stunning visual effects
               </p>
             </div>
           </motion.div>
 
-          <ImageDropzone images={images} onImagesChange={(newImages) => {
-            dispatch({ type: 'SET_IMAGES', payload: newImages });
-            dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
-          }} />
+          <ImageDropzone
+            images={images}
+            onImagesChange={(newImages) => {
+              dispatch({ type: 'SET_IMAGES', payload: newImages });
+              dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
+            }}
+          />
 
           <motion.div
             initial={{ opacity: 0 }}
@@ -303,11 +312,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                       : 'border-border/50 hover:border-violet-500/50'
                   )}
                 >
-                  <img
-                    src={img.thumbnail}
-                    alt={img.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={img.thumbnail} alt={img.name} className="w-full h-full object-cover" />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -317,9 +322,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  {previewIndex === index && (
-                    <div className="absolute inset-0 bg-violet-500/10" />
-                  )}
+                  {previewIndex === index && <div className="absolute inset-0 bg-violet-500/10" />}
                 </motion.button>
               ))}
               <ImageDropzone
@@ -356,11 +359,13 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                         : 'border-border/50 hover:border-violet-500/50 hover:bg-muted/50'
                     )}
                   >
-                    <div className={cn(
-                      'absolute inset-0 bg-linear-to-br opacity-0 transition-opacity',
-                      effect.gradient,
-                      selectedEffect === effect.type && 'opacity-10'
-                    )} />
+                    <div
+                      className={cn(
+                        'absolute inset-0 bg-linear-to-br opacity-0 transition-opacity',
+                        effect.gradient,
+                        selectedEffect === effect.type && 'opacity-10'
+                      )}
+                    />
                     <div className="relative flex items-center gap-2">
                       <span className="text-lg">{effect.icon}</span>
                       <div className="min-w-0">
@@ -383,15 +388,11 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
             </div>
 
             <div className="space-y-3">
-              <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                Intensity
-              </h2>
+              <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Intensity</h2>
               <div className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Effect strength</span>
-                  <span className="text-xs font-mono tabular-nums text-violet-500">
-                    {intensity}%
-                  </span>
+                  <span className="text-xs font-mono tabular-nums text-violet-500">{intensity}%</span>
                 </div>
                 <Slider
                   value={[intensity]}
@@ -409,18 +410,14 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">
-                Output Location
-              </label>
+              <label className="text-xs font-medium text-foreground">Output Location</label>
               <Button
                 variant="outline"
                 onClick={handleSelectOutputDir}
                 className="w-full justify-start gap-2 h-9 text-xs"
               >
                 <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="truncate text-left flex-1">
-                  {outputDir || 'Same as original'}
-                </span>
+                <span className="truncate text-left flex-1">{outputDir || 'Same as original'}</span>
               </Button>
             </div>
 
@@ -438,9 +435,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                         <Check className="w-3.5 h-3.5 text-violet-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground">
-                          Complete
-                        </p>
+                        <p className="text-xs font-semibold text-foreground">Complete</p>
                         <p className="text-[10px] text-muted-foreground">
                           {successCount}/{results.length} processed
                         </p>

@@ -16,11 +16,12 @@ type CompressPageProps = {
 
 type CompressionLevel = 'lossless' | 'balanced' | 'maximum';
 
-const compressionPresets: Record<CompressionLevel, { quality: number; label: string; description: string }> = {
-  lossless: { quality: 100, label: 'Lossless', description: 'No quality loss, smaller savings' },
-  balanced: { quality: 80, label: 'Balanced', description: 'Great quality, good compression' },
-  maximum: { quality: 60, label: 'Maximum', description: 'Smaller files, some quality loss' },
-};
+const compressionPresets: Record<CompressionLevel, { quality: number; label: string; description: string }> =
+  {
+    lossless: { quality: 100, label: 'Lossless', description: 'No quality loss, smaller savings' },
+    balanced: { quality: 80, label: 'Balanced', description: 'Great quality, good compression' },
+    maximum: { quality: 60, label: 'Maximum', description: 'Smaller files, some quality loss' },
+  };
 
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -87,7 +88,16 @@ const compressReducer = (state: CompressState, action: CompressAction): Compress
 
 const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
   const [state, dispatch] = useReducer(compressReducer, initialState);
-  const { images, compressionLevel, customQuality, useCustom, outputDir, isCompressing, results, showResults } = state;
+  const {
+    images,
+    compressionLevel,
+    customQuality,
+    useCustom,
+    outputDir,
+    isCompressing,
+    results,
+    showResults,
+  } = state;
 
   const handleSelectOutputDir = async () => {
     const selected = await open({
@@ -107,9 +117,12 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
 
     try {
       const paths = images.map((img) => img.path);
-      const quality = compressionLevel === 'lossless'
-        ? 100
-        : (useCustom ? customQuality : compressionPresets[compressionLevel].quality);
+      const quality =
+        compressionLevel === 'lossless'
+          ? 100
+          : useCustom
+          ? customQuality
+          : compressionPresets[compressionLevel].quality;
 
       const compressionResults = await invoke<CompressionResult[]>('compress_images_batch', {
         inputPaths: paths,
@@ -124,9 +137,10 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
       const successCount = compressionResults.filter((r) => r.success).length;
       const failCount = compressionResults.length - successCount;
       const totalSavedBytes = compressionResults.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
-      const avgSavingsPercent = compressionResults.length > 0
-        ? compressionResults.reduce((acc, r) => acc + r.savings_percent, 0) / compressionResults.length
-        : 0;
+      const avgSavingsPercent =
+        compressionResults.length > 0
+          ? compressionResults.reduce((acc, r) => acc + r.savings_percent, 0) / compressionResults.length
+          : 0;
 
       processToast.finish({
         successCount,
@@ -145,7 +159,10 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
           type: 'compress',
           fileCount: successCount,
           outputDir: dir,
-          details: compressionLevel === 'lossless' ? 'Lossless compression' : `Quality ${useCustom ? customQuality : compressionPresets[compressionLevel].quality}%`,
+          details:
+            compressionLevel === 'lossless'
+              ? 'Lossless compression'
+              : `Quality ${useCustom ? customQuality : compressionPresets[compressionLevel].quality}%`,
           totalSaved: totalSavedBytes > 0 ? totalSavedBytes : undefined,
           savingsPercent: avgSavingsPercent > 0 ? avgSavingsPercent : undefined,
         });
@@ -161,9 +178,8 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
   const totalOriginal = results.reduce((acc, r) => acc + r.original_size, 0);
   const totalNew = results.reduce((acc, r) => acc + r.new_size, 0);
   const totalSaved = totalOriginal - totalNew;
-  const avgSavings = results.length > 0
-    ? results.reduce((acc, r) => acc + r.savings_percent, 0) / results.length
-    : 0;
+  const avgSavings =
+    results.length > 0 ? results.reduce((acc, r) => acc + r.savings_percent, 0) / results.length : 0;
 
   return (
     <div className="h-full overflow-auto">
@@ -176,15 +192,18 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
           <div className="p-3 rounded-2xl bg-emerald-500/10">
             <Minimize2 className="w-6 h-6 text-emerald-500" />
           </div>
-          <div>
+          <div className="space-y-1">
             <h1 className="text-2xl font-bold text-foreground">Compress Images</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm tracking-wide text-muted-foreground">
               Reduce file sizes while preserving quality
             </p>
           </div>
         </motion.div>
 
-        <ImageDropzone images={images} onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })} />
+        <ImageDropzone
+          images={images}
+          onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })}
+        />
 
         <AnimatePresence>
           {images.length > 0 && (
@@ -195,11 +214,14 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
               className="space-y-6"
             >
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">
-                  Compression Level
-                </label>
+                <label className="text-sm font-medium text-foreground">Compression Level</label>
                 <div className="grid grid-cols-3 gap-3">
-                  {(Object.entries(compressionPresets) as [CompressionLevel, typeof compressionPresets.lossless][]).map(([level, preset]) => (
+                  {(
+                    Object.entries(compressionPresets) as [
+                      CompressionLevel,
+                      typeof compressionPresets.lossless
+                    ][]
+                  ).map(([level, preset]) => (
                     <motion.button
                       key={level}
                       whileHover={{ scale: 1.02 }}
@@ -220,9 +242,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                       >
                         {preset.label}
                       </span>
-                      <span className="block text-xs text-muted-foreground mt-1">
-                        {preset.description}
-                      </span>
+                      <span className="block text-xs text-muted-foreground mt-1">{preset.description}</span>
                     </motion.button>
                   ))}
                 </div>
@@ -236,17 +256,12 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                   className="space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">
-                      Custom Quality
-                    </label>
+                    <label className="text-sm font-medium text-foreground">Custom Quality</label>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => dispatch({ type: 'SET_USE_CUSTOM', payload: !useCustom })}
-                      className={cn(
-                        'text-xs',
-                        useCustom ? 'text-emerald-500' : 'text-muted-foreground'
-                      )}
+                      className={cn('text-xs', useCustom ? 'text-emerald-500' : 'text-muted-foreground')}
                     >
                       {useCustom ? 'Using custom' : 'Use custom'}
                     </Button>
@@ -261,7 +276,9 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                       min={10}
                       max={100}
                       value={customQuality}
-                      onChange={(e) => dispatch({ type: 'SET_CUSTOM_QUALITY', payload: Number(e.target.value) })}
+                      onChange={(e) =>
+                        dispatch({ type: 'SET_CUSTOM_QUALITY', payload: Number(e.target.value) })
+                      }
                       className="w-full accent-emerald-500"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
@@ -273,9 +290,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
               )}
 
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">
-                  Output Location
-                </label>
+                <label className="text-sm font-medium text-foreground">Output Location</label>
                 <Button
                   variant="outline"
                   onClick={handleSelectOutputDir}
@@ -324,9 +339,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                     <Check className="w-5 h-5 text-emerald-500" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-foreground">
-                      Compression Complete
-                    </p>
+                    <p className="font-semibold text-foreground">Compression Complete</p>
                     <p className="text-sm text-muted-foreground">
                       {successCount} of {results.length} images compressed
                     </p>
@@ -337,9 +350,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                         <TrendingDown className="w-4 h-4" />
                         <span className="font-semibold">{avgSavings.toFixed(1)}%</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Saved {formatFileSize(totalSaved)}
-                      </p>
+                      <p className="text-xs text-muted-foreground">Saved {formatFileSize(totalSaved)}</p>
                     </div>
                   )}
                 </div>
@@ -387,10 +398,12 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatFileSize(result.original_size)} → {formatFileSize(result.new_size)}
                         </span>
-                        <span className={cn(
-                          'text-xs font-medium whitespace-nowrap',
-                          result.savings_percent > 0 ? 'text-emerald-500' : 'text-muted-foreground'
-                        )}>
+                        <span
+                          className={cn(
+                            'text-xs font-medium whitespace-nowrap',
+                            result.savings_percent > 0 ? 'text-emerald-500' : 'text-muted-foreground'
+                          )}
+                        >
                           {result.savings_percent > 0 ? `-${result.savings_percent.toFixed(1)}%` : '0%'}
                         </span>
                         <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
