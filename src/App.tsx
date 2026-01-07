@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { getVersion } from '@tauri-apps/api/app';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { AppSidebar, type Page } from '@/components/AppSidebar';
@@ -37,6 +39,13 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState<Page>('convert');
   const [history, setHistory] = useState<OperationHistoryItem[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  // Set window title with version on mount
+  useEffect(() => {
+    getVersion().then((version) => {
+      getCurrentWindow().setTitle(`Oxidize v${version}`);
+    });
+  }, []);
 
   // Load history on mount
   useEffect(() => {
