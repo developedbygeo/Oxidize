@@ -77,38 +77,15 @@ pnpm tauri build
 
 ```
 oxidize/
-├── src/                    # React frontend
-│   ├── components/         # UI components
-│   │   ├── ui/             # ShadCN-style base components
-│   │   ├── ImageDropzone   # Drag-and-drop image upload
-│   │   ├── ImagePreview    # Real-time beautify preview
-│   │   └── EffectsPreview  # Real-time effects preview
-│   ├── pages/              # Page components
-│   │   ├── ConvertPage     # Image format conversion
-│   │   ├── CompressPage    # Image compression
-│   │   ├── BeautifyPage    # Image adjustments
-│   │   ├── EffectsPage     # Visual effects
-│   │   └── HistoryPage     # Operation history
-│   ├── lib/                # Utilities and stores
-│   │   ├── utils.ts        # Class merging utilities
-│   │   ├── history-store   # Persistent history storage
-│   │   └── image-preview   # Canvas-based preview processing
-│   ├── types/              # TypeScript types
-│   └── styles/             # Global styles
-├── src-tauri/              # Tauri/Rust backend
-│   ├── src/
-│   │   ├── lib.rs          # App entry point and command registration
-│   │   ├── types.rs        # Shared types (ImageInfo, results, options)
-│   │   ├── utils.rs        # Format detection utilities
-│   │   ├── loader.rs       # Image loading and preview generation
-│   │   ├── convert.rs      # Format conversion
-│   │   ├── compress.rs     # PNG/JPEG/WebP/GIF/BMP/TIFF compression
-│   │   ├── beautify.rs     # Image adjustments (brightness, contrast, etc.)
-│   │   ├── effects.rs      # Visual effects (grayscale, sepia, blur, etc.)
-│   │   └── commands.rs     # File explorer commands
-│   ├── capabilities/       # Permission configs
-│   └── Cargo.toml          # Rust dependencies
-└── package.json
+├── src/                   # React frontend
+│   ├── components/ui/     # ShadCN-style base components
+│   ├── components/        # App components (Sidebar, Dropzone, Previews)
+│   ├── pages/             # Convert, Compress, Beautify, Effects, History
+│   ├── hooks/             # Custom React hooks
+│   ├── lib/               # Utilities, stores, helpers
+│   └── types/             # TypeScript types
+├── src-tauri/src/         # Rust backend (image processing modules)
+└── public/                # Static assets
 ```
 
 ## IDE Setup

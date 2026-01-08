@@ -76,7 +76,7 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
                 ease: 'easeInOut',
               }}
             />
-            <img src="/logo.svg" alt="Oxidize" className="relative w-10 h-10 rounded-full drop-shadow-lg" />
+            <img src="/logo.png" alt="Oxidize" className="relative w-10 h-10 rounded-full drop-shadow-lg" />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="font-bold text-xl tracking-tight text-foreground">Oxidize</span>
