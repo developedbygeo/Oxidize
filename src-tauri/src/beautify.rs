@@ -1,11 +1,11 @@
 use image::{DynamicImage, GenericImageView, ImageFormat, ImageReader};
 use rayon::prelude::*;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
 use crate::types::{BeautifyOptions, BeautifyResult};
-use crate::utils::{detect_format, get_format_from_string};
+use crate::utils::{create_timestamped_output_dir, detect_format, get_format_from_string};
 
 /// Convert RGB to HSL
 fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
@@ -364,7 +364,8 @@ fn apply_sharpness(img: &DynamicImage, sharpness: f32) -> DynamicImage {
 
 fn beautify_image_sync(
     input_path: String,
-    options: BeautifyOptions,
+    options: &BeautifyOptions,
+    output_dir: &PathBuf,
 ) -> Result<BeautifyResult, String> {
     let input = Path::new(&input_path);
     let original_size = std::fs::metadata(&input_path)
@@ -391,12 +392,6 @@ fn beautify_image_sync(
     apply_hue_shift(&mut img, options.hue_shift);
     apply_temperature(&mut img, options.temperature);
     img = apply_sharpness(&img, options.sharpness);
-
-    let output_dir = options
-        .output_dir
-        .clone()
-        .map(|d| Path::new(&d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
 
     let stem = input
         .file_stem()
@@ -440,7 +435,14 @@ pub async fn beautify_image(
     input_path: String,
     options: BeautifyOptions,
 ) -> Result<BeautifyResult, String> {
-    beautify_image_sync(input_path, options)
+    let input = Path::new(&input_path);
+    let base_dir = options
+        .output_dir
+        .as_ref()
+        .map(|d| Path::new(d).to_path_buf())
+        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
+    let output_dir = create_timestamped_output_dir(&base_dir, "beautify");
+    beautify_image_sync(input_path, &options, &output_dir)
 }
 
 #[tauri::command]
@@ -448,16 +450,31 @@ pub async fn beautify_images_batch(
     input_paths: Vec<String>,
     options: BeautifyOptions,
 ) -> Vec<BeautifyResult> {
+    let base_dir = options
+        .output_dir
+        .as_ref()
+        .map(|d| Path::new(d).to_path_buf())
+        .unwrap_or_else(|| {
+            input_paths
+                .first()
+                .and_then(|p| Path::new(p).parent())
+                .unwrap_or(Path::new("."))
+                .to_path_buf()
+        });
+    let output_dir = create_timestamped_output_dir(&base_dir, "beautify");
+
     input_paths
         .par_iter()
         .map(|path| {
-            beautify_image_sync(path.clone(), options.clone()).unwrap_or_else(|e| BeautifyResult {
-                success: false,
-                input_path: path.clone(),
-                output_path: None,
-                error: Some(e),
-                original_size: 0,
-                new_size: 0,
+            beautify_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
+                BeautifyResult {
+                    success: false,
+                    input_path: path.clone(),
+                    output_path: None,
+                    error: Some(e),
+                    original_size: 0,
+                    new_size: 0,
+                }
             })
         })
         .collect()

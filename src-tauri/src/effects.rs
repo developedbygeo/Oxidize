@@ -3,11 +3,11 @@ use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
 use crate::types::{EffectOptions, EffectResult};
-use crate::utils::{detect_format, get_format_from_string};
+use crate::utils::{create_timestamped_output_dir, detect_format, get_format_from_string};
 
 fn apply_grayscale(img: &DynamicImage, intensity: f32) -> DynamicImage {
     if intensity == 0.0 {
@@ -369,7 +369,8 @@ fn apply_effect(img: &DynamicImage, effect: &str, intensity: f32) -> DynamicImag
 
 fn apply_image_effect_sync(
     input_path: String,
-    options: EffectOptions,
+    options: &EffectOptions,
+    output_dir: &PathBuf,
 ) -> Result<EffectResult, String> {
     let input = Path::new(&input_path);
     let original_size = std::fs::metadata(&input_path)
@@ -385,12 +386,6 @@ fn apply_image_effect_sync(
 
     let intensity = options.intensity as f32 / 100.0;
     let result_img = apply_effect(&img, &options.effect, intensity);
-
-    let output_dir = options
-        .output_dir
-        .clone()
-        .map(|d| Path::new(&d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
 
     let stem = input
         .file_stem()
@@ -436,7 +431,14 @@ pub async fn apply_image_effect(
     input_path: String,
     options: EffectOptions,
 ) -> Result<EffectResult, String> {
-    apply_image_effect_sync(input_path, options)
+    let input = Path::new(&input_path);
+    let base_dir = options
+        .output_dir
+        .as_ref()
+        .map(|d| Path::new(d).to_path_buf())
+        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
+    let output_dir = create_timestamped_output_dir(&base_dir, "effects");
+    apply_image_effect_sync(input_path, &options, &output_dir)
 }
 
 #[tauri::command]
@@ -444,10 +446,23 @@ pub async fn apply_image_effects_batch(
     input_paths: Vec<String>,
     options: EffectOptions,
 ) -> Vec<EffectResult> {
+    let base_dir = options
+        .output_dir
+        .as_ref()
+        .map(|d| Path::new(d).to_path_buf())
+        .unwrap_or_else(|| {
+            input_paths
+                .first()
+                .and_then(|p| Path::new(p).parent())
+                .unwrap_or(Path::new("."))
+                .to_path_buf()
+        });
+    let output_dir = create_timestamped_output_dir(&base_dir, "effects");
+
     input_paths
         .par_iter()
         .map(|path| {
-            apply_image_effect_sync(path.clone(), options.clone()).unwrap_or_else(|e| {
+            apply_image_effect_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
                 EffectResult {
                     success: false,
                     input_path: path.clone(),

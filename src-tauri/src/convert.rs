@@ -1,15 +1,16 @@
 use image::{ImageFormat, ImageReader};
 use rayon::prelude::*;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_png_oxipng, compress_webp};
 use crate::types::{ConversionOptions, ConversionResult};
-use crate::utils::{get_format_extension, get_format_from_string};
+use crate::utils::{create_timestamped_output_dir, get_format_extension, get_format_from_string};
 
 fn convert_image_sync(
     input_path: String,
-    options: ConversionOptions,
+    options: &ConversionOptions,
+    output_dir: &PathBuf,
 ) -> Result<ConversionResult, String> {
     let input = Path::new(&input_path);
     let original_size = std::fs::metadata(&input_path)
@@ -23,11 +24,6 @@ fn convert_image_sync(
         .map_err(|e| e.to_string())?
         .decode()
         .map_err(|e| e.to_string())?;
-
-    let output_dir = options
-        .output_dir
-        .map(|d| Path::new(&d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
 
     let stem = input
         .file_stem()
@@ -71,7 +67,14 @@ pub async fn convert_image(
     input_path: String,
     options: ConversionOptions,
 ) -> Result<ConversionResult, String> {
-    convert_image_sync(input_path, options)
+    let input = Path::new(&input_path);
+    let base_dir = options
+        .output_dir
+        .as_ref()
+        .map(|d| Path::new(d).to_path_buf())
+        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
+    let output_dir = create_timestamped_output_dir(&base_dir, "convert");
+    convert_image_sync(input_path, &options, &output_dir)
 }
 
 #[tauri::command]
@@ -79,23 +82,30 @@ pub async fn convert_images_batch(
     input_paths: Vec<String>,
     options: ConversionOptions,
 ) -> Vec<ConversionResult> {
+    let base_dir = options
+        .output_dir
+        .as_ref()
+        .map(|d| Path::new(d).to_path_buf())
+        .unwrap_or_else(|| {
+            input_paths
+                .first()
+                .and_then(|p| Path::new(p).parent())
+                .unwrap_or(Path::new("."))
+                .to_path_buf()
+        });
+    let output_dir = create_timestamped_output_dir(&base_dir, "convert");
+
     input_paths
         .par_iter()
         .map(|path| {
-            convert_image_sync(
-                path.clone(),
-                ConversionOptions {
-                    format: options.format.clone(),
-                    quality: options.quality,
-                    output_dir: options.output_dir.clone(),
-                },
-            )
-            .unwrap_or_else(|e| ConversionResult {
-                success: false,
-                output_path: None,
-                error: Some(e),
-                original_size: 0,
-                new_size: 0,
+            convert_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
+                ConversionResult {
+                    success: false,
+                    output_path: None,
+                    error: Some(e),
+                    original_size: 0,
+                    new_size: 0,
+                }
             })
         })
         .collect()
