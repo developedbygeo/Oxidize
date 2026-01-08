@@ -99,5 +99,3 @@ Portions of this codebase were developed with AI assistance (Claude by Anthropic
 ## License
 
 MIT
-
-See [LICENSES.md](LICENSES.md) for third-party dependency licenses.
