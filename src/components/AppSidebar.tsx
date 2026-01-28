@@ -1,5 +1,5 @@
-import { motion } from 'motion/react';
-import { ArrowRightLeft, Minimize2, Sparkles, Wand2, History } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowRightLeft, Minimize2, Sparkles, Wand2, History, Workflow, Sun, Moon } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
-type Page = 'convert' | 'compress' | 'beautify' | 'effects' | 'history';
+type Page = 'convert' | 'compress' | 'beautify' | 'effects' | 'pipeline' | 'history';
 
 type AppSidebarProps = {
   currentPage: Page;
@@ -46,6 +46,12 @@ const navItems = [
     icon: Wand2,
   },
   {
+    id: 'pipeline' as const,
+    label: 'Pipeline',
+    description: 'Chain operations',
+    icon: Workflow,
+  },
+  {
     id: 'history' as const,
     label: 'History',
     description: 'View past operations',
@@ -54,107 +60,71 @@ const navItems = [
 ];
 
 const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
+  const [isDark, setIsDark] = useState(() => {
+    return document.documentElement.classList.contains('dark');
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark((prev) => !prev);
+
   return (
     <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader className="p-5 pb-4 group-data-[collapsible=icon]:p-3">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center"
-        >
+      <SidebarHeader className="p-4 pb-3 group-data-[collapsible=icon]:p-3">
+        <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center animate-fade-in">
           <div className="relative shrink-0">
-            <motion.div
-              className="absolute inset-0 bg-cyan-500/20 rounded-2xl blur-xl"
-              animate={{
-                scale: [1, 1.15, 1],
-                opacity: [0.2, 0.4, 0.2],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-            <img src="/logo.png" alt="Oxidize" className="relative w-10 h-10 rounded-full drop-shadow-lg" />
+            <img src="/logo.png" alt="Oxidize" className="w-8 h-8 rounded-lg" />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="font-bold text-xl tracking-tight text-foreground">Oxidize</span>
-            <span className="text-xs text-muted-foreground font-medium -mt-0.5">Image Studio</span>
+            <span className="font-semibold text-sm tracking-tight text-foreground">Oxidize</span>
+            <span className="text-[10px] text-muted-foreground -mt-0.5">Image Studio</span>
           </div>
-        </motion.div>
+        </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-3 group-data-[collapsible=icon]:px-1.5">
+      <SidebarContent className="px-2 group-data-[collapsible=icon]:px-1.5">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-3 group-data-[collapsible=icon]:items-center">
-              {navItems.map((item, index) => {
+            <SidebarMenu className="gap-0.5 group-data-[collapsible=icon]:items-center">
+              {navItems.map((item) => {
                 const isActive = currentPage === item.id;
                 return (
                   <SidebarMenuItem key={item.id}>
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 + index * 0.05, duration: 0.4, ease: 'easeOut' }}
+                    <SidebarMenuButton
+                      onClick={() => onNavigate(item.id)}
+                      isActive={isActive}
+                      tooltip={item.label}
+                      size="default"
+                      className={cn(
+                        'relative transition-colors duration-150 rounded-md h-9',
+                        'group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:justify-center',
+                        isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      )}
                     >
-                      <SidebarMenuButton
-                        onClick={() => onNavigate(item.id)}
-                        isActive={isActive}
-                        tooltip={item.label}
-                        size="lg"
+                      <item.icon
                         className={cn(
-                          'relative overflow-hidden transition-all duration-300 rounded-xl h-auto py-3',
-                          'group-data-[collapsible=icon]:size-12! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:justify-center',
-                          isActive
-                            ? 'bg-foreground shadow-lg shadow-foreground/25'
-                            : 'hover:bg-sidebar-accent'
+                          'w-4 h-4 shrink-0',
+                          isActive ? 'text-primary' : ''
+                        )}
+                        strokeWidth={1.75}
+                      />
+                      <span
+                        className={cn(
+                          'text-sm group-data-[collapsible=icon]:hidden',
+                          isActive ? 'font-medium' : ''
                         )}
                       >
-                        {isActive && (
-                          <motion.div
-                            layoutId="activeIndicator"
-                            className="absolute inset-0 bg-linear-to-r from-sidebar-primary/0 via-sidebar-primary/10 to-sidebar-primary/0"
-                            initial={false}
-                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                          />
-                        )}
-                        <div
-                          className={cn(
-                            'p-2 rounded-lg transition-colors shrink-0',
-                            'group-data-[collapsible=icon]:p-2.5',
-                            isActive ? 'bg-background/15' : 'bg-sidebar-accent'
-                          )}
-                        >
-                          <item.icon
-                            className={cn(
-                              'w-3 h-3 transition-colors',
-                              'group-data-[collapsible=icon]:w-5 group-data-[collapsible=icon]:h-5',
-                              isActive ? 'text-primary' : 'text-muted-foreground'
-                            )}
-                            strokeWidth={1.5}
-                          />
-                        </div>
-                        <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
-                          <span
-                            className={cn(
-                              'font-semibold text-sm',
-                              isActive ? 'text-primary' : 'text-sidebar-foreground'
-                            )}
-                          >
-                            {item.label}
-                          </span>
-                          <span
-                            className={cn(
-                              'text-xs leading-tight',
-                              isActive ? 'text-primary/70' : 'text-muted-foreground'
-                            )}
-                          >
-                            {item.description}
-                          </span>
-                        </div>
-                      </SidebarMenuButton>
-                    </motion.div>
+                        {item.label}
+                      </span>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
@@ -163,20 +133,24 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 group-data-[collapsible=icon]:p-2">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="group-data-[collapsible=icon]:hidden"
+      <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-2">
+        <button
+          onClick={toggleTheme}
+          className={cn(
+            'flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors',
+            'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+            'group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1.5'
+          )}
         >
-          <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
-            <p className="text-xs text-muted-foreground text-center leading-relaxed">
-              Powered by <span className="font-semibold text-foreground">Rust</span> &{' '}
-              <span className="font-semibold text-foreground">React</span>
-            </p>
-          </div>
-        </motion.div>
+          {isDark ? (
+            <Sun className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+          ) : (
+            <Moon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+          )}
+          <span className="text-sm group-data-[collapsible=icon]:hidden">
+            {isDark ? 'Light mode' : 'Dark mode'}
+          </span>
+        </button>
       </SidebarFooter>
     </Sidebar>
   );

@@ -9,6 +9,7 @@ import { ConvertPage } from '@/pages/ConvertPage';
 import { CompressPage } from '@/pages/CompressPage';
 import { BeautifyPage } from '@/pages/BeautifyPage';
 import { EffectsPage } from '@/pages/EffectsPage';
+import { PipelinePage } from '@/pages/PipelinePage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import {
   loadHistory,
@@ -24,6 +25,7 @@ const pageTitles: Record<Page, string> = {
   compress: 'Compress Images',
   beautify: 'Beautify Images',
   effects: 'Apply Effects',
+  pipeline: 'Pipeline',
   history: 'Operation History',
 };
 
@@ -32,6 +34,7 @@ const pageSubtitles: Record<Page, string> = {
   compress: 'Drag and drop files to get started',
   beautify: 'Drag and drop files to get started',
   effects: 'Drag and drop files to get started',
+  pipeline: 'Chain multiple operations together',
   history: 'View and manage your recent operations',
 };
 
@@ -116,6 +119,7 @@ const App = () => {
               {currentPage === 'compress' && <CompressPage onOperationComplete={addToHistory} />}
               {currentPage === 'beautify' && <BeautifyPage onOperationComplete={addToHistory} />}
               {currentPage === 'effects' && <EffectsPage onOperationComplete={addToHistory} />}
+              {currentPage === 'pipeline' && <PipelinePage onOperationComplete={addToHistory} />}
               {currentPage === 'history' && (
                 <HistoryPage
                   history={history}

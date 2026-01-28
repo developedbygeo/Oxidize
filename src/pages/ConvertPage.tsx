@@ -6,6 +6,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
 import { cn, resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { fadeIn, fadeUp, expandHeight } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import type { ImageInfo, ConversionResult, ImageFormat, OperationHistoryItem } from '@/types/image';
@@ -142,19 +143,20 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="max-w-3xl mx-auto p-6 space-y-5">
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-4"
+          variants={fadeIn}
+          initial="hidden"
+          animate="visible"
+          className="flex items-center gap-3"
         >
-          <div className="p-3 rounded-2xl bg-primary/10">
-            <ArrowRightLeft className="w-6 h-6 text-primary" />
+          <div className="p-2 rounded-lg bg-primary/10">
+            <ArrowRightLeft className="w-4 h-4 text-primary" strokeWidth={1.75} />
           </div>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-foreground">Convert Images</h1>
-            <p className="text-sm tracking-wide text-muted-foreground">
-              Transform your images to different formats
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Convert</h1>
+            <p className="text-xs text-muted-foreground">
+              Transform images to different formats
             </p>
           </div>
         </motion.div>
@@ -167,58 +169,44 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
         <AnimatePresence>
           {images.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="space-y-5"
             >
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">Output Format</label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Output Format</label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                   {outputFormats.map((format) => (
-                    <motion.button
+                    <button
                       key={format}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
                       onClick={() => dispatch({ type: 'SET_TARGET_FORMAT', payload: format })}
                       className={cn(
-                        'relative p-3 rounded-xl border-2 transition-all duration-200',
+                        'relative px-3 py-2 rounded-md text-xs font-medium transition-colors',
                         targetFormat === format
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
                       )}
                     >
-                      {targetFormat === format && (
-                        <motion.div
-                          layoutId="formatIndicator"
-                          className="absolute inset-0 rounded-xl bg-primary/5"
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        />
-                      )}
-                      <span
-                        className={cn(
-                          'relative text-sm font-semibold',
-                          targetFormat === format ? 'text-primary' : 'text-foreground'
-                        )}
-                      >
-                        {formatLabels[format]}
-                      </span>
-                    </motion.button>
+                      {formatLabels[format]}
+                    </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">{formatDescriptions[targetFormat]}</p>
+                <p className="text-[11px] text-muted-foreground">{formatDescriptions[targetFormat]}</p>
               </div>
 
               {(targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'webp') && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-3"
+                  variants={expandHeight}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">Quality</label>
-                    <span className="text-sm font-mono text-primary">{quality}%</span>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quality</label>
+                    <span className="text-xs font-mono text-primary">{quality}%</span>
                   </div>
                   <input
                     type="range"
@@ -226,25 +214,25 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                     max={100}
                     value={quality}
                     onChange={(e) => dispatch({ type: 'SET_QUALITY', payload: Number(e.target.value) })}
-                    className="w-full accent-primary"
+                    className="w-full"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
                     <span>Smaller file</span>
                     <span>Better quality</span>
                   </div>
                 </motion.div>
               )}
 
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">Output Location</label>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Output Location</label>
                 <Button
                   variant="outline"
                   onClick={handleSelectOutputDir}
-                  className="w-full justify-start gap-2 h-12"
+                  className="w-full justify-start gap-2 h-9 text-xs"
                 >
-                  <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                  <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="truncate text-left flex-1">
-                    {outputDir || 'Same as original (click to change)'}
+                    {outputDir || 'Same as original'}
                   </span>
                 </Button>
               </div>
@@ -252,19 +240,17 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
               <Button
                 onClick={handleConvert}
                 disabled={isConverting || images.length === 0}
-                size="lg"
-                className="w-full h-14 text-lg gap-3"
+                className="w-full h-10 gap-2"
               >
                 {isConverting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Converting {images.length} images...
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Converting...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5" />
-                    Convert {images.length} image{images.length !== 1 ? 's' : ''} to{' '}
-                    {formatLabels[targetFormat]}
+                    <Sparkles className="w-4 h-4" />
+                    Convert to {formatLabels[targetFormat]}
                   </>
                 )}
               </Button>
@@ -275,37 +261,31 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
         <AnimatePresence>
           {showResults && results.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4"
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="space-y-3"
             >
-              <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-primary/20">
-                    <Check className="w-5 h-5 text-primary" />
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Check className="w-3.5 h-3.5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">Conversion Complete</p>
-                    <p className="text-sm text-muted-foreground">
-                      {successCount} of {results.length} images converted successfully
-                      {totalSaved > 0 && (
-                        <span className="text-primary ml-1">
-                          • Saved {formatFileSize(Math.abs(totalSaved))}
-                        </span>
-                      )}
+                    <p className="text-sm font-medium text-foreground">Complete</p>
+                    <p className="text-xs text-muted-foreground">
+                      {successCount}/{results.length} converted
+                      {totalSaved > 0 && ` · ${formatFileSize(Math.abs(totalSaved))} saved`}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              <div className="space-y-1 max-h-40 overflow-y-auto">
                 {results.map((result, index) => (
-                  <motion.button
+                  <button
                     key={index}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
                     onClick={async () => {
                       if (result.success && result.output_path) {
                         try {
@@ -319,32 +299,32 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                     }}
                     disabled={!result.success || !result.output_path}
                     className={cn(
-                      'w-full flex items-center justify-between p-3 rounded-xl transition-colors',
+                      'w-full flex items-center justify-between p-2 rounded-md text-xs transition-colors',
                       result.success
-                        ? 'bg-muted/50 hover:bg-muted cursor-pointer'
-                        : 'bg-destructive/10 cursor-default'
+                        ? 'bg-muted/30 hover:bg-muted/50 cursor-pointer'
+                        : 'bg-destructive/5 cursor-default'
                     )}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div
                         className={cn(
-                          'w-2 h-2 rounded-full',
+                          'w-1.5 h-1.5 rounded-full shrink-0',
                           result.success ? 'bg-primary' : 'bg-destructive'
                         )}
                       />
-                      <span className="text-sm truncate">
+                      <span className="truncate">
                         {result.output_path?.split(/[/\\]/).pop() || `Image ${index + 1}`}
                       </span>
                     </div>
                     {result.success && (
                       <div className="flex items-center gap-2 ml-2">
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {formatFileSize(result.original_size)} → {formatFileSize(result.new_size)}
                         </span>
-                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
                       </div>
                     )}
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             </motion.div>

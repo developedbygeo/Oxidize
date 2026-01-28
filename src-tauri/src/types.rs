@@ -25,12 +25,16 @@ pub struct ConversionOptions {
     pub format: String,
     pub quality: u8,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub skip_timestamp_dir: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompressionOptions {
     pub quality: u8,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub skip_timestamp_dir: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -54,6 +58,8 @@ pub struct BeautifyOptions {
     pub temperature: i32,
     pub white_balance: String,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub skip_timestamp_dir: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -71,6 +77,8 @@ pub struct EffectOptions {
     pub effect: String,
     pub intensity: u8,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub skip_timestamp_dir: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

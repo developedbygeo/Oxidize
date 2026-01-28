@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Eye, EyeOff, Columns2, Loader2 } from 'lucide-react';
 import { debounce } from 'lodash-es';
 import { cn } from '@/lib/utils';
+import { fadeIn } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import {
   type PreviewOptions,
@@ -173,74 +174,71 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
   const displayUrl = viewMode === 'original' ? originalUrl : adjustedUrl;
 
   return (
-    <div className={cn('relative rounded-xl overflow-hidden bg-muted/50 flex flex-col', className)}>
-      {/* View mode toggle */}
-      <div className="absolute top-3 right-3 z-20 flex gap-1 p-1 rounded-lg bg-background/80 backdrop-blur-sm border border-border/50">
+    <div className={cn('relative rounded-lg overflow-hidden bg-muted/30 flex flex-col', className)}>
+      <div className="absolute top-2 right-2 z-20 flex gap-0.5 p-0.5 rounded-md bg-background/80 backdrop-blur-sm border border-border/30">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'adjusted' })}
           className={cn(
-            'h-7 px-2 text-xs',
-            viewMode === 'adjusted' && 'bg-amber-500/20 text-amber-500'
+            'h-6 w-6 p-0',
+            viewMode === 'adjusted' && 'bg-primary/10 text-primary'
           )}
           title="Show adjusted"
         >
-          <Eye className="w-3.5 h-3.5" />
+          <Eye className="w-3 h-3" />
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'original' })}
           className={cn(
-            'h-7 px-2 text-xs',
-            viewMode === 'original' && 'bg-amber-500/20 text-amber-500'
+            'h-6 w-6 p-0',
+            viewMode === 'original' && 'bg-primary/10 text-primary'
           )}
           title="Show original"
         >
-          <EyeOff className="w-3.5 h-3.5" />
+          <EyeOff className="w-3 h-3" />
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'split' })}
           className={cn(
-            'h-7 px-2 text-xs',
-            viewMode === 'split' && 'bg-amber-500/20 text-amber-500'
+            'h-6 w-6 p-0',
+            viewMode === 'split' && 'bg-primary/10 text-primary'
           )}
           title="Split comparison"
         >
-          <Columns2 className="w-3.5 h-3.5" />
+          <Columns2 className="w-3 h-3" />
         </Button>
       </div>
 
-      {/* Processing indicator */}
       <AnimatePresence>
         {isProcessing && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute top-3 left-3 z-20 flex items-center gap-2 px-2 py-1 rounded-lg bg-background/80 backdrop-blur-sm border border-border/50"
+            variants={fadeIn}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-md bg-background/80 backdrop-blur-sm border border-border/30"
           >
-            <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
-            <span className="text-xs text-muted-foreground">Processing...</span>
+            <Loader2 className="w-2.5 h-2.5 animate-spin text-primary" />
+            <span className="text-[10px] text-muted-foreground">Processing</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Image display - fills available space */}
-      <div className="flex-1 min-h-0 flex items-center justify-center p-4">
+      <div className="flex-1 min-h-0 flex items-center justify-center p-3">
         {viewMode === 'split' ? (
           <div
             ref={containerRef}
-            className="relative max-w-full max-h-full cursor-ew-resize select-none overflow-hidden rounded-lg"
+            className="relative max-w-full max-h-full cursor-ew-resize select-none overflow-hidden rounded-md"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
           >
-            {/* Original (left side) */}
             <div
               className="absolute inset-0 overflow-hidden"
               style={{ clipPath: `inset(0 ${100 - splitPosition}% 0 0)` }}
@@ -253,7 +251,6 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
               />
             </div>
 
-            {/* Adjusted (right side) - this one sets the size */}
             <img
               src={adjustedUrl}
               alt="Adjusted"
@@ -262,22 +259,19 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
               draggable={false}
             />
 
-            {/* Split line - contained within bounds */}
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-white/80 z-10 pointer-events-none"
+              className="absolute top-0 bottom-0 w-px bg-white/60 z-10 pointer-events-none"
               style={{ left: `${splitPosition}%`, transform: 'translateX(-50%)' }}
             >
-              {/* Handle circle */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center border border-border/30">
-                <Columns2 className="w-4 h-4 text-muted-foreground" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center">
+                <Columns2 className="w-3 h-3 text-muted-foreground" />
               </div>
             </div>
 
-            {/* Labels */}
-            <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-background/80 backdrop-blur-sm text-xs text-muted-foreground z-10">
+            <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-background/70 backdrop-blur-sm text-[9px] text-muted-foreground z-10">
               Original
             </div>
-            <div className="absolute bottom-3 right-3 px-2 py-1 rounded bg-background/80 backdrop-blur-sm text-xs text-muted-foreground z-10">
+            <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-background/70 backdrop-blur-sm text-[9px] text-muted-foreground z-10">
               Adjusted
             </div>
           </div>
@@ -286,17 +280,16 @@ const ImagePreview = ({ src, options, className }: ImagePreviewProps) => {
             <img
               src={displayUrl}
               alt={viewMode === 'original' ? 'Original' : 'Adjusted'}
-              className="max-w-full max-h-full object-contain rounded-lg"
+              className="max-w-full max-h-full object-contain rounded-md"
             />
             {!showAdjusted && viewMode === 'adjusted' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-lg">
-                <span className="text-sm text-muted-foreground">
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-md">
+                <span className="text-xs text-muted-foreground">
                   Adjust sliders to see changes
                 </span>
               </div>
             )}
-            {/* View mode label */}
-            <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-background/80 backdrop-blur-sm text-xs text-muted-foreground">
+            <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-background/70 backdrop-blur-sm text-[9px] text-muted-foreground">
               {viewMode === 'original' ? 'Original' : 'Preview'}
             </div>
           </div>

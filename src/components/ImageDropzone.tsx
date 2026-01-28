@@ -4,6 +4,7 @@ import { Upload, X, Loader2 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '@/lib/utils';
+import { expandHeight } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import type { ImageInfo } from '@/types/image';
 
@@ -13,14 +14,6 @@ type ImageDropzoneProps = {
   maxImages?: number;
   compact?: boolean;
   className?: string;
-};
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
 const ImageDropzone = ({
@@ -91,37 +84,30 @@ const ImageDropzone = ({
     onImagesChange([]);
   }, [onImagesChange]);
 
-  // Compact version - small add button for thumbnail strips
   if (compact) {
     return (
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+      <button
         onClick={handleSelectFiles}
         disabled={isLoading}
         className={cn(
-          'flex items-center justify-center rounded-lg border-2 border-dashed border-border/50 bg-muted/30',
-          'hover:border-primary/50 hover:bg-primary/5 transition-all',
+          'flex items-center justify-center rounded-md border border-dashed border-border/50 bg-muted/20',
+          'hover:border-primary/50 hover:bg-primary/5 transition-colors',
           isLoading && 'pointer-events-none opacity-70',
           className
         )}
       >
         {isLoading ? (
-          <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+          <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
         ) : (
-          <Upload className="w-4 h-4 text-muted-foreground" />
+          <Upload className="w-3.5 h-3.5 text-muted-foreground" />
         )}
-      </motion.button>
+      </button>
     );
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
-      {/* Dropzone */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+    <div className={cn('space-y-3', className)}>
+      <div
         onClick={handleSelectFiles}
         onDragOver={(e) => {
           e.preventDefault();
@@ -131,92 +117,78 @@ const ImageDropzone = ({
         onDrop={(e) => {
           e.preventDefault();
           setIsDragOver(false);
-          // File drop handling would need Tauri's drag-drop plugin
         }}
         className={cn(
-          'group relative border-2 border-dashed rounded-2xl p-8 transition-all duration-300 cursor-pointer',
-          'hover:border-primary/60 hover:bg-primary/5',
-          isDragOver && 'border-primary bg-primary/10 scale-[1.02]',
+          'group relative border border-dashed rounded-lg p-6 transition-colors cursor-pointer',
+          'hover:border-primary/50 hover:bg-primary/5',
+          isDragOver && 'border-primary bg-primary/5',
           isLoading && 'pointer-events-none opacity-70',
-          'border-border/50 bg-muted/30'
+          'border-border/50 bg-muted/20'
         )}
       >
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-2">
           {isLoading ? (
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            >
-              <Loader2 className="w-10 h-10 text-primary" />
-            </motion.div>
+            <Loader2 className="w-6 h-6 text-primary animate-spin" />
           ) : (
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              className="p-4 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors"
-            >
-              <Upload className="w-8 h-8 text-primary" />
-            </motion.div>
+            <div className="p-2.5 rounded-lg bg-primary/10">
+              <Upload className="w-5 h-5 text-primary" />
+            </div>
           )}
           <div className="text-center">
-            <p className="font-medium text-foreground">
-              {isLoading ? 'Loading images...' : 'Drop images here'}
+            <p className="text-sm font-medium text-foreground">
+              {isLoading ? 'Loading...' : 'Drop images here'}
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-0.5">
               or click to browse
             </p>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             PNG, JPG, WebP, GIF, BMP, ICO, TIFF
           </p>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Image List */}
       <AnimatePresence mode="popLayout">
         {images.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-3"
+            variants={expandHeight}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="space-y-2"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">
-                {images.length} image{images.length !== 1 ? 's' : ''} selected
+              <span className="text-xs font-medium text-foreground">
+                {images.length} image{images.length !== 1 ? 's' : ''}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleClearAll}
-                className="text-muted-foreground hover:text-destructive"
+                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive"
               >
-                Clear all
+                Clear
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-75 overflow-y-auto p-1">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 max-h-60 overflow-y-auto">
               {images.map((image, index) => (
-                <motion.div
+                <div
                   key={image.path}
-                  layout
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.2 }}
-                  className="group relative aspect-square rounded-xl overflow-hidden bg-muted border border-border/50"
+                  className="group relative aspect-square rounded-md overflow-hidden bg-muted border border-border/30"
                 >
                   <img
                     src={image.thumbnail}
                     alt={image.name}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-xs text-white font-medium truncate">
+                  <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute bottom-0 left-0 right-0 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <p className="text-[9px] text-white font-medium truncate">
                       {image.name}
                     </p>
-                    <p className="text-[10px] text-white/70">
-                      {image.width}×{image.height} • {formatFileSize(image.size)}
+                    <p className="text-[8px] text-white/70">
+                      {image.width}×{image.height}
                     </p>
                   </div>
                   <button
@@ -224,14 +196,14 @@ const ImageDropzone = ({
                       e.stopPropagation();
                       handleRemoveImage(index);
                     }}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-destructive transition-all"
+                    className="absolute top-1 right-1 p-1 rounded bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-destructive transition-all"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-2.5 h-2.5" />
                   </button>
-                  <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-black/50 text-white uppercase">
+                  <div className="absolute top-1 left-1 px-1 py-0.5 rounded text-[8px] font-medium bg-black/50 text-white uppercase">
                     {image.format}
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           </motion.div>

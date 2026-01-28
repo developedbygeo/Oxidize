@@ -83,7 +83,7 @@ export const formatDescriptions: Record<ImageFormat, string> = {
   tiff: 'High quality, large files',
 };
 
-export type OperationType = 'convert' | 'compress' | 'beautify' | 'effects';
+export type OperationType = 'convert' | 'compress' | 'beautify' | 'effects' | 'pipeline';
 
 export interface OperationHistoryItem {
   id: string;

@@ -359,7 +359,12 @@ pub async fn compress_image(
         .as_ref()
         .map(|d| Path::new(d).to_path_buf())
         .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = create_timestamped_output_dir(&base_dir, "compress");
+    let output_dir = if options.skip_timestamp_dir {
+        std::fs::create_dir_all(&base_dir).ok();
+        base_dir
+    } else {
+        create_timestamped_output_dir(&base_dir, "compress")
+    };
     compress_image_sync(input_path, &options, &output_dir)
 }
 
@@ -379,7 +384,12 @@ pub async fn compress_images_batch(
                 .unwrap_or(Path::new("."))
                 .to_path_buf()
         });
-    let output_dir = create_timestamped_output_dir(&base_dir, "compress");
+    let output_dir = if options.skip_timestamp_dir {
+        std::fs::create_dir_all(&base_dir).ok();
+        base_dir
+    } else {
+        create_timestamped_output_dir(&base_dir, "compress")
+    };
 
     input_paths
         .par_iter()

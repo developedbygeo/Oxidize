@@ -22,6 +22,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
 import { cn, resolveOutputDir, formatAdjustmentDetails } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { fadeIn, fadeUp } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ImageDropzone } from '@/components/ImageDropzone';
@@ -49,16 +50,16 @@ type AdjustmentSliderProps = {
 };
 
 const AdjustmentSlider = ({ label, value, min, max, onChange, icon, unit = '' }: AdjustmentSliderProps) => (
-  <div className="space-y-2">
+  <div className="space-y-1.5">
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {icon}
-        <span className="text-xs font-medium text-foreground">{label}</span>
+        <span className="text-[11px] font-medium text-foreground">{label}</span>
       </div>
       <span
         className={cn(
-          'text-xs font-mono tabular-nums',
-          value === 0 ? 'text-muted-foreground' : 'text-amber-500'
+          'text-[10px] font-mono tabular-nums',
+          value === 0 ? 'text-muted-foreground' : 'text-primary'
         )}
       >
         {value > 0 ? '+' : ''}
@@ -72,7 +73,7 @@ const AdjustmentSlider = ({ label, value, min, max, onChange, icon, unit = '' }:
       max={max}
       step={1}
       onValueChange={(values) => onChange(values[0])}
-      className="**:data-[slot=slider-track]:h-1.5 **:data-[slot=slider-range]:bg-amber-500 **:data-[slot=slider-thumb]:border-amber-500 **:data-[slot=slider-thumb]:size-4"
+      className="**:data-[slot=slider-track]:h-1 **:data-[slot=slider-range]:bg-primary **:data-[slot=slider-thumb]:border-primary **:data-[slot=slider-thumb]:size-3"
     />
   </div>
 );
@@ -105,14 +106,6 @@ const defaultAdjustments: Adjustments = {
   hue_shift: 0,
   temperature: 0,
   white_balance: 'daylight',
-};
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
 type BeautifyState = {
@@ -320,19 +313,20 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
   if (images.length === 0) {
     return (
       <div className="h-full overflow-auto">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <div className="max-w-3xl mx-auto p-6 space-y-5">
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-4"
+            variants={fadeIn}
+            initial="hidden"
+            animate="visible"
+            className="flex items-center gap-3"
           >
-            <div className="p-3 rounded-2xl bg-amber-500/10">
-              <Sparkles className="w-6 h-6 text-amber-500" />
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Sparkles className="w-4 h-4 text-primary" strokeWidth={1.75} />
             </div>
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-foreground">Beautify Images</h1>
-              <p className="text-sm tracking-wide text-muted-foreground">
-                Enhance your images with adjustments and color correction
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">Beautify</h1>
+              <p className="text-xs text-muted-foreground">
+                Enhance images with adjustments and color correction
               </p>
             </div>
           </motion.div>
@@ -356,7 +350,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
           <div className="flex-1 min-h-0 relative">
             {isLoadingPreview && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
-                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             )}
             {previewImage && previewSrc && (
@@ -369,20 +363,17 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             )}
           </div>
 
-          <div className="border-t border-border/50 p-3 bg-muted/30">
-            <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="border-t border-border/50 p-2.5 bg-muted/20">
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
               {images.map((img, index) => (
-                <motion.button
+                <button
                   key={img.path}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03 }}
                   onClick={() => dispatch({ type: 'SET_PREVIEW_INDEX', payload: index })}
                   className={cn(
-                    'relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all group',
+                    'relative shrink-0 w-12 h-12 rounded-md overflow-hidden border transition-all group',
                     previewIndex === index
-                      ? 'border-amber-500 ring-2 ring-amber-500/30'
-                      : 'border-border/50 hover:border-amber-500/50'
+                      ? 'border-primary ring-1 ring-primary/30'
+                      : 'border-border/50 hover:border-primary/50'
                   )}
                 >
                   <img src={img.thumbnail} alt={img.name} className="w-full h-full object-cover" />
@@ -393,30 +384,29 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                     }}
                     className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-2.5 h-2.5" />
                   </button>
-                  {previewIndex === index && <div className="absolute inset-0 bg-amber-500/10" />}
-                </motion.button>
+                </button>
               ))}
               <ImageDropzone
                 images={images}
                 onImagesChange={(newImages) => dispatch({ type: 'SET_IMAGES', payload: newImages })}
                 compact
-                className="shrink-0 w-14 h-14"
+                className="shrink-0 w-12 h-12"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              {images.length} image{images.length !== 1 ? 's' : ''} selected
-              {previewImage && ` • ${previewImage.name}`}
+            <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+              {images.length} image{images.length !== 1 ? 's' : ''}
+              {previewImage && ` · ${previewImage.name}`}
             </p>
           </div>
         </div>
 
-        <div className="w-80 flex flex-col bg-background overflow-hidden shrink-0">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="space-y-3">
+        <div className="w-72 flex flex-col bg-background overflow-hidden shrink-0">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                <h2 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                   Basic Adjustments
                 </h2>
                 {hasChanges && (
@@ -424,21 +414,21 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                     variant="ghost"
                     size="sm"
                     onClick={() => dispatch({ type: 'RESET_ADJUSTMENTS' })}
-                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-amber-500"
+                    className="h-5 px-1.5 text-[9px] text-muted-foreground hover:text-primary"
                   >
-                    <RotateCcw className="w-3 h-3 mr-1" />
+                    <RotateCcw className="w-2.5 h-2.5 mr-0.5" />
                     Reset
                   </Button>
                 )}
               </div>
-              <div className="space-y-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+              <div className="space-y-2.5 p-2.5 rounded-md bg-muted/20 border border-border/30">
                 <AdjustmentSlider
                   label="Brightness"
                   value={adjustments.brightness}
                   min={-100}
                   max={100}
                   onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { brightness: v } })}
-                  icon={<Sun className="w-3.5 h-3.5 text-amber-500" />}
+                  icon={<Sun className="w-3 h-3 text-muted-foreground" />}
                 />
                 <AdjustmentSlider
                   label="Contrast"
@@ -446,7 +436,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   min={-100}
                   max={100}
                   onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { contrast: v } })}
-                  icon={<Contrast className="w-3.5 h-3.5 text-amber-500" />}
+                  icon={<Contrast className="w-3 h-3 text-muted-foreground" />}
                 />
                 <AdjustmentSlider
                   label="Saturation"
@@ -454,7 +444,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   min={-100}
                   max={100}
                   onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { saturation: v } })}
-                  icon={<Droplets className="w-3.5 h-3.5 text-amber-500" />}
+                  icon={<Droplets className="w-3 h-3 text-muted-foreground" />}
                 />
                 <AdjustmentSlider
                   label="Sharpness"
@@ -462,7 +452,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   min={-100}
                   max={100}
                   onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { sharpness: v } })}
-                  icon={<Focus className="w-3.5 h-3.5 text-amber-500" />}
+                  icon={<Focus className="w-3 h-3 text-muted-foreground" />}
                 />
                 <AdjustmentSlider
                   label="Exposure"
@@ -470,49 +460,45 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   min={-100}
                   max={100}
                   onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { exposure: v } })}
-                  icon={<Aperture className="w-3.5 h-3.5 text-amber-500" />}
+                  icon={<Aperture className="w-3 h-3 text-muted-foreground" />}
                 />
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+            <div className="space-y-2">
+              <h2 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                 Color Correction
               </h2>
-              <div className="space-y-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CircleDot className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="text-xs font-medium text-foreground">White Balance</span>
+              <div className="space-y-2.5 p-2.5 rounded-md bg-muted/20 border border-border/30">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <CircleDot className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[11px] font-medium text-foreground">White Balance</span>
                   </div>
                   <div className="grid grid-cols-5 gap-1">
                     {whiteBalancePresets.map((preset) => (
-                      <motion.button
+                      <button
                         key={preset.value}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                         onClick={() =>
                           dispatch({ type: 'SET_ADJUSTMENT', payload: { white_balance: preset.value } })
                         }
                         className={cn(
-                          'p-1.5 rounded-md border transition-all duration-200 text-center',
+                          'p-1 rounded text-center transition-colors',
                           adjustments.white_balance === preset.value
-                            ? 'border-amber-500 bg-amber-500/10'
-                            : 'border-border/50 hover:border-amber-500/50 hover:bg-muted/50'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted/30 hover:bg-muted/50 text-muted-foreground'
                         )}
                       >
-                        <span className="block text-sm">{preset.icon}</span>
+                        <span className="block text-xs">{preset.icon}</span>
                         <span
                           className={cn(
-                            'block text-[9px] mt-0.5',
-                            adjustments.white_balance === preset.value
-                              ? 'text-amber-500 font-medium'
-                              : 'text-muted-foreground'
+                            'block text-[8px] mt-0.5',
+                            adjustments.white_balance === preset.value ? 'font-medium' : ''
                           )}
                         >
                           {preset.label}
                         </span>
-                      </motion.button>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -523,7 +509,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   min={-180}
                   max={180}
                   onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { hue_shift: v } })}
-                  icon={<Palette className="w-3.5 h-3.5 text-amber-500" />}
+                  icon={<Palette className="w-3 h-3 text-muted-foreground" />}
                   unit="°"
                 />
                 <AdjustmentSlider
@@ -532,23 +518,23 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                   min={-100}
                   max={100}
                   onChange={(v) => dispatch({ type: 'SET_ADJUSTMENT', payload: { temperature: v } })}
-                  icon={<Thermometer className="w-3.5 h-3.5 text-amber-500" />}
+                  icon={<Thermometer className="w-3 h-3 text-muted-foreground" />}
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground -mt-1 px-1">
+                <div className="flex justify-between text-[9px] text-muted-foreground px-0.5">
                   <span>Cool</span>
                   <span>Warm</span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">Output Location</label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Output</label>
               <Button
                 variant="outline"
                 onClick={handleSelectOutputDir}
-                className="w-full justify-start gap-2 h-9 text-xs"
+                className="w-full justify-start gap-1.5 h-8 text-[11px]"
               >
-                <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                <FolderOpen className="w-3 h-3 text-muted-foreground" />
                 <span className="truncate text-left flex-1">{outputDir || 'Same as original'}</span>
               </Button>
             </div>
@@ -556,32 +542,30 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             <AnimatePresence>
               {showResults && results.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-2"
+                  variants={fadeUp}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="space-y-1.5"
                 >
-                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <div className="p-2 rounded-md bg-primary/5 border border-primary/10">
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-md bg-amber-500/20">
-                        <Check className="w-3.5 h-3.5 text-amber-500" />
+                      <div className="p-1 rounded bg-primary/10">
+                        <Check className="w-3 h-3 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground">Complete</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-[11px] font-medium text-foreground">Complete</p>
+                        <p className="text-[9px] text-muted-foreground">
                           {successCount}/{results.length} enhanced
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                  <div className="space-y-0.5 max-h-24 overflow-y-auto">
                     {results.map((result, index) => (
-                      <motion.button
+                      <button
                         key={index}
-                        initial={{ opacity: 0, x: -5 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.03 }}
                         onClick={async () => {
                           if (result.success && result.output_path) {
                             try {
@@ -595,17 +579,17 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                         }}
                         disabled={!result.success || !result.output_path}
                         className={cn(
-                          'w-full flex items-center justify-between p-2 rounded-md text-xs transition-colors',
+                          'w-full flex items-center justify-between p-1.5 rounded text-[10px] transition-colors',
                           result.success
-                            ? 'bg-muted/50 hover:bg-muted cursor-pointer'
-                            : 'bg-destructive/10 cursor-default'
+                            ? 'bg-muted/30 hover:bg-muted/50 cursor-pointer'
+                            : 'bg-destructive/5 cursor-default'
                         )}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
                           <div
                             className={cn(
-                              'w-1.5 h-1.5 rounded-full flex-shrink-0',
-                              result.success ? 'bg-amber-500' : 'bg-destructive'
+                              'w-1 h-1 rounded-full shrink-0',
+                              result.success ? 'bg-primary' : 'bg-destructive'
                             )}
                           />
                           <span className="truncate">
@@ -613,14 +597,9 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                           </span>
                         </div>
                         {result.success && (
-                          <div className="flex items-center gap-1.5 ml-2">
-                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                              {formatFileSize(result.new_size)}
-                            </span>
-                            <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                          </div>
+                          <ExternalLink className="w-2.5 h-2.5 text-muted-foreground ml-1" />
                         )}
-                      </motion.button>
+                      </button>
                     ))}
                   </div>
                 </motion.div>
@@ -628,21 +607,20 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
             </AnimatePresence>
           </div>
 
-          <div className="p-4 border-t border-border/50 bg-background">
+          <div className="p-3 border-t border-border/30 bg-background">
             <Button
               onClick={handleBeautify}
               disabled={isBeautifying || images.length === 0}
-              size="lg"
-              className="w-full h-11 text-sm gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+              className="w-full h-9 text-xs gap-1.5"
             >
               {isBeautifying ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Beautifying...
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Processing...
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-3.5 h-3.5" />
                   Beautify {images.length} image{images.length !== 1 ? 's' : ''}
                 </>
               )}

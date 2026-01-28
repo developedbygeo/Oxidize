@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 
 #[tauri::command]
@@ -68,4 +69,14 @@ pub fn reveal_file(path: String) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn delete_file(path: String) -> Result<(), String> {
+    let path = Path::new(&path);
+    if !path.exists() {
+        return Ok(());
+    }
+
+    fs::remove_file(path).map_err(|e| format!("Failed to delete file: {}", e))
 }

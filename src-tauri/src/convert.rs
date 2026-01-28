@@ -73,7 +73,12 @@ pub async fn convert_image(
         .as_ref()
         .map(|d| Path::new(d).to_path_buf())
         .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = create_timestamped_output_dir(&base_dir, "convert");
+    let output_dir = if options.skip_timestamp_dir {
+        std::fs::create_dir_all(&base_dir).ok();
+        base_dir
+    } else {
+        create_timestamped_output_dir(&base_dir, "convert")
+    };
     convert_image_sync(input_path, &options, &output_dir)
 }
 
@@ -93,7 +98,12 @@ pub async fn convert_images_batch(
                 .unwrap_or(Path::new("."))
                 .to_path_buf()
         });
-    let output_dir = create_timestamped_output_dir(&base_dir, "convert");
+    let output_dir = if options.skip_timestamp_dir {
+        std::fs::create_dir_all(&base_dir).ok();
+        base_dir
+    } else {
+        create_timestamped_output_dir(&base_dir, "convert")
+    };
 
     input_paths
         .par_iter()

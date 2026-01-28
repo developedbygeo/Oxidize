@@ -6,6 +6,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
 import { cn, resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { fadeIn, fadeUp, expandHeight } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import type { ImageInfo, CompressionResult, OperationHistoryItem } from '@/types/image';
@@ -183,18 +184,19 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="max-w-3xl mx-auto p-6 space-y-5">
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-4"
+          variants={fadeIn}
+          initial="hidden"
+          animate="visible"
+          className="flex items-center gap-3"
         >
-          <div className="p-3 rounded-2xl bg-emerald-500/10">
-            <Minimize2 className="w-6 h-6 text-emerald-500" />
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Minimize2 className="w-4 h-4 text-primary" strokeWidth={1.75} />
           </div>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-foreground">Compress Images</h1>
-            <p className="text-sm tracking-wide text-muted-foreground">
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Compress</h1>
+            <p className="text-xs text-muted-foreground">
               Reduce file sizes while preserving quality
             </p>
           </div>
@@ -208,68 +210,71 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
         <AnimatePresence>
           {images.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="space-y-5"
             >
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">Compression Level</label>
-                <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Compression Level</label>
+                <div className="grid grid-cols-3 gap-1.5">
                   {(
                     Object.entries(compressionPresets) as [
                       CompressionLevel,
                       typeof compressionPresets.lossless
                     ][]
                   ).map(([level, preset]) => (
-                    <motion.button
+                    <button
                       key={level}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
                       onClick={() => dispatch({ type: 'SET_COMPRESSION_LEVEL', payload: level })}
                       className={cn(
-                        'relative p-4 rounded-xl border-2 transition-all duration-200 text-left',
+                        'relative p-3 rounded-md text-left transition-colors',
                         !useCustom && compressionLevel === level
-                          ? 'border-emerald-500 bg-emerald-500/10'
-                          : 'border-border/50 hover:border-emerald-500/50 hover:bg-muted/50'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted/50 hover:bg-muted'
                       )}
                     >
                       <span
                         className={cn(
-                          'block text-sm font-semibold',
-                          !useCustom && compressionLevel === level ? 'text-emerald-500' : 'text-foreground'
+                          'block text-xs font-medium',
+                          !useCustom && compressionLevel === level ? '' : 'text-foreground'
                         )}
                       >
                         {preset.label}
                       </span>
-                      <span className="block text-xs text-muted-foreground mt-1">{preset.description}</span>
-                    </motion.button>
+                      <span className={cn(
+                        'block text-[10px] mt-0.5',
+                        !useCustom && compressionLevel === level ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                      )}>{preset.description}</span>
+                    </button>
                   ))}
                 </div>
               </div>
 
               {compressionLevel !== 'lossless' && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-3"
+                  variants={expandHeight}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">Custom Quality</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Quality</label>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => dispatch({ type: 'SET_USE_CUSTOM', payload: !useCustom })}
-                      className={cn('text-xs', useCustom ? 'text-emerald-500' : 'text-muted-foreground')}
+                      className={cn('h-6 px-2 text-[10px]', useCustom ? 'text-primary' : 'text-muted-foreground')}
                     >
                       {useCustom ? 'Using custom' : 'Use custom'}
                     </Button>
                   </div>
                   <div className={cn('transition-opacity', useCustom ? 'opacity-100' : 'opacity-50')}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground">Quality</span>
-                      <span className="text-sm font-mono text-emerald-500">{customQuality}%</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] text-muted-foreground">Quality</span>
+                      <span className="text-xs font-mono text-primary">{customQuality}%</span>
                     </div>
                     <input
                       type="range"
@@ -279,9 +284,9 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                       onChange={(e) =>
                         dispatch({ type: 'SET_CUSTOM_QUALITY', payload: Number(e.target.value) })
                       }
-                      className="w-full accent-emerald-500"
+                      className="w-full"
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
                       <span>Smaller file</span>
                       <span>Better quality</span>
                     </div>
@@ -289,16 +294,16 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                 </motion.div>
               )}
 
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">Output Location</label>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Output Location</label>
                 <Button
                   variant="outline"
                   onClick={handleSelectOutputDir}
-                  className="w-full justify-start gap-2 h-12"
+                  className="w-full justify-start gap-2 h-9 text-xs"
                 >
-                  <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                  <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="truncate text-left flex-1">
-                    {outputDir || 'Same as original (click to change)'}
+                    {outputDir || 'Same as original'}
                   </span>
                 </Button>
               </div>
@@ -306,17 +311,16 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
               <Button
                 onClick={handleCompress}
                 disabled={isCompressing || images.length === 0}
-                size="lg"
-                className="w-full h-14 text-lg gap-3 bg-emerald-500 hover:bg-emerald-600"
+                className="w-full h-10 gap-2"
               >
                 {isCompressing ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Compressing {images.length} images...
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Compressing...
                   </>
                 ) : (
                   <>
-                    <Zap className="w-5 h-5" />
+                    <Zap className="w-4 h-4" />
                     Compress {images.length} image{images.length !== 1 ? 's' : ''}
                   </>
                 )}
@@ -328,41 +332,39 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
         <AnimatePresence>
           {showResults && results.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4"
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="space-y-3"
             >
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-emerald-500/20">
-                    <Check className="w-5 h-5 text-emerald-500" />
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Check className="w-3.5 h-3.5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-foreground">Compression Complete</p>
-                    <p className="text-sm text-muted-foreground">
-                      {successCount} of {results.length} images compressed
+                    <p className="text-sm font-medium text-foreground">Complete</p>
+                    <p className="text-xs text-muted-foreground">
+                      {successCount}/{results.length} compressed
                     </p>
                   </div>
                   {totalSaved > 0 && (
                     <div className="text-right">
-                      <div className="flex items-center gap-1 text-emerald-500">
-                        <TrendingDown className="w-4 h-4" />
-                        <span className="font-semibold">{avgSavings.toFixed(1)}%</span>
+                      <div className="flex items-center gap-1 text-primary text-xs font-medium">
+                        <TrendingDown className="w-3 h-3" />
+                        <span>{avgSavings.toFixed(1)}%</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">Saved {formatFileSize(totalSaved)}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatFileSize(totalSaved)} saved</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-50 overflow-y-auto">
+              <div className="space-y-1 max-h-40 overflow-y-auto">
                 {results.map((result, index) => (
-                  <motion.button
+                  <button
                     key={index}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
                     onClick={async () => {
                       if (result.success && result.output_path) {
                         try {
@@ -376,40 +378,40 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                     }}
                     disabled={!result.success || !result.output_path}
                     className={cn(
-                      'w-full flex items-center justify-between p-3 rounded-xl transition-colors',
+                      'w-full flex items-center justify-between p-2 rounded-md text-xs transition-colors',
                       result.success
-                        ? 'bg-muted/50 hover:bg-muted cursor-pointer'
-                        : 'bg-destructive/10 cursor-default'
+                        ? 'bg-muted/30 hover:bg-muted/50 cursor-pointer'
+                        : 'bg-destructive/5 cursor-default'
                     )}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div
                         className={cn(
-                          'w-2 h-2 rounded-full',
-                          result.success ? 'bg-emerald-500' : 'bg-destructive'
+                          'w-1.5 h-1.5 rounded-full shrink-0',
+                          result.success ? 'bg-primary' : 'bg-destructive'
                         )}
                       />
-                      <span className="text-sm truncate">
+                      <span className="truncate">
                         {result.output_path?.split(/[/\\]/).pop() || `Image ${index + 1}`}
                       </span>
                     </div>
                     {result.success && (
-                      <div className="flex items-center gap-3 ml-2">
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      <div className="flex items-center gap-2 ml-2">
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {formatFileSize(result.original_size)} → {formatFileSize(result.new_size)}
                         </span>
                         <span
                           className={cn(
-                            'text-xs font-medium whitespace-nowrap',
-                            result.savings_percent > 0 ? 'text-emerald-500' : 'text-muted-foreground'
+                            'text-[10px] font-medium whitespace-nowrap',
+                            result.savings_percent > 0 ? 'text-primary' : 'text-muted-foreground'
                           )}
                         >
                           {result.savings_percent > 0 ? `-${result.savings_percent.toFixed(1)}%` : '0%'}
                         </span>
-                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
                       </div>
                     )}
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             </motion.div>
