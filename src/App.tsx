@@ -5,12 +5,12 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { AppSidebar, type Page } from '@/components/AppSidebar';
-import { ConvertPage } from '@/pages/ConvertPage';
-import { CompressPage } from '@/pages/CompressPage';
-import { BeautifyPage } from '@/pages/BeautifyPage';
-import { EffectsPage } from '@/pages/EffectsPage';
+import { ConvertPage } from '@/pages/convert';
+import { CompressPage } from '@/pages/compress';
+import { BeautifyPage } from '@/pages/beautify';
+import { EffectsPage } from '@/pages/effects';
 import { PipelinePage } from '@/pages/pipeline';
-import { HistoryPage } from '@/pages/HistoryPage';
+import { HistoryPage } from '@/pages/history';
 import {
   loadHistory,
   saveHistory,

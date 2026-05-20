@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Workflow } from 'lucide-react';
-import { open } from '@tauri-apps/plugin-dialog';
 import { fadeIn, fadeSlide } from '@/lib/animations';
 import { Form } from '@/components/ui/form';
 import type { ImageInfo, OperationHistoryItem } from '@/types/image';
@@ -76,11 +75,6 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
     setPreviewIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
   }, [images.length]);
 
-  const handleSelectOutputDir = async () => {
-    const selected = await open({ directory: true, multiple: false });
-    if (selected) form.setValue('outputDir', selected as string);
-  };
-
   const handleReset = () => {
     setImages([]);
     setCurrentStep('images');
@@ -130,7 +124,6 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
             previewIndex={previewIndex}
             onPrevImage={goToPrevImage}
             onNextImage={goToNextImage}
-            onSelectOutputDir={handleSelectOutputDir}
             onReset={handleReset}
             onExecute={handleExecute}
           />

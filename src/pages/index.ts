@@ -1,4 +1,6 @@
-export { ConvertPage } from './ConvertPage';
-export { CompressPage } from './CompressPage';
-export { BeautifyPage } from './BeautifyPage';
-export { EffectsPage } from './EffectsPage';
+export { ConvertPage } from './convert';
+export { CompressPage } from './compress';
+export { BeautifyPage } from './beautify';
+export { EffectsPage } from './effects';
+export { PipelinePage } from './pipeline';
+export { HistoryPage } from './history';

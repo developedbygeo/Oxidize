@@ -8,9 +8,7 @@ import {
   Wand2,
   Play,
   Loader2,
-  FolderOpen,
   RotateCcw,
-  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fadeUp } from '@/lib/animations';
@@ -18,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { PipelinePreview } from '@/components/PipelinePreview';
 import { PreviewNavigation } from '@/components/PreviewNavigation';
+import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { effectsList, formatLabels, type ImageInfo, type ImageFormat } from '@/types/image';
 import { SummaryCard } from './SummaryCard';
 import type { PipelineFormValues } from './schema';
@@ -30,7 +29,6 @@ type ReviewStepProps = {
   previewIndex: number;
   onPrevImage: () => void;
   onNextImage: () => void;
-  onSelectOutputDir: () => void;
   onReset: () => void;
   onExecute: () => void;
 };
@@ -42,7 +40,6 @@ const ReviewStep = ({
   previewIndex,
   onPrevImage,
   onNextImage,
-  onSelectOutputDir,
   onReset,
   onExecute,
 }: ReviewStepProps) => {
@@ -148,28 +145,12 @@ const ReviewStep = ({
 
       <div className="space-y-3">
         <label className="text-sm font-medium text-foreground">Output Location</label>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={onSelectOutputDir}
-            className="flex-1 justify-start gap-2 h-12 min-w-0"
-          >
-            <FolderOpen className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="truncate text-left flex-1">
-              {values.outputDir || 'Saved next to original files (click to choose folder)'}
-            </span>
-          </Button>
-          {values.outputDir && (
-            <Button
-              variant="outline"
-              onClick={() => form.setValue('outputDir', null)}
-              className="h-12 w-12 shrink-0"
-              aria-label="Clear output folder"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
+        <OutputLocationPicker
+          value={values.outputDir ?? null}
+          onChange={(dir) => form.setValue('outputDir', dir)}
+          size="lg"
+          placeholder="Saved next to original files (click to choose folder)"
+        />
       </div>
 
       <div className="flex gap-3">
