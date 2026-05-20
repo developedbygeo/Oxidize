@@ -40,8 +40,10 @@ export const runVideoCompress = async ({
 
   onStart();
   const processToast = createProcessToast({
-    action: 'Video compression',
+    progressLabel: 'Compressing',
+    doneLabel: 'Compression',
     itemCount: videos.length,
+    itemName: 'video',
   });
 
   try {

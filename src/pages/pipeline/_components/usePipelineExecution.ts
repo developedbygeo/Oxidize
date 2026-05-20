@@ -66,7 +66,11 @@ export const usePipelineExecution = ({ images, onOperationComplete }: UsePipelin
     if (images.length === 0 || opCount === 0) return;
 
     setIsProcessing(true);
-    const processToast = createProcessToast({ action: 'Pipeline', itemCount: images.length });
+    const processToast = createProcessToast({
+      progressLabel: 'Running pipeline on',
+      doneLabel: 'Pipeline',
+      itemCount: images.length,
+    });
 
     try {
       const results = await invoke<PipelineResult[]>('process_pipeline_batch', {

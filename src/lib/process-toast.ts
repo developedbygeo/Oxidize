@@ -1,7 +1,10 @@
 import { toast } from 'sonner';
 
 type ProcessToastOptions = {
-  action: string;
+  /** Present-progressive title shown during processing — e.g. "Converting", "Compressing". */
+  progressLabel: string;
+  /** Noun shown on completion / failure — e.g. "Conversion", "Compression". */
+  doneLabel: string;
   itemCount: number;
   itemName?: string;
 };
@@ -12,9 +15,18 @@ type ProcessResult = {
   extraInfo?: string;
 };
 
-export const createProcessToast = ({ action, itemCount, itemName = 'image' }: ProcessToastOptions) => {
+export const createProcessToast = ({
+  progressLabel,
+  doneLabel,
+  itemCount,
+  itemName = 'image',
+}: ProcessToastOptions) => {
   const plural = itemCount !== 1 ? 's' : '';
-  const toastId = toast.loading(`${action} ${itemCount} ${itemName}${plural}...`);
+  const toastId = toast.loading(`${progressLabel} ${itemCount} ${itemName}${plural}...`);
+
+  const successTitle = `${doneLabel} complete`;
+  const failTitle = `${doneLabel} failed`;
+  const partialTitle = `${doneLabel} partially complete`;
 
   return {
     toastId,
@@ -22,24 +34,21 @@ export const createProcessToast = ({ action, itemCount, itemName = 'image' }: Pr
     success: ({ successCount, extraInfo }: { successCount: number; extraInfo?: string }) => {
       const plural = successCount !== 1 ? 's' : '';
       const description = extraInfo
-        ? `${successCount} ${itemName}${plural} processed • ${extraInfo}`
+        ? `${successCount} ${itemName}${plural} processed · ${extraInfo}`
         : `${successCount} ${itemName}${plural} processed successfully`;
 
-      toast.success(`${action} complete`, {
-        id: toastId,
-        description,
-      });
+      toast.success(successTitle, { id: toastId, description });
     },
 
     warning: ({ successCount, failCount }: ProcessResult) => {
-      toast.warning(`${action} partially complete`, {
+      toast.warning(partialTitle, {
         id: toastId,
         description: `${successCount} succeeded, ${failCount} failed`,
       });
     },
 
     error: (message?: string) => {
-      toast.error(`${action} failed`, {
+      toast.error(failTitle, {
         id: toastId,
         description: message || `No ${itemName}s were processed successfully`,
       });
@@ -49,20 +58,17 @@ export const createProcessToast = ({ action, itemCount, itemName = 'image' }: Pr
       if (successCount > 0 && failCount === 0) {
         const plural = successCount !== 1 ? 's' : '';
         const description = extraInfo
-          ? `${successCount} ${itemName}${plural} processed • ${extraInfo}`
+          ? `${successCount} ${itemName}${plural} processed · ${extraInfo}`
           : `${successCount} ${itemName}${plural} processed successfully`;
 
-        toast.success(`${action} complete`, {
-          id: toastId,
-          description,
-        });
+        toast.success(successTitle, { id: toastId, description });
       } else if (successCount > 0 && failCount > 0) {
-        toast.warning(`${action} partially complete`, {
+        toast.warning(partialTitle, {
           id: toastId,
           description: `${successCount} succeeded, ${failCount} failed`,
         });
       } else {
-        toast.error(`${action} failed`, {
+        toast.error(failTitle, {
           id: toastId,
           description: `No ${itemName}s were processed successfully`,
         });

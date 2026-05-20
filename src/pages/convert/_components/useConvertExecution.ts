@@ -39,7 +39,11 @@ export const runConversion = async ({
   if (args.images.length === 0) return;
 
   onStart();
-  const processToast = createProcessToast({ action: 'Conversion', itemCount: args.images.length });
+  const processToast = createProcessToast({
+    progressLabel: 'Converting',
+    doneLabel: 'Conversion',
+    itemCount: args.images.length,
+  });
 
   try {
     const results = await convertImages(args);

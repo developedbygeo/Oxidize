@@ -226,6 +226,38 @@ fn default_audio_codec_for(format: &str) -> &'static str {
     }
 }
 
+/// Codec-specific speed/threading flags. Different codecs accept very
+/// different tunables (`-preset` for x264/x265, `-cpu-used`+`-row-mt`+
+/// `-deadline` for VP9, none for stream-copy). `preset` is only honored
+/// when the codec supports it.
+fn codec_speed_args(codec: &str, preset: Option<&str>) -> Vec<String> {
+    match codec {
+        "libx264" | "libx265" => vec![
+            "-preset".into(),
+            preset.unwrap_or("medium").into(),
+        ],
+        "libvpx-vp9" => vec![
+            // Multi-row threading + a moderately fast quality preset.
+            // -cpu-used 4 gives ~4-8x speedup over the default (0) at a small
+            // quality cost; -row-mt 1 enables row-based multithreading.
+            "-row-mt".into(),
+            "1".into(),
+            "-cpu-used".into(),
+            "4".into(),
+            "-deadline".into(),
+            "good".into(),
+        ],
+        "libvpx" => vec![
+            "-cpu-used".into(),
+            "4".into(),
+            "-deadline".into(),
+            "good".into(),
+        ],
+        // "copy" (remux) and unknown codecs get no extras.
+        _ => vec![],
+    }
+}
+
 #[tauri::command]
 pub async fn convert_video(
     app: AppHandle,
@@ -266,10 +298,11 @@ pub async fn convert_video(
         "-i".into(),
         input_path.clone(),
         "-c:v".into(),
-        video_codec,
+        video_codec.clone(),
         "-c:a".into(),
         audio_codec,
     ];
+    args.extend(codec_speed_args(&video_codec, None));
     if let Some(crf) = options.crf {
         args.push("-crf".into());
         args.push(crf.to_string());
@@ -348,12 +381,11 @@ pub async fn compress_video(
         "-i".into(),
         input_path.clone(),
         "-c:v".into(),
-        video_codec,
+        video_codec.clone(),
         "-c:a".into(),
         audio_codec,
-        "-preset".into(),
-        preset,
     ];
+    args.extend(codec_speed_args(&video_codec, Some(&preset)));
 
     match options.mode {
         VideoQualityMode::Crf => {

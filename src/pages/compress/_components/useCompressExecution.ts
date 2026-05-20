@@ -30,7 +30,11 @@ export const runCompression = async ({
   if (images.length === 0) return;
 
   onStart();
-  const processToast = createProcessToast({ action: 'Compression', itemCount: images.length });
+  const processToast = createProcessToast({
+    progressLabel: 'Compressing',
+    doneLabel: 'Compression',
+    itemCount: images.length,
+  });
 
   try {
     const results = await invoke<CompressionResult[]>('compress_images_batch', {

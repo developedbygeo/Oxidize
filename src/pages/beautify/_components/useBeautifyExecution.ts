@@ -30,7 +30,8 @@ export const runBeautify = async ({
 
   onStart();
   const processToast = createProcessToast({
-    action: 'Beautification',
+    progressLabel: 'Beautifying',
+    doneLabel: 'Beautification',
     itemCount: images.length,
   });
 

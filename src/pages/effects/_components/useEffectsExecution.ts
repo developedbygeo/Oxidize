@@ -31,9 +31,11 @@ export const runEffects = async ({
   if (images.length === 0) return;
 
   const effectInfo = effectsList.find((e) => e.type === selectedEffect);
+  const label = effectInfo?.label || selectedEffect;
   onStart();
   const processToast = createProcessToast({
-    action: effectInfo?.label || selectedEffect,
+    progressLabel: `Applying ${label.toLowerCase()}`,
+    doneLabel: `${label} effect`,
     itemCount: images.length,
   });
 

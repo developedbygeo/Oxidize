@@ -36,8 +36,10 @@ export const runVideoConvert = async ({
 
   onStart();
   const processToast = createProcessToast({
-    action: 'Video conversion',
+    progressLabel: 'Converting',
+    doneLabel: 'Conversion',
     itemCount: videos.length,
+    itemName: 'video',
   });
 
   try {

@@ -7,7 +7,7 @@ import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPick
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
-import { VideoProgressList } from '@/components/page-parts/VideoProgressList';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { VideoDropzone } from '@/components/VideoDropzone';
 import { useFfmpegProgress } from '@/hooks/useFfmpegProgress';
 import type { OperationHistoryItem } from '@/types/image';
@@ -147,7 +147,13 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
         </AnimatePresence>
 
         {isCompressing && videos.length > 0 && (
-          <VideoProgressList videos={videos} progress={progress} />
+          <JobProgressBar
+            items={videos.map((v) => ({ path: v.path, name: v.name }))}
+            progress={progress}
+            running={isCompressing}
+            verb="Compressing"
+            itemName="video"
+          />
         )}
 
         <AnimatePresence>
