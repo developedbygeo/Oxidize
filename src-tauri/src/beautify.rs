@@ -4,8 +4,8 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
-use crate::types::{BeautifyOptions, BeautifyResult};
-use crate::utils::{create_timestamped_output_dir, detect_format, get_format_from_string};
+use crate::types::{BeautifyOptions, BeautifyResult, PipelineBeautifyParams};
+use crate::utils::{detect_format, get_format_from_string, resolve_output_dir, unique_output_path};
 
 /// Convert RGB to HSL
 fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
@@ -362,6 +362,35 @@ fn apply_sharpness(img: &DynamicImage, sharpness: f32) -> DynamicImage {
     result
 }
 
+/// Pure transform: apply all beautify adjustments in-memory. No I/O.
+pub fn apply_beautify(img: DynamicImage, params: &PipelineBeautifyParams) -> DynamicImage {
+    let mut img = img;
+    apply_white_balance(&mut img, &params.white_balance);
+    apply_exposure(&mut img, params.exposure);
+
+    if params.brightness != 0 {
+        img = img.brighten(params.brightness);
+    }
+
+    apply_contrast(&mut img, params.contrast);
+    apply_saturation(&mut img, params.saturation);
+    apply_hue_shift(&mut img, params.hue_shift);
+    apply_temperature(&mut img, params.temperature);
+    apply_sharpness(&img, params.sharpness)
+}
+
+/// Returns true when no adjustment would change the image.
+pub fn beautify_is_noop(params: &PipelineBeautifyParams) -> bool {
+    params.brightness == 0
+        && params.contrast == 0.0
+        && params.saturation == 0.0
+        && params.sharpness == 0.0
+        && params.exposure == 0.0
+        && params.hue_shift == 0
+        && params.temperature == 0
+        && (params.white_balance == "auto" || params.white_balance == "daylight")
+}
+
 fn beautify_image_sync(
     input_path: String,
     options: &BeautifyOptions,
@@ -374,30 +403,28 @@ fn beautify_image_sync(
 
     let format_str = detect_format(input).unwrap_or_else(|| "png".to_string());
 
-    let mut img = ImageReader::open(&input_path)
+    let img = ImageReader::open(&input_path)
         .map_err(|e| e.to_string())?
         .decode()
         .map_err(|e| e.to_string())?;
 
-    // Apply adjustments in optimal order
-    apply_white_balance(&mut img, &options.white_balance);
-    apply_exposure(&mut img, options.exposure);
-
-    if options.brightness != 0 {
-        img = img.brighten(options.brightness);
-    }
-
-    apply_contrast(&mut img, options.contrast);
-    apply_saturation(&mut img, options.saturation);
-    apply_hue_shift(&mut img, options.hue_shift);
-    apply_temperature(&mut img, options.temperature);
-    img = apply_sharpness(&img, options.sharpness);
+    let params = PipelineBeautifyParams {
+        brightness: options.brightness,
+        contrast: options.contrast,
+        saturation: options.saturation,
+        sharpness: options.sharpness,
+        exposure: options.exposure,
+        hue_shift: options.hue_shift,
+        temperature: options.temperature,
+        white_balance: options.white_balance.clone(),
+    };
+    let img = apply_beautify(img, &params);
 
     let stem = input
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    let output_path = output_dir.join(format!("{}_beautified.{}", stem, format_str));
+    let output_path = unique_output_path(output_dir, stem, "beautified", &format_str);
 
     let output_data = match format_str.as_str() {
         "jpg" | "jpeg" => compress_jpeg_mozjpeg(&img, 92)?,
@@ -436,17 +463,7 @@ pub async fn beautify_image(
     options: BeautifyOptions,
 ) -> Result<BeautifyResult, String> {
     let input = Path::new(&input_path);
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "beautify")
-    };
+    let output_dir = resolve_output_dir(&options.output_dir, input);
     beautify_image_sync(input_path, &options, &output_dir)
 }
 
@@ -455,27 +472,11 @@ pub async fn beautify_images_batch(
     input_paths: Vec<String>,
     options: BeautifyOptions,
 ) -> Vec<BeautifyResult> {
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| {
-            input_paths
-                .first()
-                .and_then(|p| Path::new(p).parent())
-                .unwrap_or(Path::new("."))
-                .to_path_buf()
-        });
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "beautify")
-    };
-
     input_paths
         .par_iter()
         .map(|path| {
+            let input = Path::new(path);
+            let output_dir = resolve_output_dir(&options.output_dir, input);
             beautify_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
                 BeautifyResult {
                     success: false,

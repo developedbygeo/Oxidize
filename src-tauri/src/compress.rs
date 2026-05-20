@@ -3,7 +3,7 @@ use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 
 use crate::types::{CompressionOptions, CompressionResult};
-use crate::utils::{create_timestamped_output_dir, detect_format};
+use crate::utils::{detect_format, resolve_output_dir, unique_output_path};
 
 /// Compress PNG using oxipng for maximum compression
 pub fn compress_png_oxipng(input_data: &[u8], quality: u8) -> Result<Vec<u8>, String> {
@@ -327,7 +327,7 @@ fn compress_image_sync(
         _ => (original_data.clone(), &format_str as &str),
     };
 
-    let output_path = output_dir.join(format!("{}_compressed.{}", stem, output_extension));
+    let output_path = unique_output_path(output_dir, stem, "compressed", output_extension);
 
     let new_size = output_data.len() as u64;
     let savings_percent = if original_size > 0 {
@@ -354,17 +354,7 @@ pub async fn compress_image(
     options: CompressionOptions,
 ) -> Result<CompressionResult, String> {
     let input = Path::new(&input_path);
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "compress")
-    };
+    let output_dir = resolve_output_dir(&options.output_dir, input);
     compress_image_sync(input_path, &options, &output_dir)
 }
 
@@ -373,27 +363,11 @@ pub async fn compress_images_batch(
     input_paths: Vec<String>,
     options: CompressionOptions,
 ) -> Vec<CompressionResult> {
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| {
-            input_paths
-                .first()
-                .and_then(|p| Path::new(p).parent())
-                .unwrap_or(Path::new("."))
-                .to_path_buf()
-        });
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "compress")
-    };
-
     input_paths
         .par_iter()
         .map(|path| {
+            let input = Path::new(path);
+            let output_dir = resolve_output_dir(&options.output_dir, input);
             compress_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
                 CompressionResult {
                     success: false,

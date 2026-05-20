@@ -4,6 +4,7 @@ mod compress;
 mod convert;
 mod effects;
 mod loader;
+mod pipeline;
 mod types;
 mod utils;
 
@@ -34,6 +35,8 @@ pub fn run() {
             // Effects
             effects::apply_image_effect,
             effects::apply_image_effects_batch,
+            // Pipeline
+            pipeline::process_pipeline_batch,
             // Commands
             commands::open_folder,
             commands::reveal_file,

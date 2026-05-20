@@ -6,8 +6,8 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
-use crate::types::{EffectOptions, EffectResult};
-use crate::utils::{create_timestamped_output_dir, detect_format, get_format_from_string};
+use crate::types::{EffectOptions, EffectResult, PipelineEffectParams};
+use crate::utils::{detect_format, get_format_from_string, resolve_output_dir, unique_output_path};
 
 fn apply_grayscale(img: &DynamicImage, intensity: f32) -> DynamicImage {
     if intensity == 0.0 {
@@ -367,6 +367,17 @@ fn apply_effect(img: &DynamicImage, effect: &str, intensity: f32) -> DynamicImag
     }
 }
 
+/// Pure transform: apply effect in-memory. No I/O.
+pub fn apply_pipeline_effect(img: &DynamicImage, params: &PipelineEffectParams) -> DynamicImage {
+    let intensity = params.intensity as f32 / 100.0;
+    apply_effect(img, &params.effect, intensity)
+}
+
+/// Returns true when the effect has zero intensity (no-op).
+pub fn effect_is_noop(params: &PipelineEffectParams) -> bool {
+    params.intensity == 0
+}
+
 fn apply_image_effect_sync(
     input_path: String,
     options: &EffectOptions,
@@ -391,7 +402,7 @@ fn apply_image_effect_sync(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    let output_path = output_dir.join(format!("{}_{}.{}", stem, options.effect, format_str));
+    let output_path = unique_output_path(output_dir, stem, &options.effect, &format_str);
 
     let output_data = match format_str.as_str() {
         "jpg" | "jpeg" => compress_jpeg_mozjpeg(&result_img, 92)?,
@@ -432,17 +443,7 @@ pub async fn apply_image_effect(
     options: EffectOptions,
 ) -> Result<EffectResult, String> {
     let input = Path::new(&input_path);
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "effects")
-    };
+    let output_dir = resolve_output_dir(&options.output_dir, input);
     apply_image_effect_sync(input_path, &options, &output_dir)
 }
 
@@ -451,27 +452,11 @@ pub async fn apply_image_effects_batch(
     input_paths: Vec<String>,
     options: EffectOptions,
 ) -> Vec<EffectResult> {
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| {
-            input_paths
-                .first()
-                .and_then(|p| Path::new(p).parent())
-                .unwrap_or(Path::new("."))
-                .to_path_buf()
-        });
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "effects")
-    };
-
     input_paths
         .par_iter()
         .map(|path| {
+            let input = Path::new(path);
+            let output_dir = resolve_output_dir(&options.output_dir, input);
             apply_image_effect_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
                 EffectResult {
                     success: false,

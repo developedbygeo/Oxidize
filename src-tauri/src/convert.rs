@@ -1,11 +1,38 @@
-use image::{ImageFormat, ImageReader};
+use image::{DynamicImage, ImageFormat, ImageReader};
 use rayon::prelude::*;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_png_oxipng, compress_webp};
 use crate::types::{ConversionOptions, ConversionResult};
-use crate::utils::{create_timestamped_output_dir, get_format_extension, get_format_from_string};
+use crate::utils::{
+    get_format_extension, get_format_from_string, resolve_output_dir, unique_output_path,
+};
+
+/// Pure transform: encode a DynamicImage into bytes at the requested format/quality.
+pub fn encode_image(
+    img: &DynamicImage,
+    target_format: ImageFormat,
+    quality: u8,
+) -> Result<Vec<u8>, String> {
+    match target_format {
+        ImageFormat::Jpeg => compress_jpeg_mozjpeg(img, quality),
+        ImageFormat::WebP => compress_webp(img, quality),
+        ImageFormat::Png => {
+            let mut buffer = Cursor::new(Vec::new());
+            img.write_to(&mut buffer, ImageFormat::Png)
+                .map_err(|e| e.to_string())?;
+            let png_data = buffer.into_inner();
+            compress_png_oxipng(&png_data, quality)
+        }
+        _ => {
+            let mut buffer = Cursor::new(Vec::new());
+            img.write_to(&mut buffer, target_format)
+                .map_err(|e| e.to_string())?;
+            Ok(buffer.into_inner())
+        }
+    }
+}
 
 fn convert_image_sync(
     input_path: String,
@@ -30,26 +57,9 @@ fn convert_image_sync(
         .and_then(|s| s.to_str())
         .unwrap_or("output");
     let extension = get_format_extension(&target_format);
-    let output_path = output_dir.join(format!("{}_converted.{}", stem, extension));
+    let output_path = unique_output_path(output_dir, stem, "converted", extension);
 
-    let output_data = match target_format {
-        ImageFormat::Jpeg => compress_jpeg_mozjpeg(&img, options.quality)?,
-        ImageFormat::WebP => compress_webp(&img, options.quality)?,
-        ImageFormat::Png => {
-            let mut buffer = Cursor::new(Vec::new());
-            img.write_to(&mut buffer, ImageFormat::Png)
-                .map_err(|e| e.to_string())?;
-            let png_data = buffer.into_inner();
-            compress_png_oxipng(&png_data, options.quality)?
-        }
-        _ => {
-            let mut buffer = Cursor::new(Vec::new());
-            img.write_to(&mut buffer, target_format)
-                .map_err(|e| e.to_string())?;
-            buffer.into_inner()
-        }
-    };
-
+    let output_data = encode_image(&img, target_format, options.quality)?;
     let new_size = output_data.len() as u64;
     std::fs::write(&output_path, output_data).map_err(|e| e.to_string())?;
 
@@ -68,17 +78,7 @@ pub async fn convert_image(
     options: ConversionOptions,
 ) -> Result<ConversionResult, String> {
     let input = Path::new(&input_path);
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "convert")
-    };
+    let output_dir = resolve_output_dir(&options.output_dir, input);
     convert_image_sync(input_path, &options, &output_dir)
 }
 
@@ -87,27 +87,11 @@ pub async fn convert_images_batch(
     input_paths: Vec<String>,
     options: ConversionOptions,
 ) -> Vec<ConversionResult> {
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| {
-            input_paths
-                .first()
-                .and_then(|p| Path::new(p).parent())
-                .unwrap_or(Path::new("."))
-                .to_path_buf()
-        });
-    let output_dir = if options.skip_timestamp_dir {
-        std::fs::create_dir_all(&base_dir).ok();
-        base_dir
-    } else {
-        create_timestamped_output_dir(&base_dir, "convert")
-    };
-
     input_paths
         .par_iter()
         .map(|path| {
+            let input = Path::new(path);
+            let output_dir = resolve_output_dir(&options.output_dir, input);
             convert_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
                 ConversionResult {
                     success: false,
