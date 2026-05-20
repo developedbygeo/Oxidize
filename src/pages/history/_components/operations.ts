@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ArrowRightLeft, Minimize2, Sparkles, Wand2, Workflow } from 'lucide-react';
+import { ArrowRightLeft, Minimize2, Sparkles, Wand2, Workflow, FileVideo, Film } from 'lucide-react';
 import type { OperationType } from '@/types/image';
 
 export const operationIcons: Record<OperationType, LucideIcon> = {
@@ -8,6 +8,8 @@ export const operationIcons: Record<OperationType, LucideIcon> = {
   beautify: Sparkles,
   effects: Wand2,
   pipeline: Workflow,
+  'video-convert': FileVideo,
+  'video-compress': Film,
 };
 
 export const operationLabels: Record<OperationType, string> = {
@@ -16,4 +18,6 @@ export const operationLabels: Record<OperationType, string> = {
   beautify: 'Beautify',
   effects: 'Effects',
   pipeline: 'Pipeline',
+  'video-convert': 'Video Convert',
+  'video-compress': 'Video Compress',
 };

@@ -7,6 +7,7 @@ mod loader;
 mod pipeline;
 mod types;
 mod utils;
+mod video;
 
 pub use types::*;
 
@@ -16,6 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             // Loader
             loader::load_image_info,
@@ -37,6 +39,13 @@ pub fn run() {
             effects::apply_image_effects_batch,
             // Pipeline
             pipeline::process_pipeline_batch,
+            // Video
+            video::load_video_info,
+            video::load_videos_batch,
+            video::convert_video,
+            video::convert_videos_batch,
+            video::compress_video,
+            video::compress_videos_batch,
             // Commands
             commands::open_folder,
             commands::reveal_file,

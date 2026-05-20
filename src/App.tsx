@@ -11,6 +11,8 @@ import { BeautifyPage } from '@/pages/beautify';
 import { EffectsPage } from '@/pages/effects';
 import { PipelinePage } from '@/pages/pipeline';
 import { HistoryPage } from '@/pages/history';
+import { VideoConvertPage } from '@/pages/video-convert';
+import { VideoCompressPage } from '@/pages/video-compress';
 import {
   loadHistory,
   saveHistory,
@@ -26,6 +28,8 @@ const pageTitles: Record<Page, string> = {
   beautify: 'Beautify Images',
   effects: 'Apply Effects',
   pipeline: 'Pipeline',
+  'video-convert': 'Convert Videos',
+  'video-compress': 'Compress Videos',
   history: 'Operation History',
 };
 
@@ -35,6 +39,8 @@ const pageSubtitles: Record<Page, string> = {
   beautify: 'Drag and drop files to get started',
   effects: 'Drag and drop files to get started',
   pipeline: 'Chain multiple operations together',
+  'video-convert': 'Change video format and container',
+  'video-compress': 'Shrink video files',
   history: 'View and manage your recent operations',
 };
 
@@ -120,6 +126,12 @@ const App = () => {
               {currentPage === 'beautify' && <BeautifyPage onOperationComplete={addToHistory} />}
               {currentPage === 'effects' && <EffectsPage onOperationComplete={addToHistory} />}
               {currentPage === 'pipeline' && <PipelinePage onOperationComplete={addToHistory} />}
+              {currentPage === 'video-convert' && (
+                <VideoConvertPage onOperationComplete={addToHistory} />
+              )}
+              {currentPage === 'video-compress' && (
+                <VideoCompressPage onOperationComplete={addToHistory} />
+              )}
               {currentPage === 'history' && (
                 <HistoryPage
                   history={history}

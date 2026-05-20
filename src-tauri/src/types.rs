@@ -130,3 +130,54 @@ pub struct PipelineResult {
     pub original_size: u64,
     pub new_size: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VideoInfo {
+    pub path: String,
+    pub name: String,
+    pub size: u64,
+    pub width: u32,
+    pub height: u32,
+    pub duration_seconds: f64,
+    pub format: String,
+    pub video_codec: String,
+    pub audio_codec: Option<String>,
+    pub bitrate: Option<u64>,
+    pub thumbnail: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VideoResult {
+    pub success: bool,
+    pub input_path: String,
+    pub output_path: Option<String>,
+    pub error: Option<String>,
+    pub original_size: u64,
+    pub new_size: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VideoConvertOptions {
+    pub format: String,
+    pub video_codec: Option<String>,
+    pub audio_codec: Option<String>,
+    pub crf: Option<u8>,
+    pub output_dir: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoQualityMode {
+    Crf,
+    Bitrate,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VideoCompressOptions {
+    pub format: String,
+    pub mode: VideoQualityMode,
+    pub crf: Option<u8>,
+    pub bitrate_kbps: Option<u32>,
+    pub preset: Option<String>,
+    pub output_dir: Option<String>,
+}

@@ -31,6 +31,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"],
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico"

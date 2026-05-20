@@ -97,7 +97,14 @@ export const formatDescriptions: Record<ImageFormat, string> = {
   tiff: 'High quality, large files',
 };
 
-export type OperationType = 'convert' | 'compress' | 'beautify' | 'effects' | 'pipeline';
+export type OperationType =
+  | 'convert'
+  | 'compress'
+  | 'beautify'
+  | 'effects'
+  | 'pipeline'
+  | 'video-convert'
+  | 'video-compress';
 
 export interface OperationHistoryItem {
   id: string;

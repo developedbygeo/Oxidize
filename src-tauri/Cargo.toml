@@ -33,6 +33,7 @@ mozjpeg = "0.10"
 webp = "0.3"
 gif = "0.13"
 tauri-plugin-fs = "2.4.4"
+tauri-plugin-shell = "2"
 chrono = "0.4"
 
 [profile.release]
