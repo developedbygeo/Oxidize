@@ -246,7 +246,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                 key={effect.type}
                 className="p-2.5 rounded-md bg-muted/30 border border-border/30 text-center"
               >
-                <span className="block text-base mb-0.5">{effect.icon}</span>
+                <effect.icon className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" strokeWidth={1.75} />
                 <span className="block text-[10px] font-medium text-foreground">{effect.label}</span>
               </div>
             ))}
@@ -334,7 +334,13 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                     )}
                   >
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm">{effect.icon}</span>
+                      <effect.icon
+                        className={cn(
+                          'w-3.5 h-3.5 shrink-0',
+                          selectedEffect === effect.type ? 'text-primary' : 'text-muted-foreground'
+                        )}
+                        strokeWidth={1.75}
+                      />
                       <span
                         className={cn(
                           'text-[11px] font-medium',

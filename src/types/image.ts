@@ -1,3 +1,17 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  Contrast,
+  Coffee,
+  Film,
+  Droplets,
+  Focus,
+  Eclipse,
+  Aperture,
+  Radio,
+  Grid2x2,
+  Layers,
+} from 'lucide-react';
+
 export interface ImageInfo {
   path: string;
   name: string;
@@ -128,19 +142,18 @@ export interface EffectInfo {
   type: EffectType;
   label: string;
   description: string;
-  gradient: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
 export const effectsList: EffectInfo[] = [
-  { type: 'grayscale', label: 'Grayscale', description: 'Convert to black & white', gradient: 'from-slate-400 to-slate-600', icon: '🌑' },
-  { type: 'sepia', label: 'Sepia', description: 'Warm brownish tone', gradient: 'from-amber-600 to-yellow-700', icon: '🟤' },
-  { type: 'vintage', label: 'Vintage', description: 'Retro film look', gradient: 'from-rose-400 to-amber-500', icon: '📷' },
-  { type: 'blur', label: 'Blur', description: 'Soft gaussian blur', gradient: 'from-blue-400 to-indigo-500', icon: '💨' },
-  { type: 'sharpen', label: 'Sharpen', description: 'Enhance details', gradient: 'from-emerald-400 to-teal-500', icon: '🔪' },
-  { type: 'invert', label: 'Invert', description: 'Negative colors', gradient: 'from-purple-400 to-pink-500', icon: '🔄' },
-  { type: 'vignette', label: 'Vignette', description: 'Dark corners', gradient: 'from-gray-600 to-gray-800', icon: '🔲' },
-  { type: 'noise', label: 'Noise', description: 'Film grain effect', gradient: 'from-orange-400 to-red-500', icon: '📺' },
-  { type: 'pixelate', label: 'Pixelate', description: 'Retro pixel art', gradient: 'from-cyan-400 to-blue-500', icon: '🎮' },
-  { type: 'posterize', label: 'Posterize', description: 'Reduce color levels', gradient: 'from-pink-400 to-purple-500', icon: '🎨' },
+  { type: 'grayscale', label: 'Grayscale', description: 'Convert to black & white', icon: Contrast },
+  { type: 'sepia', label: 'Sepia', description: 'Warm brownish tone', icon: Coffee },
+  { type: 'vintage', label: 'Vintage', description: 'Retro film look', icon: Film },
+  { type: 'blur', label: 'Blur', description: 'Soft gaussian blur', icon: Droplets },
+  { type: 'sharpen', label: 'Sharpen', description: 'Enhance details', icon: Focus },
+  { type: 'invert', label: 'Invert', description: 'Negative colors', icon: Eclipse },
+  { type: 'vignette', label: 'Vignette', description: 'Dark corners', icon: Aperture },
+  { type: 'noise', label: 'Noise', description: 'Film grain effect', icon: Radio },
+  { type: 'pixelate', label: 'Pixelate', description: 'Retro pixel art', icon: Grid2x2 },
+  { type: 'posterize', label: 'Posterize', description: 'Reduce color levels', icon: Layers },
 ];

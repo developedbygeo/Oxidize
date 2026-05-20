@@ -9,7 +9,7 @@ import { ConvertPage } from '@/pages/ConvertPage';
 import { CompressPage } from '@/pages/CompressPage';
 import { BeautifyPage } from '@/pages/BeautifyPage';
 import { EffectsPage } from '@/pages/EffectsPage';
-import { PipelinePage } from '@/pages/PipelinePage';
+import { PipelinePage } from '@/pages/pipeline';
 import { HistoryPage } from '@/pages/HistoryPage';
 import {
   loadHistory,
