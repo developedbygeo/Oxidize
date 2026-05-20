@@ -379,14 +379,26 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Output</label>
-              <Button
-                variant="outline"
-                onClick={handleSelectOutputDir}
-                className="w-full justify-start gap-1.5 h-8 text-[11px]"
-              >
-                <FolderOpen className="w-3 h-3 text-muted-foreground" />
-                <span className="truncate text-left flex-1">{outputDir || 'Same as original'}</span>
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  onClick={handleSelectOutputDir}
+                  className="flex-1 justify-start gap-1.5 h-8 text-[11px] min-w-0"
+                >
+                  <FolderOpen className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="truncate text-left flex-1">{outputDir || 'Saved next to original files'}</span>
+                </Button>
+                {outputDir && (
+                  <Button
+                    variant="outline"
+                    onClick={() => dispatch({ type: 'SET_OUTPUT_DIR', payload: null })}
+                    className="h-8 w-8 shrink-0"
+                    aria-label="Clear output folder"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
             </div>
 
             <AnimatePresence>

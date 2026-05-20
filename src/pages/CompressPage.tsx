@@ -1,6 +1,6 @@
 import { useReducer } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Minimize2, Check, Loader2, FolderOpen, Zap, TrendingDown, ExternalLink } from 'lucide-react';
+import { Minimize2, Check, Loader2, FolderOpen, Zap, TrendingDown, ExternalLink, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
@@ -296,16 +296,28 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
 
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Output Location</label>
-                <Button
-                  variant="outline"
-                  onClick={handleSelectOutputDir}
-                  className="w-full justify-start gap-2 h-9 text-xs"
-                >
-                  <FolderOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="truncate text-left flex-1">
-                    {outputDir || 'Same as original'}
-                  </span>
-                </Button>
+                <div className="flex gap-1.5">
+                  <Button
+                    variant="outline"
+                    onClick={handleSelectOutputDir}
+                    className="flex-1 justify-start gap-2 h-9 text-xs min-w-0"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate text-left flex-1">
+                      {outputDir || 'Saved next to original files'}
+                    </span>
+                  </Button>
+                  {outputDir && (
+                    <Button
+                      variant="outline"
+                      onClick={() => dispatch({ type: 'SET_OUTPUT_DIR', payload: null })}
+                      className="h-9 w-9 shrink-0"
+                      aria-label="Clear output folder"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <Button

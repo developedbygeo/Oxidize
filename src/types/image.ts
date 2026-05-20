@@ -138,6 +138,48 @@ export interface EffectResult {
   new_size: number;
 }
 
+export interface PipelineBeautifyParams {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  sharpness: number;
+  exposure: number;
+  hue_shift: number;
+  temperature: number;
+  white_balance: WhiteBalancePreset;
+}
+
+export interface PipelineEffectParams {
+  effect: EffectType;
+  intensity: number;
+}
+
+export interface PipelineConvertParams {
+  format: ImageFormat;
+  quality: number;
+}
+
+export interface PipelineCompressParams {
+  quality: number;
+}
+
+export interface PipelineOptions {
+  beautify: PipelineBeautifyParams | null;
+  effects: PipelineEffectParams | null;
+  convert: PipelineConvertParams | null;
+  compress: PipelineCompressParams | null;
+  output_dir: string | null;
+}
+
+export interface PipelineResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
 export interface EffectInfo {
   type: EffectType;
   label: string;

@@ -10,6 +10,7 @@ import {
   Loader2,
   FolderOpen,
   RotateCcw,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fadeUp } from '@/lib/animations';
@@ -147,16 +148,28 @@ const ReviewStep = ({
 
       <div className="space-y-3">
         <label className="text-sm font-medium text-foreground">Output Location</label>
-        <Button
-          variant="outline"
-          onClick={onSelectOutputDir}
-          className="w-full justify-start gap-2 h-12"
-        >
-          <FolderOpen className="w-4 h-4 text-muted-foreground" />
-          <span className="truncate text-left flex-1">
-            {values.outputDir || 'Same as original (click to change)'}
-          </span>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={onSelectOutputDir}
+            className="flex-1 justify-start gap-2 h-12 min-w-0"
+          >
+            <FolderOpen className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="truncate text-left flex-1">
+              {values.outputDir || 'Saved next to original files (click to choose folder)'}
+            </span>
+          </Button>
+          {values.outputDir && (
+            <Button
+              variant="outline"
+              onClick={() => form.setValue('outputDir', null)}
+              className="h-12 w-12 shrink-0"
+              aria-label="Clear output folder"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-3">

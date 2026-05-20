@@ -7,10 +7,8 @@ import type {
   ImageInfo,
   ImageFormat,
   OperationHistoryItem,
-  ConversionResult,
-  CompressionResult,
-  BeautifyResult,
-  EffectResult,
+  PipelineOptions,
+  PipelineResult,
 } from '@/types/image';
 import type { PipelineFormValues } from './schema';
 
@@ -19,131 +17,78 @@ type UsePipelineExecutionArgs = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
 };
 
+const buildOptions = (values: PipelineFormValues): PipelineOptions => ({
+  beautify: values.beautifyEnabled
+    ? {
+        brightness: values.brightness,
+        contrast: values.contrast,
+        saturation: values.saturation,
+        sharpness: values.sharpness,
+        exposure: values.exposure,
+        hue_shift: values.hueShift,
+        temperature: values.temperature,
+        white_balance: values.whiteBalance,
+      }
+    : null,
+  effects: values.effectsEnabled
+    ? { effect: values.effectType, intensity: values.effectIntensity }
+    : null,
+  convert: values.convertEnabled
+    ? { format: values.convertFormat as ImageFormat, quality: values.convertQuality }
+    : null,
+  compress: values.compressEnabled ? { quality: values.compressQuality } : null,
+  output_dir: values.outputDir,
+});
+
+const buildDetails = (values: PipelineFormValues): string[] => {
+  const details: string[] = [];
+  if (values.beautifyEnabled) details.push('Beautify');
+  if (values.effectsEnabled) {
+    const label = effectsList.find((e) => e.type === values.effectType)?.label ?? values.effectType;
+    details.push(`Effect: ${label}`);
+  }
+  if (values.convertEnabled) {
+    details.push(`Convert to ${formatLabels[values.convertFormat as ImageFormat]}`);
+  }
+  if (values.compressEnabled) details.push(`Compress @${values.compressQuality}%`);
+  return details;
+};
+
 export const usePipelineExecution = ({ images, onOperationComplete }: UsePipelineExecutionArgs) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const execute = async (values: PipelineFormValues) => {
-    const enabledOps = [
-      values.convertEnabled && 'convert',
-      values.compressEnabled && 'compress',
-      values.beautifyEnabled && 'beautify',
-      values.effectsEnabled && 'effects',
-    ].filter(Boolean) as string[];
-
-    if (images.length === 0 || enabledOps.length === 0) return;
+    const opCount =
+      Number(values.beautifyEnabled) +
+      Number(values.effectsEnabled) +
+      Number(values.convertEnabled) +
+      Number(values.compressEnabled);
+    if (images.length === 0 || opCount === 0) return;
 
     setIsProcessing(true);
     const processToast = createProcessToast({ action: 'Pipeline', itemCount: images.length });
 
-    let currentPaths = images.map((img) => img.path);
-    let totalSaved = 0;
-    const outputDir = values.outputDir ?? null;
-    const details: string[] = [];
-    const intermediateFiles: string[] = [];
-    const isLastOp = (op: string) => enabledOps[enabledOps.length - 1] === op;
-
     try {
-      if (values.convertEnabled && currentPaths.length > 0) {
-        const results = await invoke<ConversionResult[]>('convert_images_batch', {
-          inputPaths: currentPaths,
-          options: {
-            format: values.convertFormat,
-            quality: values.convertQuality,
-            output_dir: isLastOp('convert') ? outputDir : null,
-            skip_timestamp_dir: !isLastOp('convert'),
-          },
-        });
+      const results = await invoke<PipelineResult[]>('process_pipeline_batch', {
+        inputPaths: images.map((img) => img.path),
+        options: buildOptions(values),
+      });
 
-        const newPaths = results
-          .filter((r) => r.success)
-          .map((r) => r.output_path!)
-          .filter(Boolean);
-        if (!isLastOp('convert')) intermediateFiles.push(...newPaths);
-        currentPaths = newPaths;
-        details.push(`Converted to ${formatLabels[values.convertFormat as ImageFormat]}`);
-      }
+      const successful = results.filter((r) => r.success);
+      const totalSaved = results.reduce(
+        (acc, r) => acc + Math.max(0, r.original_size - r.new_size),
+        0
+      );
 
-      if (values.compressEnabled && currentPaths.length > 0) {
-        const results = await invoke<CompressionResult[]>('compress_images_batch', {
-          inputPaths: currentPaths,
-          options: {
-            quality: values.compressQuality,
-            output_dir: isLastOp('compress') ? outputDir : null,
-            skip_timestamp_dir: !isLastOp('compress'),
-          },
-        });
+      processToast.finish({
+        successCount: successful.length,
+        failCount: results.length - successful.length,
+      });
 
-        totalSaved += results.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
-        const newPaths = results
-          .filter((r) => r.success)
-          .map((r) => r.output_path!)
-          .filter(Boolean);
-        if (!isLastOp('compress')) intermediateFiles.push(...newPaths);
-        currentPaths = newPaths;
-        details.push(`Compressed at ${values.compressQuality}% quality`);
-      }
-
-      if (values.beautifyEnabled && currentPaths.length > 0) {
-        const results = await invoke<BeautifyResult[]>('beautify_images_batch', {
-          inputPaths: currentPaths,
-          options: {
-            brightness: values.brightness,
-            contrast: values.contrast,
-            saturation: values.saturation,
-            sharpness: values.sharpness,
-            exposure: values.exposure,
-            hue_shift: values.hueShift,
-            temperature: values.temperature,
-            white_balance: values.whiteBalance,
-            output_dir: isLastOp('beautify') ? outputDir : null,
-            skip_timestamp_dir: !isLastOp('beautify'),
-          },
-        });
-
-        const newPaths = results
-          .filter((r) => r.success)
-          .map((r) => r.output_path!)
-          .filter(Boolean);
-        if (!isLastOp('beautify')) intermediateFiles.push(...newPaths);
-        currentPaths = newPaths;
-        details.push('Applied beautify adjustments');
-      }
-
-      if (values.effectsEnabled && currentPaths.length > 0) {
-        const results = await invoke<EffectResult[]>('apply_image_effects_batch', {
-          inputPaths: currentPaths,
-          options: {
-            effect: values.effectType,
-            intensity: values.effectIntensity,
-            output_dir: isLastOp('effects') ? outputDir : null,
-            skip_timestamp_dir: !isLastOp('effects'),
-          },
-        });
-
-        currentPaths = results
-          .filter((r) => r.success)
-          .map((r) => r.output_path!)
-          .filter(Boolean);
-        const effectInfo = effectsList.find((e) => e.type === values.effectType);
-        details.push(`Applied ${effectInfo?.label || values.effectType} effect`);
-      }
-
-      for (const filePath of intermediateFiles) {
-        try {
-          await invoke('delete_file', { path: filePath });
-        } catch {
-          // Ignore deletion errors for intermediate files
-        }
-      }
-
-      const successCount = currentPaths.length;
-      const failCount = images.length - successCount;
-      processToast.finish({ successCount, failCount });
-
-      if (successCount > 0 && onOperationComplete) {
+      if (successful.length > 0 && onOperationComplete) {
         const dir = resolveOutputDir({
-          results: currentPaths.map((p): { output_path: string | null } => ({ output_path: p })),
-          fallbackDir: outputDir,
+          results: successful.map((r) => ({ output_path: r.output_path })),
+          fallbackDir: values.outputDir,
           fallbackPath: images[0]?.path,
         });
 
@@ -151,7 +96,7 @@ export const usePipelineExecution = ({ images, onOperationComplete }: UsePipelin
           type: 'pipeline',
           fileCount: images.length,
           outputDir: dir,
-          details: `Pipeline: ${details.join(' → ')}`,
+          details: `Pipeline: ${buildDetails(values).join(' → ')}`,
           totalSaved: totalSaved > 0 ? totalSaved : undefined,
         });
       }
