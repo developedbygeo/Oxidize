@@ -12,12 +12,13 @@ import {
   applyEffect,
 } from '@/lib/image-preview';
 
+export type PipelinePreviewStep =
+  | { kind: 'beautify'; options: PreviewOptions }
+  | { kind: 'effects'; options: EffectPreviewOptions };
+
 type PipelinePreviewProps = {
   src: string;
-  beautifyEnabled: boolean;
-  beautifyOptions: PreviewOptions;
-  effectsEnabled: boolean;
-  effectsOptions: EffectPreviewOptions;
+  steps: PipelinePreviewStep[];
   className?: string;
 };
 
@@ -46,14 +47,16 @@ const previewReducer = (state: PreviewState, action: PreviewAction): PreviewStat
   }
 };
 
-const PipelinePreview = ({
-  src,
-  beautifyEnabled,
-  beautifyOptions,
-  effectsEnabled,
-  effectsOptions,
-  className,
-}: PipelinePreviewProps) => {
+const applyStep = (data: ImageData, step: PipelinePreviewStep): ImageData => {
+  switch (step.kind) {
+    case 'beautify':
+      return applyAdjustments(data, step.options);
+    case 'effects':
+      return applyEffect(data, step.options);
+  }
+};
+
+const PipelinePreview = ({ src, steps, className }: PipelinePreviewProps) => {
   const [state, dispatch] = useReducer(previewReducer, initialState);
   const { isProcessing, previewUrl } = state;
 
@@ -93,12 +96,7 @@ const PipelinePreview = ({
   const processPipeline = useMemo(
     () =>
       debounce(
-        (
-          beautifyOn: boolean,
-          beautifyOpts: PreviewOptions,
-          effectsOn: boolean,
-          effectsOpts: EffectPreviewOptions
-        ) => {
+        (pipelineSteps: PipelinePreviewStep[]) => {
           if (!originalImageDataRef.current || !canvasRef.current || !ctxRef.current) return;
           if (processingRef.current) return;
 
@@ -114,16 +112,15 @@ const PipelinePreview = ({
                 originalData.height
               );
 
-              if (beautifyOn) {
-                processedData = applyAdjustments(processedData, beautifyOpts);
-              }
-
-              if (effectsOn) {
-                processedData = applyEffect(processedData, effectsOpts);
+              for (const step of pipelineSteps) {
+                processedData = applyStep(processedData, step);
               }
 
               ctxRef.current!.putImageData(processedData, 0, 0);
-              dispatch({ type: 'SET_PREVIEW_URL', payload: canvasRef.current!.toDataURL('image/png') });
+              dispatch({
+                type: 'SET_PREVIEW_URL',
+                payload: canvasRef.current!.toDataURL('image/png'),
+              });
             } catch (error) {
               console.error('Failed to process pipeline:', error);
             } finally {
@@ -139,11 +136,11 @@ const PipelinePreview = ({
   );
 
   useEffect(() => {
-    processPipeline(beautifyEnabled, beautifyOptions, effectsEnabled, effectsOptions);
+    processPipeline(steps);
     return () => processPipeline.cancel();
-  }, [beautifyEnabled, beautifyOptions, effectsEnabled, effectsOptions, processPipeline]);
+  }, [steps, processPipeline]);
 
-  const hasAnyProcessing = beautifyEnabled || effectsEnabled;
+  const hasSteps = steps.length > 0;
 
   return (
     <div className={cn('relative rounded-xl overflow-hidden bg-muted/50 flex flex-col', className)}>
@@ -175,7 +172,7 @@ const PipelinePreview = ({
               <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
             </div>
           )}
-          {!hasAnyProcessing && previewUrl && (
+          {!hasSteps && previewUrl && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-lg">
               <span className="text-sm text-muted-foreground">
                 Enable operations to see preview
@@ -183,7 +180,7 @@ const PipelinePreview = ({
             </div>
           )}
           <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-background/80 backdrop-blur-sm text-xs text-muted-foreground">
-            {hasAnyProcessing ? 'Pipeline Preview' : 'Original'}
+            {hasSteps ? 'Pipeline Preview' : 'Original'}
           </div>
         </div>
       </div>

@@ -1,18 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, X, Loader2 } from 'lucide-react';
-import { open } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
 import { cn } from '@/lib/utils';
 import { expandHeight } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import type { ImageInfo } from '@/types/image';
+import { useImageDropzone } from './useImageDropzone';
 
 type ImageDropzoneProps = {
   images: ImageInfo[];
   onImagesChange: (images: ImageInfo[]) => void;
   maxImages?: number;
-  compact?: boolean;
   className?: string;
 };
 
@@ -20,95 +18,19 @@ const ImageDropzone = ({
   images,
   onImagesChange,
   maxImages = 50,
-  compact = false,
   className,
 }: ImageDropzoneProps) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, selectFiles, removeImage, clearAll } = useImageDropzone({
+    images,
+    onImagesChange,
+    maxImages,
+  });
   const [isDragOver, setIsDragOver] = useState(false);
-
-  const handleSelectFiles = useCallback(async () => {
-    try {
-      const selected = await open({
-        multiple: true,
-        filters: [
-          {
-            name: 'Images',
-            extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico', 'tiff', 'tif'],
-          },
-        ],
-      });
-
-      if (!selected || (Array.isArray(selected) && selected.length === 0)) return;
-
-      const paths = Array.isArray(selected) ? selected : [selected];
-
-      if (images.length + paths.length > maxImages) {
-        // Could show a toast here
-        console.warn(`Maximum ${maxImages} images allowed`);
-        return;
-      }
-
-      setIsLoading(true);
-
-      type RustResult = { Ok: ImageInfo } | { Err: string } | ImageInfo;
-      const results = await invoke<RustResult[]>('load_images_batch', {
-        paths,
-      });
-
-      const processedImages = results
-        .map((r) => {
-          if (typeof r === 'object' && r !== null) {
-            if ('Ok' in r) return r.Ok;
-            if ('path' in r) return r as ImageInfo;
-          }
-          return null;
-        })
-        .filter((img): img is ImageInfo => img !== null);
-
-      onImagesChange([...images, ...processedImages]);
-    } catch (error) {
-      console.error('Failed to load images:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [images, onImagesChange, maxImages]);
-
-  const handleRemoveImage = useCallback(
-    (index: number) => {
-      onImagesChange(images.filter((_, i) => i !== index));
-    },
-    [images, onImagesChange]
-  );
-
-  const handleClearAll = useCallback(() => {
-    onImagesChange([]);
-  }, [onImagesChange]);
-
-  if (compact) {
-    return (
-      <button
-        onClick={handleSelectFiles}
-        disabled={isLoading}
-        className={cn(
-          'flex items-center justify-center rounded-md border border-dashed border-border/50 bg-muted/20',
-          'hover:border-primary/50 hover:bg-primary/5 transition-colors',
-          isLoading && 'pointer-events-none opacity-70',
-          className
-        )}
-      >
-        {isLoading ? (
-          <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
-        ) : (
-          <Upload className="w-3.5 h-3.5 text-muted-foreground" />
-        )}
-      </button>
-    );
-  }
 
   return (
     <div className={cn('space-y-3', className)}>
       <div
-        onClick={handleSelectFiles}
+        onClick={selectFiles}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragOver(true);
@@ -138,9 +60,7 @@ const ImageDropzone = ({
             <p className="text-sm font-medium text-foreground">
               {isLoading ? 'Loading...' : 'Drop images here'}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              or click to browse
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">or click to browse</p>
           </div>
           <p className="text-[10px] text-muted-foreground">
             PNG, JPG, WebP, GIF, BMP, ICO, TIFF
@@ -164,7 +84,7 @@ const ImageDropzone = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleClearAll}
+                onClick={clearAll}
                 className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive"
               >
                 Clear
@@ -184,9 +104,7 @@ const ImageDropzone = ({
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="absolute bottom-0 left-0 right-0 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-[9px] text-white font-medium truncate">
-                      {image.name}
-                    </p>
+                    <p className="text-[9px] text-white font-medium truncate">{image.name}</p>
                     <p className="text-[8px] text-white/70">
                       {image.width}×{image.height}
                     </p>
@@ -194,7 +112,7 @@ const ImageDropzone = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveImage(index);
+                      removeImage(index);
                     }}
                     className="absolute top-1 right-1 p-1 rounded bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-destructive transition-all"
                   >

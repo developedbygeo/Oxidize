@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { fadeUp } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
-import { PipelinePreview } from '@/components/PipelinePreview';
+import { PipelinePreview, type PipelinePreviewStep } from '@/components/PipelinePreview';
 import { PreviewNavigation } from '@/components/PreviewNavigation';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { effectsList, formatLabels, type ImageInfo, type ImageFormat } from '@/types/image';
@@ -54,8 +54,12 @@ const ReviewStep = ({
     Number(!!values.beautifyEnabled) +
     Number(!!values.effectsEnabled);
 
-  const showPreview =
-    images.length > 0 && (values.beautifyEnabled || values.effectsEnabled) && previewImage;
+  const previewSteps: PipelinePreviewStep[] = [
+    ...(values.beautifyEnabled ? [{ kind: 'beautify' as const, options: beautifyOptions }] : []),
+    ...(values.effectsEnabled ? [{ kind: 'effects' as const, options: effectsOptions }] : []),
+  ];
+
+  const showPreview = images.length > 0 && previewSteps.length > 0 && previewImage;
 
   const beautifyDetails =
     [
@@ -79,10 +83,7 @@ const ReviewStep = ({
           >
             <PipelinePreview
               src={previewImage.thumbnail}
-              beautifyEnabled={values.beautifyEnabled ?? false}
-              beautifyOptions={beautifyOptions}
-              effectsEnabled={values.effectsEnabled ?? false}
-              effectsOptions={effectsOptions}
+              steps={previewSteps}
               className="h-64"
             />
           </PreviewNavigation>

@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ImageDropzone } from '@/components/ImageDropzone';
+import { ImageDropzoneCompact } from '@/components/ImageDropzone';
 import type { ImageInfo } from '@/types/image';
 
 type ThumbnailStripProps = {
@@ -45,10 +45,9 @@ const ThumbnailStrip = ({
           </button>
         </button>
       ))}
-      <ImageDropzone
+      <ImageDropzoneCompact
         images={images}
         onImagesChange={onImagesChange}
-        compact
         className="shrink-0 w-12 h-12"
       />
     </div>
