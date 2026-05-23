@@ -49,6 +49,8 @@ pub fn run() {
             video::compress_videos_batch,
             video::resize_video,
             video::resize_videos_batch,
+            video::extract_audio,
+            video::extract_audio_batch,
             video::cancel_video_jobs,
             // Commands
             commands::open_folder,

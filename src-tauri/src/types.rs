@@ -206,3 +206,12 @@ pub struct VideoResizeOptions {
     pub crf: Option<u8>,
     pub output_dir: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AudioExtractOptions {
+    /// Output container/codec: "mp3", "aac", "opus", "flac", "wav".
+    pub format: String,
+    /// CBR audio bitrate in kbps. Ignored for lossless formats (flac/wav).
+    pub bitrate_kbps: Option<u32>,
+    pub output_dir: Option<String>,
+}

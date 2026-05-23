@@ -105,7 +105,8 @@ export type OperationType =
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'
-  | 'video-resize';
+  | 'video-resize'
+  | 'extract-audio';
 
 export interface OperationHistoryItem {
   id: string;

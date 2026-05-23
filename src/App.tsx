@@ -14,6 +14,7 @@ import { HistoryPage } from '@/pages/history';
 import { VideoConvertPage } from '@/pages/video-convert';
 import { VideoCompressPage } from '@/pages/video-compress';
 import { VideoResizePage } from '@/pages/video-resize';
+import { ExtractAudioPage } from '@/pages/extract-audio';
 import {
   loadHistory,
   saveHistory,
@@ -32,6 +33,7 @@ const pageTitles: Record<Page, string> = {
   'video-convert': 'Convert Videos',
   'video-compress': 'Compress Videos',
   'video-resize': 'Resize Videos',
+  'extract-audio': 'Extract Audio',
   history: 'Operation History',
 };
 
@@ -44,6 +46,7 @@ const pageSubtitles: Record<Page, string> = {
   'video-convert': 'Change video format and container',
   'video-compress': 'Shrink video files',
   'video-resize': 'Scale to a target resolution',
+  'extract-audio': 'Pull the audio track out of a video',
   history: 'View and manage your recent operations',
 };
 
@@ -137,6 +140,9 @@ const App = () => {
               )}
               {currentPage === 'video-resize' && (
                 <VideoResizePage onOperationComplete={addToHistory} />
+              )}
+              {currentPage === 'extract-audio' && (
+                <ExtractAudioPage onOperationComplete={addToHistory} />
               )}
               {currentPage === 'history' && (
                 <HistoryPage

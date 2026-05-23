@@ -71,7 +71,42 @@ export interface VideoResizeOptions {
   output_dir: string | null;
 }
 
-export type VideoOperationType = 'video-convert' | 'video-compress' | 'video-resize';
+export type VideoOperationType =
+  | 'video-convert'
+  | 'video-compress'
+  | 'video-resize'
+  | 'extract-audio';
+
+// ---- Audio extraction ----
+
+export type AudioFormat = 'mp3' | 'aac' | 'opus' | 'flac' | 'wav';
+
+export const audioFormatLabels: Record<AudioFormat, string> = {
+  mp3: 'MP3',
+  aac: 'AAC',
+  opus: 'Opus',
+  flac: 'FLAC',
+  wav: 'WAV',
+};
+
+export const audioFormatDescriptions: Record<AudioFormat, string> = {
+  mp3: 'Universal, broad compatibility',
+  aac: 'Better quality than MP3 at same bitrate',
+  opus: 'Best modern lossy codec',
+  flac: 'Lossless · large files',
+  wav: 'Uncompressed · largest files',
+};
+
+export const isLosslessAudioFormat = (format: AudioFormat): boolean =>
+  format === 'flac' || format === 'wav';
+
+export const audioBitrateOptions = [96, 128, 192, 256, 320] as const;
+
+export interface AudioExtractOptions {
+  format: AudioFormat;
+  bitrate_kbps: number | null;
+  output_dir: string | null;
+}
 
 export interface VideoProgressPayload {
   input_path: string;

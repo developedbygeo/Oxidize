@@ -8,6 +8,7 @@ import {
   FileVideo,
   Film,
   Crop,
+  Music,
 } from 'lucide-react';
 import type { OperationType } from '@/types/image';
 
@@ -20,6 +21,7 @@ export const operationIcons: Record<OperationType, LucideIcon> = {
   'video-convert': FileVideo,
   'video-compress': Film,
   'video-resize': Crop,
+  'extract-audio': Music,
 };
 
 export const operationLabels: Record<OperationType, string> = {
@@ -31,4 +33,5 @@ export const operationLabels: Record<OperationType, string> = {
   'video-convert': 'Video Convert',
   'video-compress': 'Video Compress',
   'video-resize': 'Video Resize',
+  'extract-audio': 'Extract Audio',
 };

@@ -12,6 +12,7 @@ import {
   FileVideo,
   Film,
   Crop,
+  Music,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -36,6 +37,7 @@ type Page =
   | 'video-convert'
   | 'video-compress'
   | 'video-resize'
+  | 'extract-audio'
   | 'history';
 
 type NavItem = {
@@ -72,6 +74,7 @@ const navGroups: NavGroup[] = [
       { id: 'video-convert', label: 'Convert', description: 'Change video format', icon: FileVideo },
       { id: 'video-compress', label: 'Compress', description: 'Shrink video files', icon: Film },
       { id: 'video-resize', label: 'Resize', description: 'Change dimensions', icon: Crop },
+      { id: 'extract-audio', label: 'Extract audio', description: 'Pull audio from video', icon: Music },
     ],
   },
 ];
