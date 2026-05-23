@@ -58,7 +58,20 @@ export interface VideoCompressOptions {
   output_dir: string | null;
 }
 
-export type VideoOperationType = 'video-convert' | 'video-compress';
+export type VideoResizeMode = 'presetheight' | 'custom';
+
+export interface VideoResizeOptions {
+  format: VideoFormat;
+  mode: VideoResizeMode;
+  target_height: number | null;
+  width: number | null;
+  height: number | null;
+  maintain_aspect: boolean | null;
+  crf: number | null;
+  output_dir: string | null;
+}
+
+export type VideoOperationType = 'video-convert' | 'video-compress' | 'video-resize';
 
 export interface VideoProgressPayload {
   input_path: string;

@@ -1,6 +1,7 @@
 import { useReducer } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Film, Zap } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -153,6 +154,7 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
             running={isCompressing}
             verb="Compressing"
             itemName="video"
+            onCancel={() => invoke('cancel_video_jobs')}
           />
         )}
 

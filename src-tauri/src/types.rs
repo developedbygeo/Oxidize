@@ -181,3 +181,28 @@ pub struct VideoCompressOptions {
     pub preset: Option<String>,
     pub output_dir: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoResizeMode {
+    /// Lock to a target height; width auto-scales to maintain aspect ratio.
+    PresetHeight,
+    /// Both dimensions explicit.
+    Custom,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VideoResizeOptions {
+    pub format: String,
+    pub mode: VideoResizeMode,
+    /// Target height in pixels (used when mode == PresetHeight).
+    pub target_height: Option<u32>,
+    /// Target width in pixels (used when mode == Custom).
+    pub width: Option<u32>,
+    /// Target height in pixels (used when mode == Custom).
+    pub height: Option<u32>,
+    /// When true, the custom mode preserves the source aspect ratio (height auto-scales).
+    pub maintain_aspect: Option<bool>,
+    pub crf: Option<u8>,
+    pub output_dir: Option<String>,
+}

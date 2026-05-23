@@ -1,15 +1,72 @@
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::Path;
-use tauri::{AppHandle, Emitter};
-use tauri_plugin_shell::process::{CommandEvent, Output};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_shell::process::{CommandChild, CommandEvent, Output};
 use tauri_plugin_shell::ShellExt;
 
 use crate::types::{
-    VideoCompressOptions, VideoConvertOptions, VideoInfo, VideoQualityMode, VideoResult,
+    VideoCompressOptions, VideoConvertOptions, VideoInfo, VideoQualityMode, VideoResizeMode,
+    VideoResizeOptions, VideoResult,
 };
 use crate::utils::{resolve_output_dir, unique_output_path};
 
 const PROGRESS_EVENT: &str = "video:progress";
+
+/// Tauri-managed state tracking active ffmpeg jobs so we can cancel them.
+///
+/// `active` maps input_path → spawned child process (one child per file being
+/// processed; batches process sequentially so usually one entry at a time).
+/// `cancelled` is a one-shot flag the batch loop reads between files so a
+/// cancel kills the current encode AND skips remaining queued files.
+#[derive(Default)]
+pub struct VideoJobs {
+    active: Mutex<HashMap<String, CommandChild>>,
+    cancelled: AtomicBool,
+}
+
+impl VideoJobs {
+    fn reset(&self) {
+        self.cancelled.store(false, Ordering::Relaxed);
+        if let Ok(mut active) = self.active.lock() {
+            active.clear();
+        }
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
+    }
+
+    fn register(&self, path: String, child: CommandChild) {
+        if let Ok(mut active) = self.active.lock() {
+            active.insert(path, child);
+        }
+    }
+
+    fn unregister(&self, path: &str) {
+        if let Ok(mut active) = self.active.lock() {
+            active.remove(path);
+        }
+    }
+
+    fn cancel_all(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+        if let Ok(mut active) = self.active.lock() {
+            for (_, child) in active.drain() {
+                let _ = child.kill();
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn cancel_video_jobs(app: AppHandle) {
+    if let Some(jobs) = app.try_state::<VideoJobs>() {
+        jobs.cancel_all();
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize)]
 struct ProgressPayload {
@@ -156,9 +213,14 @@ async fn run_ffmpeg_with_progress(
         .map_err(|e| format!("Failed to locate ffmpeg sidecar: {}", e))?
         .args(args);
 
-    let (mut rx, mut _child) = command
+    let (mut rx, child) = command
         .spawn()
         .map_err(|e| format!("ffmpeg spawn failed: {}", e))?;
+
+    // Register the child so cancel_video_jobs can kill it.
+    if let Some(jobs) = app.try_state::<VideoJobs>() {
+        jobs.register(input_path.to_string(), child);
+    }
 
     let mut stderr_buf = String::new();
     let mut exit_code: Option<i32> = None;
@@ -196,6 +258,19 @@ async fn run_ffmpeg_with_progress(
                 exit_code = payload.code;
             }
             _ => {}
+        }
+    }
+
+    // Always clear our registry entry once the process is gone.
+    if let Some(jobs) = app.try_state::<VideoJobs>() {
+        jobs.unregister(input_path);
+    }
+
+    // If we were asked to cancel, surface a clear error regardless of how
+    // ffmpeg exited (killed processes can report odd codes or none at all).
+    if let Some(jobs) = app.try_state::<VideoJobs>() {
+        if jobs.is_cancelled() {
+            return Err("cancelled".to_string());
         }
     }
 
@@ -329,8 +404,24 @@ pub async fn convert_videos_batch(
     input_paths: Vec<String>,
     options: VideoConvertOptions,
 ) -> Vec<VideoResult> {
+    if let Some(jobs) = app.try_state::<VideoJobs>() {
+        jobs.reset();
+    }
     let mut results = Vec::with_capacity(input_paths.len());
     for path in input_paths {
+        if let Some(jobs) = app.try_state::<VideoJobs>() {
+            if jobs.is_cancelled() {
+                results.push(VideoResult {
+                    success: false,
+                    input_path: path,
+                    output_path: None,
+                    error: Some("cancelled".into()),
+                    original_size: 0,
+                    new_size: 0,
+                });
+                continue;
+            }
+        }
         let result = convert_video(app.clone(), path.clone(), options.clone())
             .await
             .unwrap_or_else(|e| VideoResult {
@@ -422,9 +513,157 @@ pub async fn compress_videos_batch(
     input_paths: Vec<String>,
     options: VideoCompressOptions,
 ) -> Vec<VideoResult> {
+    if let Some(jobs) = app.try_state::<VideoJobs>() {
+        jobs.reset();
+    }
     let mut results = Vec::with_capacity(input_paths.len());
     for path in input_paths {
+        if let Some(jobs) = app.try_state::<VideoJobs>() {
+            if jobs.is_cancelled() {
+                results.push(VideoResult {
+                    success: false,
+                    input_path: path,
+                    output_path: None,
+                    error: Some("cancelled".into()),
+                    original_size: 0,
+                    new_size: 0,
+                });
+                continue;
+            }
+        }
         let result = compress_video(app.clone(), path.clone(), options.clone())
+            .await
+            .unwrap_or_else(|e| VideoResult {
+                success: false,
+                input_path: path,
+                output_path: None,
+                error: Some(e),
+                original_size: 0,
+                new_size: 0,
+            });
+        results.push(result);
+    }
+    results
+}
+
+/// Builds the `-vf scale=…` filter argument for the requested resize options.
+/// Uses `-2` (auto, divisible by 2) to maintain aspect ratio — many codecs
+/// reject odd dimensions, so we always snap to even.
+fn build_scale_filter(options: &VideoResizeOptions) -> Result<String, String> {
+    match options.mode {
+        VideoResizeMode::PresetHeight => {
+            let h = options
+                .target_height
+                .ok_or_else(|| "Preset resize requires target_height".to_string())?;
+            Ok(format!("scale=-2:{}", h))
+        }
+        VideoResizeMode::Custom => {
+            let maintain = options.maintain_aspect.unwrap_or(true);
+            if maintain {
+                if let Some(h) = options.height {
+                    return Ok(format!("scale=-2:{}", h));
+                }
+                if let Some(w) = options.width {
+                    return Ok(format!("scale={}:-2", w));
+                }
+                Err("Custom resize requires width or height".into())
+            } else {
+                let w = options
+                    .width
+                    .ok_or_else(|| "Custom resize requires width when aspect not maintained".to_string())?;
+                let h = options
+                    .height
+                    .ok_or_else(|| "Custom resize requires height when aspect not maintained".to_string())?;
+                Ok(format!("scale={}:{}", w, h))
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn resize_video(
+    app: AppHandle,
+    input_path: String,
+    options: VideoResizeOptions,
+) -> Result<VideoResult, String> {
+    let input = Path::new(&input_path);
+    let original_size = std::fs::metadata(&input_path).map(|m| m.len()).unwrap_or(0);
+
+    let info = probe(&app, &input_path).await?;
+    let duration_seconds = info
+        .format
+        .duration
+        .as_ref()
+        .and_then(|d| d.parse::<f64>().ok())
+        .unwrap_or(0.0);
+
+    let stem = input
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
+    let output_dir = resolve_output_dir(&options.output_dir, input);
+    let extension = extension_for_format(&options.format);
+    let output_path = unique_output_path(&output_dir, stem, "resized", &extension);
+
+    let video_codec = default_video_codec_for(&options.format).to_string();
+    let audio_codec = default_audio_codec_for(&options.format).to_string();
+    let scale_filter = build_scale_filter(&options)?;
+    let crf = options.crf.unwrap_or(23);
+
+    let mut args: Vec<String> = vec![
+        "-i".into(),
+        input_path.clone(),
+        "-vf".into(),
+        scale_filter,
+        "-c:v".into(),
+        video_codec.clone(),
+        "-c:a".into(),
+        audio_codec,
+    ];
+    args.extend(codec_speed_args(&video_codec, None));
+    args.push("-crf".into());
+    args.push(crf.to_string());
+    args.push(output_path.to_string_lossy().to_string());
+
+    run_ffmpeg_with_progress(&app, &input_path, duration_seconds, args).await?;
+
+    let new_size = std::fs::metadata(&output_path).map(|m| m.len()).unwrap_or(0);
+
+    Ok(VideoResult {
+        success: true,
+        input_path,
+        output_path: Some(output_path.to_string_lossy().to_string()),
+        error: None,
+        original_size,
+        new_size,
+    })
+}
+
+#[tauri::command]
+pub async fn resize_videos_batch(
+    app: AppHandle,
+    input_paths: Vec<String>,
+    options: VideoResizeOptions,
+) -> Vec<VideoResult> {
+    if let Some(jobs) = app.try_state::<VideoJobs>() {
+        jobs.reset();
+    }
+    let mut results = Vec::with_capacity(input_paths.len());
+    for path in input_paths {
+        if let Some(jobs) = app.try_state::<VideoJobs>() {
+            if jobs.is_cancelled() {
+                results.push(VideoResult {
+                    success: false,
+                    input_path: path,
+                    output_path: None,
+                    error: Some("cancelled".into()),
+                    original_size: 0,
+                    new_size: 0,
+                });
+                continue;
+            }
+        }
+        let result = resize_video(app.clone(), path.clone(), options.clone())
             .await
             .unwrap_or_else(|e| VideoResult {
                 success: false,

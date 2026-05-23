@@ -1,9 +1,17 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { ImageInfo } from '@/types/image';
 
 type RustResult = { Ok: ImageInfo } | { Err: string } | ImageInfo;
+
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico', 'tiff', 'tif'];
+
+const matchesImageExtension = (path: string): boolean => {
+  const lower = path.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`));
+};
 
 type UseImageDropzoneArgs = {
   images: ImageInfo[];
@@ -18,46 +26,76 @@ export const useImageDropzone = ({
 }: UseImageDropzoneArgs) => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const selectFiles = useCallback(async () => {
-    try {
-      const selected = await open({
-        multiple: true,
-        filters: [
-          {
-            name: 'Images',
-            extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico', 'tiff', 'tif'],
-          },
-        ],
-      });
-
-      if (!selected || (Array.isArray(selected) && selected.length === 0)) return;
-
-      const paths = Array.isArray(selected) ? selected : [selected];
+  const addPaths = useCallback(
+    async (paths: string[]) => {
+      if (paths.length === 0) return;
       if (images.length + paths.length > maxImages) {
         console.warn(`Maximum ${maxImages} images allowed`);
         return;
       }
 
       setIsLoading(true);
-      const results = await invoke<RustResult[]>('load_images_batch', { paths });
+      try {
+        const results = await invoke<RustResult[]>('load_images_batch', { paths });
 
-      const processedImages = results
-        .map((r) => {
-          if (typeof r === 'object' && r !== null) {
-            if ('Ok' in r) return r.Ok;
-            if ('path' in r) return r as ImageInfo;
-          }
-          return null;
-        })
-        .filter((img): img is ImageInfo => img !== null);
+        const processedImages = results
+          .map((r) => {
+            if (typeof r === 'object' && r !== null) {
+              if ('Ok' in r) return r.Ok;
+              if ('path' in r) return r as ImageInfo;
+            }
+            return null;
+          })
+          .filter((img): img is ImageInfo => img !== null);
 
-      onImagesChange([...images, ...processedImages]);
+        onImagesChange([...images, ...processedImages]);
+      } catch (error) {
+        console.error('Failed to load images:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [images, onImagesChange, maxImages]
+  );
+
+  const selectFiles = useCallback(async () => {
+    try {
+      const selected = await open({
+        multiple: true,
+        filters: [{ name: 'Images', extensions: IMAGE_EXTENSIONS }],
+      });
+
+      if (!selected || (Array.isArray(selected) && selected.length === 0)) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      await addPaths(paths);
     } catch (error) {
-      console.error('Failed to load images:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to open file picker:', error);
     }
-  }, [images, onImagesChange, maxImages]);
+  }, [addPaths]);
+
+  // OS-native drag-and-drop. The Tauri window fires drop events with paths
+  // the webview can use directly; the HTML drag handlers in the dropzone
+  // component drive only the visual hover state.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    getCurrentWindow()
+      .onDragDropEvent((event) => {
+        if (event.payload.type !== 'drop') return;
+        const matching = event.payload.paths.filter(matchesImageExtension);
+        if (matching.length > 0) void addPaths(matching);
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch((err) => console.error('Failed to register drag-drop listener:', err));
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [addPaths]);
 
   const removeImage = useCallback(
     (index: number) => onImagesChange(images.filter((_, i) => i !== index)),

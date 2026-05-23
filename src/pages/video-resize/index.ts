@@ -1,0 +1,1 @@
+export { VideoResizePage } from './VideoResizePage';

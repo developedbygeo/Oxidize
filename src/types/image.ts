@@ -104,7 +104,8 @@ export type OperationType =
   | 'effects'
   | 'pipeline'
   | 'video-convert'
-  | 'video-compress';
+  | 'video-compress'
+  | 'video-resize';
 
 export interface OperationHistoryItem {
   id: string;

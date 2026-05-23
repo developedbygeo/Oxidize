@@ -18,6 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .manage(video::VideoJobs::default())
         .invoke_handler(tauri::generate_handler![
             // Loader
             loader::load_image_info,
@@ -46,6 +47,9 @@ pub fn run() {
             video::convert_videos_batch,
             video::compress_video,
             video::compress_videos_batch,
+            video::resize_video,
+            video::resize_videos_batch,
+            video::cancel_video_jobs,
             // Commands
             commands::open_folder,
             commands::reveal_file,

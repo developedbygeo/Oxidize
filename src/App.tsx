@@ -13,6 +13,7 @@ import { PipelinePage } from '@/pages/pipeline';
 import { HistoryPage } from '@/pages/history';
 import { VideoConvertPage } from '@/pages/video-convert';
 import { VideoCompressPage } from '@/pages/video-compress';
+import { VideoResizePage } from '@/pages/video-resize';
 import {
   loadHistory,
   saveHistory,
@@ -30,6 +31,7 @@ const pageTitles: Record<Page, string> = {
   pipeline: 'Pipeline',
   'video-convert': 'Convert Videos',
   'video-compress': 'Compress Videos',
+  'video-resize': 'Resize Videos',
   history: 'Operation History',
 };
 
@@ -41,6 +43,7 @@ const pageSubtitles: Record<Page, string> = {
   pipeline: 'Chain multiple operations together',
   'video-convert': 'Change video format and container',
   'video-compress': 'Shrink video files',
+  'video-resize': 'Scale to a target resolution',
   history: 'View and manage your recent operations',
 };
 
@@ -131,6 +134,9 @@ const App = () => {
               )}
               {currentPage === 'video-compress' && (
                 <VideoCompressPage onOperationComplete={addToHistory} />
+              )}
+              {currentPage === 'video-resize' && (
+                <VideoResizePage onOperationComplete={addToHistory} />
               )}
               {currentPage === 'history' && (
                 <HistoryPage

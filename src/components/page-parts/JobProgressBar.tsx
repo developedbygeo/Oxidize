@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useJobTimer } from '@/hooks/useJobTimer';
 import { formatVideoDuration } from '@/types/video';
 
@@ -18,6 +19,8 @@ type JobProgressBarProps = {
   verb: string;
   /** Singular noun for one item — "video", "image". */
   itemName?: string;
+  /** When provided, shows a cancel button. */
+  onCancel?: () => void;
 };
 
 const findActiveIndex = (items: JobItem[], progress: Record<string, number>): number => {
@@ -48,6 +51,7 @@ const JobProgressBar = ({
   running,
   verb,
   itemName = 'item',
+  onCancel,
 }: JobProgressBarProps) => {
   const elapsed = useJobTimer(running);
   // Locked total-duration estimate. Re-anchored periodically (see RELOCK_*).
@@ -118,7 +122,20 @@ const JobProgressBar = ({
             )}
           </div>
         </div>
-        <span className="text-sm font-mono tabular-nums text-primary shrink-0">{percent}%</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-sm font-mono tabular-nums text-primary">{percent}%</span>
+          {onCancel && running && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onCancel}
+              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+              aria-label="Cancel"
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="h-2 rounded-full bg-muted overflow-hidden">

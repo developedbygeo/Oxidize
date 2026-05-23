@@ -11,6 +11,7 @@ import {
   Moon,
   FileVideo,
   Film,
+  Crop,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -34,6 +35,7 @@ type Page =
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'
+  | 'video-resize'
   | 'history';
 
 type NavItem = {
@@ -69,6 +71,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'video-convert', label: 'Convert', description: 'Change video format', icon: FileVideo },
       { id: 'video-compress', label: 'Compress', description: 'Shrink video files', icon: Film },
+      { id: 'video-resize', label: 'Resize', description: 'Change dimensions', icon: Crop },
     ],
   },
 ];
