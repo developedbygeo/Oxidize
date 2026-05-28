@@ -1,4 +1,4 @@
-import type { ImageInfo, CompressionResult } from '@/types/image';
+import { z } from 'zod';
 
 export type CompressionLevel = 'lossless' | 'balanced' | 'maximum';
 
@@ -13,62 +13,28 @@ export const compressionPresets: Record<
 
 export const compressionLevelOrder: CompressionLevel[] = ['lossless', 'balanced', 'maximum'];
 
-export type CompressState = {
-  images: ImageInfo[];
-  compressionLevel: CompressionLevel;
-  customQuality: number;
-  useCustom: boolean;
-  outputDir: string | null;
-  isCompressing: boolean;
-  results: CompressionResult[];
-  showResults: boolean;
-};
+export const compressFormSchema = z.object({
+  compressionLevel: z.enum(['lossless', 'balanced', 'maximum']),
+  customQuality: z.number().int().min(10).max(100),
+  useCustom: z.boolean(),
+  outputDir: z.string().nullable(),
+});
 
-export type CompressAction =
-  | { type: 'SET_IMAGES'; payload: ImageInfo[] }
-  | { type: 'SET_COMPRESSION_LEVEL'; payload: CompressionLevel }
-  | { type: 'SET_CUSTOM_QUALITY'; payload: number }
-  | { type: 'SET_USE_CUSTOM'; payload: boolean }
-  | { type: 'SET_OUTPUT_DIR'; payload: string | null }
-  | { type: 'START_COMPRESSING' }
-  | { type: 'FINISH_COMPRESSING'; payload: CompressionResult[] };
+export type CompressFormValues = z.infer<typeof compressFormSchema>;
 
-export const initialState: CompressState = {
-  images: [],
+export const defaultFormValues: CompressFormValues = {
   compressionLevel: 'balanced',
   customQuality: 80,
   useCustom: false,
   outputDir: null,
-  isCompressing: false,
-  results: [],
-  showResults: false,
 };
 
-export const compressReducer = (state: CompressState, action: CompressAction): CompressState => {
-  switch (action.type) {
-    case 'SET_IMAGES':
-      return { ...state, images: action.payload };
-    case 'SET_COMPRESSION_LEVEL':
-      return { ...state, compressionLevel: action.payload, useCustom: false };
-    case 'SET_CUSTOM_QUALITY':
-      return { ...state, customQuality: action.payload, useCustom: true };
-    case 'SET_USE_CUSTOM':
-      return { ...state, useCustom: action.payload };
-    case 'SET_OUTPUT_DIR':
-      return { ...state, outputDir: action.payload };
-    case 'START_COMPRESSING':
-      return { ...state, isCompressing: true, showResults: false };
-    case 'FINISH_COMPRESSING':
-      return { ...state, isCompressing: false, results: action.payload, showResults: true };
-    default:
-      return state;
-  }
-};
-
-export const resolveQuality = (state: Pick<CompressState, 'compressionLevel' | 'customQuality' | 'useCustom'>): number => {
-  if (state.compressionLevel === 'lossless') return 100;
-  if (state.useCustom) return state.customQuality;
-  return compressionPresets[state.compressionLevel].quality;
+export const resolveQuality = (
+  values: Pick<CompressFormValues, 'compressionLevel' | 'customQuality' | 'useCustom'>
+): number => {
+  if (values.compressionLevel === 'lossless') return 100;
+  if (values.useCustom) return values.customQuality;
+  return compressionPresets[values.compressionLevel].quality;
 };
 
 export const formatFileSize = (bytes: number): string => {

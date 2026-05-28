@@ -1,52 +1,39 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import { formatLabels } from '@/types/image';
-import type {
-  ConversionResult,
-  ImageInfo,
-  ImageFormat,
-  OperationHistoryItem,
-} from '@/types/image';
+import { formatLabels, type ConversionResult, type ImageInfo, type OperationHistoryItem } from '@/types/image';
+import type { ConvertFormValues } from './schema';
 
-type ExecuteArgs = {
+type RunConversionArgs = {
   images: ImageInfo[];
-  targetFormat: ImageFormat;
-  quality: number;
-  outputDir: string | null;
-};
-
-export const convertImages = async (args: ExecuteArgs): Promise<ConversionResult[]> => {
-  const { images, targetFormat, quality, outputDir } = args;
-  return invoke<ConversionResult[]>('convert_images_batch', {
-    inputPaths: images.map((img) => img.path),
-    options: { format: targetFormat, quality, output_dir: outputDir },
-  });
-};
-
-type RunConversionArgs = ExecuteArgs & {
+  values: ConvertFormValues;
   onStart: () => void;
   onFinish: (results: ConversionResult[]) => void;
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
 };
 
 export const runConversion = async ({
+  images,
+  values,
   onStart,
   onFinish,
   onOperationComplete,
-  ...args
 }: RunConversionArgs) => {
-  if (args.images.length === 0) return;
+  if (images.length === 0) return;
 
+  const { targetFormat, quality, outputDir } = values;
   onStart();
   const processToast = createProcessToast({
     progressLabel: 'Converting',
     doneLabel: 'Conversion',
-    itemCount: args.images.length,
+    itemCount: images.length,
   });
 
   try {
-    const results = await convertImages(args);
+    const results = await invoke<ConversionResult[]>('convert_images_batch', {
+      inputPaths: images.map((img) => img.path),
+      options: { format: targetFormat, quality, output_dir: outputDir },
+    });
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
@@ -56,21 +43,21 @@ export const runConversion = async ({
     processToast.finish({
       successCount,
       failCount,
-      extraInfo: `converted to ${formatLabels[args.targetFormat]}`,
+      extraInfo: `converted to ${formatLabels[targetFormat]}`,
     });
 
     if (successCount > 0 && onOperationComplete) {
       const dir = resolveOutputDir({
         results: results.filter((r) => r.success),
-        fallbackDir: args.outputDir,
-        fallbackPath: args.images[0]?.path,
+        fallbackDir: outputDir,
+        fallbackPath: images[0]?.path,
       });
 
       onOperationComplete({
         type: 'convert',
         fileCount: successCount,
         outputDir: dir,
-        details: `Converted to ${formatLabels[args.targetFormat]}`,
+        details: `Converted to ${formatLabels[targetFormat]}`,
         totalSaved: totalSaved > 0 ? totalSaved : undefined,
       });
     }

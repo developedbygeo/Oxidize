@@ -106,6 +106,7 @@ export type OperationType =
   | 'video-convert'
   | 'video-compress'
   | 'video-resize'
+  | 'video-trim'
   | 'extract-audio';
 
 export interface OperationHistoryItem {

@@ -1,18 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir, formatAdjustmentDetails } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import type {
-  BeautifyOptions,
-  BeautifyResult,
-  ImageInfo,
-  OperationHistoryItem,
-} from '@/types/image';
-import type { Adjustments } from './schema';
+import type { BeautifyOptions, BeautifyResult, ImageInfo, OperationHistoryItem } from '@/types/image';
+import type { BeautifyFormValues } from './schema';
 
 type RunArgs = {
   images: ImageInfo[];
-  adjustments: Adjustments;
-  outputDir: string | null;
+  values: BeautifyFormValues;
   onStart: () => void;
   onFinish: (results: BeautifyResult[]) => void;
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
@@ -20,14 +14,14 @@ type RunArgs = {
 
 export const runBeautify = async ({
   images,
-  adjustments,
-  outputDir,
+  values,
   onStart,
   onFinish,
   onOperationComplete,
 }: RunArgs) => {
   if (images.length === 0) return;
 
+  const { outputDir, ...adjustments } = values;
   onStart();
   const processToast = createProcessToast({
     progressLabel: 'Beautifying',

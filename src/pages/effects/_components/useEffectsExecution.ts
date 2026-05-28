@@ -2,18 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import { effectsList } from '@/types/image';
-import type {
-  EffectResult,
-  EffectType,
-  ImageInfo,
-  OperationHistoryItem,
-} from '@/types/image';
+import type { EffectResult, ImageInfo, OperationHistoryItem } from '@/types/image';
+import type { EffectsFormValues } from './schema';
 
 type RunArgs = {
   images: ImageInfo[];
-  selectedEffect: EffectType;
-  intensity: number;
-  outputDir: string | null;
+  values: EffectsFormValues;
   onStart: () => void;
   onFinish: (results: EffectResult[]) => void;
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
@@ -21,15 +15,14 @@ type RunArgs = {
 
 export const runEffects = async ({
   images,
-  selectedEffect,
-  intensity,
-  outputDir,
+  values,
   onStart,
   onFinish,
   onOperationComplete,
 }: RunArgs) => {
   if (images.length === 0) return;
 
+  const { selectedEffect, intensity, outputDir } = values;
   const effectInfo = effectsList.find((e) => e.type === selectedEffect);
   const label = effectInfo?.label || selectedEffect;
   onStart();
@@ -61,7 +54,7 @@ export const runEffects = async ({
         type: 'effects',
         fileCount: successCount,
         outputDir: dir,
-        details: `${effectInfo?.label || selectedEffect} @ ${intensity}%`,
+        details: `${label} @ ${intensity}%`,
       });
     }
   } catch (error) {

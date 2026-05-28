@@ -1,9 +1,5 @@
-import type {
-  VideoFormat,
-  VideoInfo,
-  VideoResizeMode,
-  VideoResult,
-} from '@/types/video';
+import { z } from 'zod';
+import type { VideoFormat } from '@/types/video';
 
 export const videoOutputFormats: VideoFormat[] = ['mp4', 'webm', 'mkv', 'mov'];
 
@@ -22,36 +18,31 @@ export const resolutionPresets: ResolutionPreset[] = [
   { height: 360, label: '360p', description: 'Tiny · thumbnails / messaging' },
 ];
 
-export type VideoResizeState = {
-  videos: VideoInfo[];
-  targetFormat: VideoFormat;
-  mode: VideoResizeMode;
-  presetHeight: number;
-  customWidth: number;
-  customHeight: number;
-  maintainAspect: boolean;
-  crf: number;
-  outputDir: string | null;
-  isResizing: boolean;
-  results: VideoResult[];
-  showResults: boolean;
-};
+/**
+ * Encoder rejects odd dimensions for h.264/VP9. Schema enforces this so a
+ * malformed value can never reach ffmpeg.
+ */
+const evenDimension = z
+  .number()
+  .int()
+  .min(2)
+  .max(7680)
+  .refine((n) => n % 2 === 0, { message: 'Must be an even number' });
 
-export type VideoResizeAction =
-  | { type: 'SET_VIDEOS'; payload: VideoInfo[] }
-  | { type: 'SET_TARGET_FORMAT'; payload: VideoFormat }
-  | { type: 'SET_MODE'; payload: VideoResizeMode }
-  | { type: 'SET_PRESET_HEIGHT'; payload: number }
-  | { type: 'SET_CUSTOM_WIDTH'; payload: number }
-  | { type: 'SET_CUSTOM_HEIGHT'; payload: number }
-  | { type: 'SET_MAINTAIN_ASPECT'; payload: boolean }
-  | { type: 'SET_CRF'; payload: number }
-  | { type: 'SET_OUTPUT_DIR'; payload: string | null }
-  | { type: 'START_RESIZING' }
-  | { type: 'FINISH_RESIZING'; payload: VideoResult[] };
+export const videoResizeFormSchema = z.object({
+  targetFormat: z.enum(['mp4', 'webm', 'mkv', 'mov', 'avi']),
+  mode: z.enum(['presetheight', 'custom']),
+  presetHeight: z.number().int().min(144).max(4320),
+  customWidth: evenDimension,
+  customHeight: evenDimension,
+  maintainAspect: z.boolean(),
+  crf: z.number().int().min(0).max(51),
+  outputDir: z.string().nullable(),
+});
 
-export const initialState: VideoResizeState = {
-  videos: [],
+export type VideoResizeFormValues = z.infer<typeof videoResizeFormSchema>;
+
+export const defaultFormValues: VideoResizeFormValues = {
   targetFormat: 'mp4',
   mode: 'presetheight',
   presetHeight: 1080,
@@ -60,41 +51,6 @@ export const initialState: VideoResizeState = {
   maintainAspect: true,
   crf: 23,
   outputDir: null,
-  isResizing: false,
-  results: [],
-  showResults: false,
-};
-
-export const videoResizeReducer = (
-  state: VideoResizeState,
-  action: VideoResizeAction
-): VideoResizeState => {
-  switch (action.type) {
-    case 'SET_VIDEOS':
-      return { ...state, videos: action.payload };
-    case 'SET_TARGET_FORMAT':
-      return { ...state, targetFormat: action.payload };
-    case 'SET_MODE':
-      return { ...state, mode: action.payload };
-    case 'SET_PRESET_HEIGHT':
-      return { ...state, presetHeight: action.payload };
-    case 'SET_CUSTOM_WIDTH':
-      return { ...state, customWidth: action.payload };
-    case 'SET_CUSTOM_HEIGHT':
-      return { ...state, customHeight: action.payload };
-    case 'SET_MAINTAIN_ASPECT':
-      return { ...state, maintainAspect: action.payload };
-    case 'SET_CRF':
-      return { ...state, crf: action.payload };
-    case 'SET_OUTPUT_DIR':
-      return { ...state, outputDir: action.payload };
-    case 'START_RESIZING':
-      return { ...state, isResizing: true, showResults: false };
-    case 'FINISH_RESIZING':
-      return { ...state, isResizing: false, results: action.payload, showResults: true };
-    default:
-      return state;
-  }
 };
 
 export const formatFileSize = (bytes: number): string => {

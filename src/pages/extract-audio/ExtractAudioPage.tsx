@@ -1,7 +1,9 @@
-import { useReducer } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Music } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -11,12 +13,19 @@ import { ResultsList } from '@/components/page-parts/ResultsList';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { VideoDropzone } from '@/components/VideoDropzone';
 import { useFfmpegProgress } from '@/hooks/useFfmpegProgress';
-import { audioFormatLabels, isLosslessAudioFormat } from '@/types/video';
+import {
+  audioFormatLabels,
+  isLosslessAudioFormat,
+  type AudioFormat,
+  type VideoInfo,
+  type VideoResult,
+} from '@/types/video';
 import type { OperationHistoryItem } from '@/types/image';
 import {
-  initialState,
-  extractAudioReducer,
+  defaultFormValues,
+  extractAudioFormSchema,
   formatFileSize,
+  type ExtractAudioFormValues,
 } from './_components/schema';
 import { AudioFormatPicker } from './_components/AudioFormatPicker';
 import { BitratePicker } from './_components/BitratePicker';
@@ -27,16 +36,20 @@ type ExtractAudioPageProps = {
 };
 
 const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
-  const [state, dispatch] = useReducer(extractAudioReducer, initialState);
-  const {
-    videos,
-    targetFormat,
-    bitrateKbps,
-    outputDir,
-    isExtracting,
-    results,
-    showResults,
-  } = state;
+  const form = useForm<ExtractAudioFormValues>({
+    resolver: zodResolver(extractAudioFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const targetFormat = useWatch({ control, name: 'targetFormat' });
+  const bitrateKbps = useWatch({ control, name: 'bitrateKbps' });
+  const outputDir = useWatch({ control, name: 'outputDir' });
+
+  const [videos, setVideos] = useState<VideoInfo[]>([]);
+  const [results, setResults] = useState<VideoResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const progress = useFfmpegProgress(isExtracting);
   const lossless = isLosslessAudioFormat(targetFormat);
@@ -44,11 +57,16 @@ const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
   const handleExtract = () =>
     runExtractAudio({
       videos,
-      targetFormat,
-      bitrateKbps,
-      outputDir,
-      onStart: () => dispatch({ type: 'START_EXTRACTING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_EXTRACTING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsExtracting(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsExtracting(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -63,10 +81,7 @@ const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
           description="Pull the audio track out of a video"
         />
 
-        <VideoDropzone
-          videos={videos}
-          onVideosChange={(v) => dispatch({ type: 'SET_VIDEOS', payload: v })}
-        />
+        <VideoDropzone videos={videos} onVideosChange={setVideos} />
 
         <AnimatePresence>
           {videos.length > 0 && (
@@ -79,7 +94,9 @@ const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
             >
               <AudioFormatPicker
                 value={targetFormat}
-                onChange={(f) => dispatch({ type: 'SET_TARGET_FORMAT', payload: f })}
+                onChange={(f: AudioFormat) =>
+                  form.setValue('targetFormat', f, { shouldValidate: true })
+                }
               />
 
               <AnimatePresence>
@@ -92,7 +109,9 @@ const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
                   >
                     <BitratePicker
                       value={bitrateKbps}
-                      onChange={(v) => dispatch({ type: 'SET_BITRATE', payload: v })}
+                      onChange={(v) =>
+                        form.setValue('bitrateKbps', v, { shouldValidate: true })
+                      }
                     />
                   </motion.div>
                 )}
@@ -104,7 +123,7 @@ const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
                 </label>
                 <OutputLocationPicker
                   value={outputDir}
-                  onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                  onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                   size="md"
                 />
               </div>

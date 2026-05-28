@@ -1,6 +1,8 @@
-import { useReducer, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Wand2 } from 'lucide-react';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp } from '@/lib/animations';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
@@ -8,9 +10,19 @@ import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { ThumbnailStrip } from '@/components/page-parts/ThumbnailStrip';
 import { useImagePreview } from '@/hooks/useImagePreview';
-import { effectsList, type OperationHistoryItem } from '@/types/image';
+import {
+  effectsList,
+  type EffectResult,
+  type EffectType,
+  type ImageInfo,
+  type OperationHistoryItem,
+} from '@/types/image';
 import type { EffectPreviewOptions } from '@/components/EffectsPreview';
-import { effectsReducer, initialState } from './_components/schema';
+import {
+  defaultFormValues,
+  effectsFormSchema,
+  type EffectsFormValues,
+} from './_components/schema';
 import { EmptyState } from './_components/EmptyState';
 import { EffectPicker } from './_components/EffectPicker';
 import { IntensityControl } from './_components/IntensityControl';
@@ -22,17 +34,21 @@ type EffectsPageProps = {
 };
 
 const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
-  const [state, dispatch] = useReducer(effectsReducer, initialState);
-  const {
-    images,
-    selectedEffect,
-    intensity,
-    outputDir,
-    isProcessing,
-    results,
-    showResults,
-    previewIndex,
-  } = state;
+  const form = useForm<EffectsFormValues>({
+    resolver: zodResolver(effectsFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const selectedEffect = useWatch({ control, name: 'selectedEffect' });
+  const intensity = useWatch({ control, name: 'intensity' });
+  const outputDir = useWatch({ control, name: 'outputDir' });
+
+  const [images, setImages] = useState<ImageInfo[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [results, setResults] = useState<EffectResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const previewImage = images[previewIndex];
   const { src: previewSrc, isLoading: isLoadingPreview } = useImagePreview(previewImage);
@@ -42,14 +58,30 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     [selectedEffect, intensity]
   );
 
+  const handleImagesChange = (imgs: ImageInfo[]) => {
+    setImages(imgs);
+    if (previewIndex >= imgs.length) setPreviewIndex(Math.max(0, imgs.length - 1));
+  };
+
+  const handleRemove = (index: number) => {
+    const next = images.filter((_, i) => i !== index);
+    setImages(next);
+    if (previewIndex >= next.length) setPreviewIndex(Math.max(0, next.length - 1));
+  };
+
   const handleApply = () =>
     runEffects({
       images,
-      selectedEffect,
-      intensity,
-      outputDir,
-      onStart: () => dispatch({ type: 'START_PROCESSING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_PROCESSING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsProcessing(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsProcessing(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -60,8 +92,8 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     return (
       <EmptyState
         onImagesChange={(imgs) => {
-          dispatch({ type: 'SET_IMAGES', payload: imgs });
-          dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
+          setImages(imgs);
+          setPreviewIndex(0);
         }}
       />
     );
@@ -81,9 +113,9 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
           <ThumbnailStrip
             images={images}
             selectedIndex={previewIndex}
-            onSelect={(i) => dispatch({ type: 'SET_PREVIEW_INDEX', payload: i })}
-            onRemove={(i) => dispatch({ type: 'REMOVE_IMAGE', payload: i })}
-            onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })}
+            onSelect={setPreviewIndex}
+            onRemove={handleRemove}
+            onImagesChange={handleImagesChange}
             footer={
               <>
                 {images.length} image{images.length !== 1 ? 's' : ''}
@@ -97,12 +129,14 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <EffectPicker
               value={selectedEffect}
-              onChange={(effect) => dispatch({ type: 'SET_SELECTED_EFFECT', payload: effect })}
+              onChange={(effect: EffectType) =>
+                form.setValue('selectedEffect', effect, { shouldValidate: true })
+              }
             />
 
             <IntensityControl
               value={intensity}
-              onChange={(v) => dispatch({ type: 'SET_INTENSITY', payload: v })}
+              onChange={(v) => form.setValue('intensity', v, { shouldValidate: true })}
             />
 
             <div className="space-y-1.5">
@@ -111,7 +145,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
               </label>
               <OutputLocationPicker
                 value={outputDir}
-                onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                 size="sm"
               />
             </div>

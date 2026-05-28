@@ -1,6 +1,8 @@
-import { useReducer } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRightLeft, Sparkles } from 'lucide-react';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import { PageHeader } from '@/components/page-parts/PageHeader';
@@ -8,12 +10,19 @@ import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPick
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
-import { formatLabels, type OperationHistoryItem } from '@/types/image';
 import {
-  convertReducer,
-  initialState,
+  formatLabels,
+  type ConversionResult,
+  type ImageFormat,
+  type ImageInfo,
+  type OperationHistoryItem,
+} from '@/types/image';
+import {
+  convertFormSchema,
+  defaultFormValues,
   formatFileSize,
   formatsWithQuality,
+  type ConvertFormValues,
 } from './_components/schema';
 import { FormatPicker } from './_components/FormatPicker';
 import { QualitySlider } from './_components/QualitySlider';
@@ -24,19 +33,36 @@ type ConvertPageProps = {
 };
 
 const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
-  const [state, dispatch] = useReducer(convertReducer, initialState);
-  const { images, targetFormat, quality, outputDir, isConverting, results, showResults } = state;
+  const form = useForm<ConvertFormValues>({
+    resolver: zodResolver(convertFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const targetFormat = useWatch({ control, name: 'targetFormat' });
+  const quality = useWatch({ control, name: 'quality' });
+  const outputDir = useWatch({ control, name: 'outputDir' });
+
+  const [images, setImages] = useState<ImageInfo[]>([]);
+  const [results, setResults] = useState<ConversionResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
 
   const showQuality = formatsWithQuality.includes(targetFormat);
 
   const handleConvert = () =>
     runConversion({
       images,
-      targetFormat,
-      quality,
-      outputDir,
-      onStart: () => dispatch({ type: 'START_CONVERTING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_CONVERTING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsConverting(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsConverting(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -52,10 +78,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
           description="Transform images to different formats"
         />
 
-        <ImageDropzone
-          images={images}
-          onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })}
-        />
+        <ImageDropzone images={images} onImagesChange={setImages} />
 
         <AnimatePresence>
           {images.length > 0 && (
@@ -68,7 +91,9 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
             >
               <FormatPicker
                 value={targetFormat}
-                onChange={(format) => dispatch({ type: 'SET_TARGET_FORMAT', payload: format })}
+                onChange={(format: ImageFormat) =>
+                  form.setValue('targetFormat', format, { shouldValidate: true })
+                }
               />
 
               {showQuality && (
@@ -80,7 +105,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                 >
                   <QualitySlider
                     value={quality}
-                    onChange={(v) => dispatch({ type: 'SET_QUALITY', payload: v })}
+                    onChange={(v) => form.setValue('quality', v, { shouldValidate: true })}
                   />
                 </motion.div>
               )}
@@ -91,7 +116,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                 </label>
                 <OutputLocationPicker
                   value={outputDir}
-                  onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                  onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                   size="md"
                 />
               </div>

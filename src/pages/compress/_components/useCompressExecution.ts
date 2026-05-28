@@ -2,15 +2,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
-import { compressionPresets, type CompressionLevel } from './schema';
+import { compressionPresets, resolveQuality, type CompressFormValues } from './schema';
 
 type RunCompressionArgs = {
   images: ImageInfo[];
-  quality: number;
-  outputDir: string | null;
-  compressionLevel: CompressionLevel;
-  useCustom: boolean;
-  customQuality: number;
+  values: CompressFormValues;
   onStart: () => void;
   onFinish: (results: CompressionResult[]) => void;
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
@@ -18,16 +14,15 @@ type RunCompressionArgs = {
 
 export const runCompression = async ({
   images,
-  quality,
-  outputDir,
-  compressionLevel,
-  useCustom,
-  customQuality,
+  values,
   onStart,
   onFinish,
   onOperationComplete,
 }: RunCompressionArgs) => {
   if (images.length === 0) return;
+
+  const { compressionLevel, useCustom, customQuality, outputDir } = values;
+  const quality = resolveQuality(values);
 
   onStart();
   const processToast = createProcessToast({

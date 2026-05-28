@@ -1,6 +1,8 @@
-import { useReducer } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Minimize2, Zap, TrendingDown } from 'lucide-react';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import { PageHeader } from '@/components/page-parts/PageHeader';
@@ -8,12 +10,13 @@ import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPick
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
-import type { OperationHistoryItem } from '@/types/image';
+import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
-  compressReducer,
-  initialState,
+  compressFormSchema,
+  defaultFormValues,
   formatFileSize,
-  resolveQuality,
+  type CompressFormValues,
+  type CompressionLevel,
 } from './_components/schema';
 import { LevelPicker } from './_components/LevelPicker';
 import { CustomQualityControl } from './_components/CustomQualityControl';
@@ -24,28 +27,35 @@ type CompressPageProps = {
 };
 
 const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
-  const [state, dispatch] = useReducer(compressReducer, initialState);
-  const {
-    images,
-    compressionLevel,
-    customQuality,
-    useCustom,
-    outputDir,
-    isCompressing,
-    results,
-    showResults,
-  } = state;
+  const form = useForm<CompressFormValues>({
+    resolver: zodResolver(compressFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const compressionLevel = useWatch({ control, name: 'compressionLevel' });
+  const customQuality = useWatch({ control, name: 'customQuality' });
+  const useCustom = useWatch({ control, name: 'useCustom' });
+  const outputDir = useWatch({ control, name: 'outputDir' });
+
+  const [images, setImages] = useState<ImageInfo[]>([]);
+  const [results, setResults] = useState<CompressionResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const handleCompress = () =>
     runCompression({
       images,
-      quality: resolveQuality({ compressionLevel, customQuality, useCustom }),
-      outputDir,
-      compressionLevel,
-      useCustom,
-      customQuality,
-      onStart: () => dispatch({ type: 'START_COMPRESSING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_COMPRESSING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsCompressing(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsCompressing(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -65,10 +75,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
           description="Reduce file sizes while preserving quality"
         />
 
-        <ImageDropzone
-          images={images}
-          onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })}
-        />
+        <ImageDropzone images={images} onImagesChange={setImages} />
 
         <AnimatePresence>
           {images.length > 0 && (
@@ -82,7 +89,12 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
               <LevelPicker
                 value={compressionLevel}
                 useCustom={useCustom}
-                onChange={(level) => dispatch({ type: 'SET_COMPRESSION_LEVEL', payload: level })}
+                onChange={(level: CompressionLevel) => {
+                  // Picking a preset implicitly turns off the custom slider —
+                  // mirrors what the old reducer did.
+                  form.setValue('compressionLevel', level, { shouldValidate: true });
+                  form.setValue('useCustom', false, { shouldValidate: true });
+                }}
               />
 
               {compressionLevel !== 'lossless' && (
@@ -95,8 +107,13 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                   <CustomQualityControl
                     value={customQuality}
                     useCustom={useCustom}
-                    onValueChange={(v) => dispatch({ type: 'SET_CUSTOM_QUALITY', payload: v })}
-                    onToggleCustom={(use) => dispatch({ type: 'SET_USE_CUSTOM', payload: use })}
+                    onValueChange={(v) => {
+                      form.setValue('customQuality', v, { shouldValidate: true });
+                      form.setValue('useCustom', true, { shouldValidate: true });
+                    }}
+                    onToggleCustom={(use) =>
+                      form.setValue('useCustom', use, { shouldValidate: true })
+                    }
                   />
                 </motion.div>
               )}
@@ -107,7 +124,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                 </label>
                 <OutputLocationPicker
                   value={outputDir}
-                  onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                  onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                   size="md"
                 />
               </div>

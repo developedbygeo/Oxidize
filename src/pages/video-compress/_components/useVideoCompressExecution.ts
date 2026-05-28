@@ -2,23 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import type { OperationHistoryItem } from '@/types/image';
-import type {
-  VideoCompressOptions,
-  VideoFormat,
-  VideoInfo,
-  VideoQualityMode,
-  VideoResult,
-} from '@/types/video';
-import type { VideoEncodingPreset } from './schema';
+import type { VideoCompressOptions, VideoInfo, VideoResult } from '@/types/video';
+import type { VideoCompressFormValues } from './schema';
 
 type RunArgs = {
   videos: VideoInfo[];
-  targetFormat: VideoFormat;
-  mode: VideoQualityMode;
-  crf: number;
-  bitrateKbps: number;
-  preset: VideoEncodingPreset;
-  outputDir: string | null;
+  values: VideoCompressFormValues;
   onStart: () => void;
   onFinish: (results: VideoResult[]) => void;
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
@@ -26,18 +15,14 @@ type RunArgs = {
 
 export const runVideoCompress = async ({
   videos,
-  targetFormat,
-  mode,
-  crf,
-  bitrateKbps,
-  preset,
-  outputDir,
+  values,
   onStart,
   onFinish,
   onOperationComplete,
 }: RunArgs) => {
   if (videos.length === 0) return;
 
+  const { targetFormat, mode, crf, bitrateKbps, preset, outputDir } = values;
   onStart();
   const processToast = createProcessToast({
     progressLabel: 'Compressing',

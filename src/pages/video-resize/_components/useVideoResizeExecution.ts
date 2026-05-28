@@ -2,66 +2,60 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import type { OperationHistoryItem } from '@/types/image';
-import type {
-  VideoFormat,
-  VideoInfo,
-  VideoResizeMode,
-  VideoResizeOptions,
-  VideoResult,
-} from '@/types/video';
+import type { VideoInfo, VideoResizeOptions, VideoResult } from '@/types/video';
+import type { VideoResizeFormValues } from './schema';
 
 type RunArgs = {
   videos: VideoInfo[];
-  targetFormat: VideoFormat;
-  mode: VideoResizeMode;
-  presetHeight: number;
-  customWidth: number;
-  customHeight: number;
-  maintainAspect: boolean;
-  crf: number;
-  outputDir: string | null;
+  values: VideoResizeFormValues;
   onStart: () => void;
   onFinish: (results: VideoResult[]) => void;
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
 };
 
-const buildSizeDetails = (args: RunArgs): string => {
-  if (args.mode === 'presetheight') return `${args.presetHeight}p`;
-  if (args.maintainAspect) return `${args.customWidth || '?'} × auto`;
-  return `${args.customWidth}×${args.customHeight}`;
+const buildSizeDetails = (values: VideoResizeFormValues): string => {
+  if (values.mode === 'presetheight') return `${values.presetHeight}p`;
+  if (values.maintainAspect) return `${values.customWidth || '?'} × auto`;
+  return `${values.customWidth}×${values.customHeight}`;
 };
 
-export const runVideoResize = async (args: RunArgs) => {
-  if (args.videos.length === 0) return;
+export const runVideoResize = async ({
+  videos,
+  values,
+  onStart,
+  onFinish,
+  onOperationComplete,
+}: RunArgs) => {
+  if (videos.length === 0) return;
 
-  args.onStart();
+  onStart();
   const processToast = createProcessToast({
     progressLabel: 'Resizing',
     doneLabel: 'Resize',
-    itemCount: args.videos.length,
+    itemCount: videos.length,
     itemName: 'video',
   });
 
   try {
     const options: VideoResizeOptions = {
-      format: args.targetFormat,
-      mode: args.mode,
-      target_height: args.mode === 'presetheight' ? args.presetHeight : null,
-      width: args.mode === 'custom' ? args.customWidth : null,
-      height: args.mode === 'custom' ? args.customHeight : null,
-      maintain_aspect: args.mode === 'custom' ? args.maintainAspect : null,
-      crf: args.crf,
-      output_dir: args.outputDir,
+      format: values.targetFormat,
+      mode: values.mode,
+      target_height: values.mode === 'presetheight' ? values.presetHeight : null,
+      width: values.mode === 'custom' ? values.customWidth : null,
+      height: values.mode === 'custom' ? values.customHeight : null,
+      maintain_aspect: values.mode === 'custom' ? values.maintainAspect : null,
+      crf: values.crf,
+      output_dir: values.outputDir,
     };
     const results = await invoke<VideoResult[]>('resize_videos_batch', {
-      inputPaths: args.videos.map((v) => v.path),
+      inputPaths: videos.map((v) => v.path),
       options,
     });
-    args.onFinish(results);
+    onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
     const failCount = results.length - successCount;
-    const sizeDetails = buildSizeDetails(args);
+    const sizeDetails = buildSizeDetails(values);
 
     processToast.finish({
       successCount,
@@ -69,14 +63,14 @@ export const runVideoResize = async (args: RunArgs) => {
       extraInfo: `→ ${sizeDetails}`,
     });
 
-    if (successCount > 0 && args.onOperationComplete) {
+    if (successCount > 0 && onOperationComplete) {
       const dir = resolveOutputDir({
         results: results.filter((r) => r.success),
-        fallbackDir: args.outputDir,
-        fallbackPath: args.videos[0]?.path,
+        fallbackDir: values.outputDir,
+        fallbackPath: videos[0]?.path,
       });
 
-      args.onOperationComplete({
+      onOperationComplete({
         type: 'video-resize',
         fileCount: successCount,
         outputDir: dir,
@@ -86,6 +80,6 @@ export const runVideoResize = async (args: RunArgs) => {
   } catch (error) {
     console.error('Video resize failed:', error);
     processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
-    args.onFinish([]);
+    onFinish([]);
   }
 };

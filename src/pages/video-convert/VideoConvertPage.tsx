@@ -1,7 +1,9 @@
-import { useReducer } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileVideo, Sparkles } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -11,15 +13,21 @@ import { ResultsList } from '@/components/page-parts/ResultsList';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { VideoDropzone } from '@/components/VideoDropzone';
 import { useFfmpegProgress } from '@/hooks/useFfmpegProgress';
-import { videoFormatLabels } from '@/types/video';
+import {
+  videoFormatLabels,
+  type VideoFormat,
+  type VideoInfo,
+  type VideoResult,
+} from '@/types/video';
 import type { OperationHistoryItem } from '@/types/image';
 import {
-  initialState,
-  videoConvertReducer,
+  defaultFormValues,
   formatFileSize,
+  videoConvertFormSchema,
+  type VideoConvertFormValues,
 } from './_components/schema';
 import { VideoFormatPicker } from './_components/VideoFormatPicker';
-import { ModePicker } from './_components/ModePicker';
+import { ModePicker, type ConvertMode } from './_components/ModePicker';
 import { CrfSlider } from './_components/CrfSlider';
 import { runVideoConvert } from './_components/useVideoConvertExecution';
 
@@ -28,29 +36,37 @@ type VideoConvertPageProps = {
 };
 
 const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
-  const [state, dispatch] = useReducer(videoConvertReducer, initialState);
-  const {
-    videos,
-    targetFormat,
-    mode,
-    crf,
-    outputDir,
-    isConverting,
-    results,
-    showResults,
-  } = state;
+  const form = useForm<VideoConvertFormValues>({
+    resolver: zodResolver(videoConvertFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const targetFormat = useWatch({ control, name: 'targetFormat' });
+  const mode = useWatch({ control, name: 'mode' });
+  const crf = useWatch({ control, name: 'crf' });
+  const outputDir = useWatch({ control, name: 'outputDir' });
+
+  const [videos, setVideos] = useState<VideoInfo[]>([]);
+  const [results, setResults] = useState<VideoResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
 
   const progress = useFfmpegProgress(isConverting);
 
   const handleConvert = () =>
     runVideoConvert({
       videos,
-      targetFormat,
-      mode,
-      crf,
-      outputDir,
-      onStart: () => dispatch({ type: 'START_CONVERTING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_CONVERTING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsConverting(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsConverting(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -65,10 +81,7 @@ const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
           description="Change video format and container"
         />
 
-        <VideoDropzone
-          videos={videos}
-          onVideosChange={(v) => dispatch({ type: 'SET_VIDEOS', payload: v })}
-        />
+        <VideoDropzone videos={videos} onVideosChange={setVideos} />
 
         <AnimatePresence>
           {videos.length > 0 && (
@@ -80,13 +93,15 @@ const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
               className="space-y-5"
             >
               <VideoFormatPicker
-                value={targetFormat}
-                onChange={(format) => dispatch({ type: 'SET_TARGET_FORMAT', payload: format })}
+                value={targetFormat as VideoFormat}
+                onChange={(format) =>
+                  form.setValue('targetFormat', format, { shouldValidate: true })
+                }
               />
 
               <ModePicker
                 value={mode}
-                onChange={(m) => dispatch({ type: 'SET_MODE', payload: m })}
+                onChange={(m: ConvertMode) => form.setValue('mode', m, { shouldValidate: true })}
               />
 
               <AnimatePresence>
@@ -99,7 +114,7 @@ const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
                   >
                     <CrfSlider
                       value={crf}
-                      onChange={(v) => dispatch({ type: 'SET_CRF', payload: v })}
+                      onChange={(v) => form.setValue('crf', v, { shouldValidate: true })}
                     />
                   </motion.div>
                 )}
@@ -111,7 +126,7 @@ const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
                 </label>
                 <OutputLocationPicker
                   value={outputDir}
-                  onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                  onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                   size="md"
                 />
               </div>
@@ -121,7 +136,7 @@ const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
                 disabled={videos.length === 0}
                 onClick={handleConvert}
                 icon={Sparkles}
-                label={`Convert ${videos.length} video${videos.length !== 1 ? 's' : ''} to ${videoFormatLabels[targetFormat]}`}
+                label={`Convert ${videos.length} video${videos.length !== 1 ? 's' : ''} to ${videoFormatLabels[targetFormat as VideoFormat]}`}
                 processingLabel="Converting..."
               />
             </motion.div>

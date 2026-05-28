@@ -75,7 +75,18 @@ export type VideoOperationType =
   | 'video-convert'
   | 'video-compress'
   | 'video-resize'
+  | 'video-trim'
   | 'extract-audio';
+
+export type VideoTrimMode = 'accurate' | 'fast';
+
+export interface VideoTrimOptions {
+  mode: VideoTrimMode;
+  start_seconds: number;
+  end_seconds: number;
+  crf: number | null;
+  output_dir: string | null;
+}
 
 // ---- Audio extraction ----
 

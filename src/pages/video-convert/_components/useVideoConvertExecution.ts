@@ -5,18 +5,14 @@ import type { OperationHistoryItem } from '@/types/image';
 import {
   videoFormatLabels,
   type VideoConvertOptions,
-  type VideoFormat,
   type VideoInfo,
   type VideoResult,
 } from '@/types/video';
-import type { ConvertMode } from './ModePicker';
+import type { VideoConvertFormValues } from './schema';
 
 type RunArgs = {
   videos: VideoInfo[];
-  targetFormat: VideoFormat;
-  mode: ConvertMode;
-  crf: number;
-  outputDir: string | null;
+  values: VideoConvertFormValues;
   onStart: () => void;
   onFinish: (results: VideoResult[]) => void;
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
@@ -24,16 +20,14 @@ type RunArgs = {
 
 export const runVideoConvert = async ({
   videos,
-  targetFormat,
-  mode,
-  crf,
-  outputDir,
+  values,
   onStart,
   onFinish,
   onOperationComplete,
 }: RunArgs) => {
   if (videos.length === 0) return;
 
+  const { targetFormat, mode, crf, outputDir } = values;
   onStart();
   const processToast = createProcessToast({
     progressLabel: 'Converting',

@@ -1,7 +1,9 @@
-import { useReducer } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Crop, Sparkles } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from '@/lib/utils';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
@@ -14,13 +16,20 @@ import { VideoDropzone } from '@/components/VideoDropzone';
 import { useFfmpegProgress } from '@/hooks/useFfmpegProgress';
 import { Slider } from '@/components/ui/slider';
 import { crfToQuality, qualityToCrf } from '@/lib/video-quality';
-import { videoFormatLabels, type VideoFormat } from '@/types/video';
+import {
+  videoFormatLabels,
+  type VideoFormat,
+  type VideoInfo,
+  type VideoResizeMode,
+  type VideoResult,
+} from '@/types/video';
 import type { OperationHistoryItem } from '@/types/image';
 import {
-  initialState,
-  videoResizeReducer,
-  videoOutputFormats,
+  defaultFormValues,
   formatFileSize,
+  videoOutputFormats,
+  videoResizeFormSchema,
+  type VideoResizeFormValues,
 } from './_components/schema';
 import { ResizeModePicker } from './_components/ResizeModePicker';
 import { ResolutionPresetPicker } from './_components/ResolutionPresetPicker';
@@ -32,37 +41,41 @@ type VideoResizePageProps = {
 };
 
 const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
-  const [state, dispatch] = useReducer(videoResizeReducer, initialState);
-  const {
-    videos,
-    targetFormat,
-    mode,
-    presetHeight,
-    customWidth,
-    customHeight,
-    maintainAspect,
-    crf,
-    outputDir,
-    isResizing,
-    results,
-    showResults,
-  } = state;
+  const form = useForm<VideoResizeFormValues>({
+    resolver: zodResolver(videoResizeFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const targetFormat = useWatch({ control, name: 'targetFormat' });
+  const mode = useWatch({ control, name: 'mode' });
+  const presetHeight = useWatch({ control, name: 'presetHeight' });
+  const customWidth = useWatch({ control, name: 'customWidth' });
+  const customHeight = useWatch({ control, name: 'customHeight' });
+  const maintainAspect = useWatch({ control, name: 'maintainAspect' });
+  const crf = useWatch({ control, name: 'crf' });
+  const outputDir = useWatch({ control, name: 'outputDir' });
+
+  const [videos, setVideos] = useState<VideoInfo[]>([]);
+  const [results, setResults] = useState<VideoResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   const progress = useFfmpegProgress(isResizing);
 
   const handleResize = () =>
     runVideoResize({
       videos,
-      targetFormat,
-      mode,
-      presetHeight,
-      customWidth,
-      customHeight,
-      maintainAspect,
-      crf,
-      outputDir,
-      onStart: () => dispatch({ type: 'START_RESIZING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_RESIZING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsResizing(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsResizing(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -78,10 +91,7 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
           description="Change video dimensions or scale to a target resolution"
         />
 
-        <VideoDropzone
-          videos={videos}
-          onVideosChange={(v) => dispatch({ type: 'SET_VIDEOS', payload: v })}
-        />
+        <VideoDropzone videos={videos} onVideosChange={setVideos} />
 
         <AnimatePresence>
           {videos.length > 0 && (
@@ -101,9 +111,8 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
                     <button
                       key={format}
                       onClick={() =>
-                        dispatch({
-                          type: 'SET_TARGET_FORMAT',
-                          payload: format as VideoFormat,
+                        form.setValue('targetFormat', format as VideoFormat, {
+                          shouldValidate: true,
                         })
                       }
                       className={cn(
@@ -121,7 +130,9 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
 
               <ResizeModePicker
                 value={mode}
-                onChange={(m) => dispatch({ type: 'SET_MODE', payload: m })}
+                onChange={(m: VideoResizeMode) =>
+                  form.setValue('mode', m, { shouldValidate: true })
+                }
               />
 
               <AnimatePresence mode="wait">
@@ -135,7 +146,9 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
                   {mode === 'presetheight' ? (
                     <ResolutionPresetPicker
                       value={presetHeight}
-                      onChange={(h) => dispatch({ type: 'SET_PRESET_HEIGHT', payload: h })}
+                      onChange={(h) =>
+                        form.setValue('presetHeight', h, { shouldValidate: true })
+                      }
                       videos={videos}
                     />
                   ) : (
@@ -143,10 +156,14 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
                       width={customWidth}
                       height={customHeight}
                       maintainAspect={maintainAspect}
-                      onWidthChange={(v) => dispatch({ type: 'SET_CUSTOM_WIDTH', payload: v })}
-                      onHeightChange={(v) => dispatch({ type: 'SET_CUSTOM_HEIGHT', payload: v })}
+                      onWidthChange={(v) =>
+                        form.setValue('customWidth', v, { shouldValidate: true })
+                      }
+                      onHeightChange={(v) =>
+                        form.setValue('customHeight', v, { shouldValidate: true })
+                      }
                       onMaintainAspectChange={(v) =>
-                        dispatch({ type: 'SET_MAINTAIN_ASPECT', payload: v })
+                        form.setValue('maintainAspect', v, { shouldValidate: true })
                       }
                     />
                   )}
@@ -180,7 +197,7 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
                   max={100}
                   step={1}
                   onValueChange={(values) =>
-                    dispatch({ type: 'SET_CRF', payload: qualityToCrf(values[0]) })
+                    form.setValue('crf', qualityToCrf(values[0]), { shouldValidate: true })
                   }
                   className="**:data-[slot=slider-range]:bg-primary **:data-[slot=slider-thumb]:border-primary"
                 />
@@ -192,7 +209,7 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
                 </label>
                 <OutputLocationPicker
                   value={outputDir}
-                  onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                  onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                   size="md"
                 />
               </div>

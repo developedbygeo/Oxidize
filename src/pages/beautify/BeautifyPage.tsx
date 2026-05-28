@@ -1,6 +1,8 @@
-import { useReducer, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles } from 'lucide-react';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp } from '@/lib/animations';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
@@ -9,8 +11,14 @@ import { ResultsList } from '@/components/page-parts/ResultsList';
 import { ThumbnailStrip } from '@/components/page-parts/ThumbnailStrip';
 import { useImagePreview } from '@/hooks/useImagePreview';
 import type { PreviewOptions } from '@/components/ImagePreview';
-import type { OperationHistoryItem } from '@/types/image';
-import { beautifyReducer, initialState } from './_components/schema';
+import type { BeautifyResult, ImageInfo, OperationHistoryItem } from '@/types/image';
+import {
+  beautifyFormSchema,
+  defaultAdjustments,
+  defaultFormValues,
+  type Adjustments,
+  type BeautifyFormValues,
+} from './_components/schema';
 import { BasicAdjustmentsPanel } from './_components/BasicAdjustmentsPanel';
 import { ColorCorrectionPanel } from './_components/ColorCorrectionPanel';
 import { EmptyState } from './_components/EmptyState';
@@ -22,16 +30,32 @@ type BeautifyPageProps = {
 };
 
 const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
-  const [state, dispatch] = useReducer(beautifyReducer, initialState);
-  const {
-    images,
-    adjustments,
-    outputDir,
-    isBeautifying,
-    results,
-    showResults,
-    previewIndex,
-  } = state;
+  const form = useForm<BeautifyFormValues>({
+    resolver: zodResolver(beautifyFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const values = useWatch({ control });
+  // useWatch returns Partial during initial render; we always have defaults
+  // so widen back to the full Adjustments shape for the panel components.
+  const adjustments: Adjustments = {
+    brightness: values.brightness ?? defaultAdjustments.brightness,
+    contrast: values.contrast ?? defaultAdjustments.contrast,
+    saturation: values.saturation ?? defaultAdjustments.saturation,
+    sharpness: values.sharpness ?? defaultAdjustments.sharpness,
+    exposure: values.exposure ?? defaultAdjustments.exposure,
+    hue_shift: values.hue_shift ?? defaultAdjustments.hue_shift,
+    temperature: values.temperature ?? defaultAdjustments.temperature,
+    white_balance: values.white_balance ?? defaultAdjustments.white_balance,
+  };
+  const outputDir = values.outputDir ?? null;
+
+  const [images, setImages] = useState<ImageInfo[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [results, setResults] = useState<BeautifyResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isBeautifying, setIsBeautifying] = useState(false);
 
   const previewImage = images[previewIndex];
   const { src: previewSrc, isLoading: isLoadingPreview } = useImagePreview(previewImage);
@@ -47,16 +71,53 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
       temperature: adjustments.temperature,
       whiteBalance: adjustments.white_balance,
     }),
-    [adjustments]
+    [
+      adjustments.brightness,
+      adjustments.contrast,
+      adjustments.saturation,
+      adjustments.sharpness,
+      adjustments.exposure,
+      adjustments.hue_shift,
+      adjustments.temperature,
+      adjustments.white_balance,
+    ]
   );
+
+  const applyPatch = (patch: Partial<Adjustments>) => {
+    for (const [key, value] of Object.entries(patch)) {
+      form.setValue(key as keyof Adjustments, value as never, { shouldValidate: true });
+    }
+  };
+
+  const resetAdjustments = () => {
+    // Keep the chosen output dir; only reset the pixel adjustments.
+    form.reset({ ...defaultFormValues, outputDir });
+  };
+
+  const handleImagesChange = (imgs: ImageInfo[]) => {
+    setImages(imgs);
+    if (previewIndex >= imgs.length) setPreviewIndex(Math.max(0, imgs.length - 1));
+  };
+
+  const handleRemove = (index: number) => {
+    const next = images.filter((_, i) => i !== index);
+    setImages(next);
+    if (previewIndex >= next.length) setPreviewIndex(Math.max(0, next.length - 1));
+  };
 
   const handleBeautify = () =>
     runBeautify({
       images,
-      adjustments,
-      outputDir,
-      onStart: () => dispatch({ type: 'START_BEAUTIFYING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_BEAUTIFYING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsBeautifying(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsBeautifying(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -66,8 +127,8 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     return (
       <EmptyState
         onImagesChange={(imgs) => {
-          dispatch({ type: 'SET_IMAGES', payload: imgs });
-          dispatch({ type: 'SET_PREVIEW_INDEX', payload: 0 });
+          setImages(imgs);
+          setPreviewIndex(0);
         }}
       />
     );
@@ -87,9 +148,9 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
           <ThumbnailStrip
             images={images}
             selectedIndex={previewIndex}
-            onSelect={(i) => dispatch({ type: 'SET_PREVIEW_INDEX', payload: i })}
-            onRemove={(i) => dispatch({ type: 'REMOVE_IMAGE', payload: i })}
-            onImagesChange={(imgs) => dispatch({ type: 'SET_IMAGES', payload: imgs })}
+            onSelect={setPreviewIndex}
+            onRemove={handleRemove}
+            onImagesChange={handleImagesChange}
             footer={
               <>
                 {images.length} image{images.length !== 1 ? 's' : ''}
@@ -103,14 +164,11 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <BasicAdjustmentsPanel
               adjustments={adjustments}
-              onChange={(patch) => dispatch({ type: 'SET_ADJUSTMENT', payload: patch })}
-              onReset={() => dispatch({ type: 'RESET_ADJUSTMENTS' })}
+              onChange={applyPatch}
+              onReset={resetAdjustments}
             />
 
-            <ColorCorrectionPanel
-              adjustments={adjustments}
-              onChange={(patch) => dispatch({ type: 'SET_ADJUSTMENT', payload: patch })}
-            />
+            <ColorCorrectionPanel adjustments={adjustments} onChange={applyPatch} />
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
@@ -118,7 +176,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
               </label>
               <OutputLocationPicker
                 value={outputDir}
-                onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                 size="sm"
               />
             </div>

@@ -1,9 +1,5 @@
-import type {
-  VideoFormat,
-  VideoInfo,
-  VideoQualityMode,
-  VideoResult,
-} from '@/types/video';
+import { z } from 'zod';
+import type { VideoFormat } from '@/types/video';
 
 export const videoOutputFormats: VideoFormat[] = ['mp4', 'webm', 'mkv', 'mov'];
 
@@ -42,69 +38,24 @@ export const presetLabels: Record<VideoEncodingPreset, string> = {
   veryslow: 'Very slow',
 };
 
-export type VideoCompressState = {
-  videos: VideoInfo[];
-  targetFormat: VideoFormat;
-  mode: VideoQualityMode;
-  crf: number;
-  bitrateKbps: number;
-  preset: VideoEncodingPreset;
-  outputDir: string | null;
-  isCompressing: boolean;
-  results: VideoResult[];
-  showResults: boolean;
-};
+export const videoCompressFormSchema = z.object({
+  targetFormat: z.enum(['mp4', 'webm', 'mkv', 'mov', 'avi']),
+  mode: z.enum(['crf', 'bitrate']),
+  crf: z.number().int().min(0).max(51),
+  bitrateKbps: z.number().int().min(100).max(50000),
+  preset: z.enum(presetOrder),
+  outputDir: z.string().nullable(),
+});
 
-export type VideoCompressAction =
-  | { type: 'SET_VIDEOS'; payload: VideoInfo[] }
-  | { type: 'SET_TARGET_FORMAT'; payload: VideoFormat }
-  | { type: 'SET_MODE'; payload: VideoQualityMode }
-  | { type: 'SET_CRF'; payload: number }
-  | { type: 'SET_BITRATE'; payload: number }
-  | { type: 'SET_PRESET'; payload: VideoEncodingPreset }
-  | { type: 'SET_OUTPUT_DIR'; payload: string | null }
-  | { type: 'START_COMPRESSING' }
-  | { type: 'FINISH_COMPRESSING'; payload: VideoResult[] };
+export type VideoCompressFormValues = z.infer<typeof videoCompressFormSchema>;
 
-export const initialState: VideoCompressState = {
-  videos: [],
+export const defaultFormValues: VideoCompressFormValues = {
   targetFormat: 'mp4',
   mode: 'crf',
   crf: 23,
   bitrateKbps: 2000,
   preset: 'medium',
   outputDir: null,
-  isCompressing: false,
-  results: [],
-  showResults: false,
-};
-
-export const videoCompressReducer = (
-  state: VideoCompressState,
-  action: VideoCompressAction
-): VideoCompressState => {
-  switch (action.type) {
-    case 'SET_VIDEOS':
-      return { ...state, videos: action.payload };
-    case 'SET_TARGET_FORMAT':
-      return { ...state, targetFormat: action.payload };
-    case 'SET_MODE':
-      return { ...state, mode: action.payload };
-    case 'SET_CRF':
-      return { ...state, crf: action.payload };
-    case 'SET_BITRATE':
-      return { ...state, bitrateKbps: action.payload };
-    case 'SET_PRESET':
-      return { ...state, preset: action.payload };
-    case 'SET_OUTPUT_DIR':
-      return { ...state, outputDir: action.payload };
-    case 'START_COMPRESSING':
-      return { ...state, isCompressing: true, showResults: false };
-    case 'FINISH_COMPRESSING':
-      return { ...state, isCompressing: false, results: action.payload, showResults: true };
-    default:
-      return state;
-  }
 };
 
 export const formatFileSize = (bytes: number): string => {

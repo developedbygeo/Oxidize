@@ -1,7 +1,9 @@
-import { useReducer } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Film, Zap } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -11,11 +13,19 @@ import { ResultsList } from '@/components/page-parts/ResultsList';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { VideoDropzone } from '@/components/VideoDropzone';
 import { useFfmpegProgress } from '@/hooks/useFfmpegProgress';
+import type {
+  VideoFormat,
+  VideoInfo,
+  VideoQualityMode,
+  VideoResult,
+} from '@/types/video';
 import type { OperationHistoryItem } from '@/types/image';
 import {
-  initialState,
-  videoCompressReducer,
+  defaultFormValues,
   formatFileSize,
+  videoCompressFormSchema,
+  type VideoCompressFormValues,
+  type VideoEncodingPreset,
 } from './_components/schema';
 import { FormatPicker } from './_components/FormatPicker';
 import { QualityModePicker } from './_components/QualityModePicker';
@@ -29,33 +39,39 @@ type VideoCompressPageProps = {
 };
 
 const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
-  const [state, dispatch] = useReducer(videoCompressReducer, initialState);
-  const {
-    videos,
-    targetFormat,
-    mode,
-    crf,
-    bitrateKbps,
-    preset,
-    outputDir,
-    isCompressing,
-    results,
-    showResults,
-  } = state;
+  const form = useForm<VideoCompressFormValues>({
+    resolver: zodResolver(videoCompressFormSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { control } = form;
+  const targetFormat = useWatch({ control, name: 'targetFormat' });
+  const mode = useWatch({ control, name: 'mode' });
+  const crf = useWatch({ control, name: 'crf' });
+  const bitrateKbps = useWatch({ control, name: 'bitrateKbps' });
+  const preset = useWatch({ control, name: 'preset' });
+  const outputDir = useWatch({ control, name: 'outputDir' });
+
+  const [videos, setVideos] = useState<VideoInfo[]>([]);
+  const [results, setResults] = useState<VideoResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const progress = useFfmpegProgress(isCompressing);
 
   const handleCompress = () =>
     runVideoCompress({
       videos,
-      targetFormat,
-      mode,
-      crf,
-      bitrateKbps,
-      preset,
-      outputDir,
-      onStart: () => dispatch({ type: 'START_COMPRESSING' }),
-      onFinish: (r) => dispatch({ type: 'FINISH_COMPRESSING', payload: r }),
+      values: form.getValues(),
+      onStart: () => {
+        setIsCompressing(true);
+        setShowResults(false);
+      },
+      onFinish: (r) => {
+        setIsCompressing(false);
+        setResults(r);
+        setShowResults(true);
+      },
       onOperationComplete,
     });
 
@@ -73,10 +89,7 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
           description="Shrink video files with CRF or a target bitrate"
         />
 
-        <VideoDropzone
-          videos={videos}
-          onVideosChange={(v) => dispatch({ type: 'SET_VIDEOS', payload: v })}
-        />
+        <VideoDropzone videos={videos} onVideosChange={setVideos} />
 
         <AnimatePresence>
           {videos.length > 0 && (
@@ -88,13 +101,17 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
               className="space-y-5"
             >
               <FormatPicker
-                value={targetFormat}
-                onChange={(format) => dispatch({ type: 'SET_TARGET_FORMAT', payload: format })}
+                value={targetFormat as VideoFormat}
+                onChange={(format) =>
+                  form.setValue('targetFormat', format, { shouldValidate: true })
+                }
               />
 
               <QualityModePicker
                 value={mode}
-                onChange={(m) => dispatch({ type: 'SET_MODE', payload: m })}
+                onChange={(m: VideoQualityMode) =>
+                  form.setValue('mode', m, { shouldValidate: true })
+                }
               />
 
               <AnimatePresence mode="wait">
@@ -108,12 +125,12 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
                   {mode === 'crf' ? (
                     <CrfControl
                       value={crf}
-                      onChange={(v) => dispatch({ type: 'SET_CRF', payload: v })}
+                      onChange={(v) => form.setValue('crf', v, { shouldValidate: true })}
                     />
                   ) : (
                     <BitrateControl
                       value={bitrateKbps}
-                      onChange={(v) => dispatch({ type: 'SET_BITRATE', payload: v })}
+                      onChange={(v) => form.setValue('bitrateKbps', v, { shouldValidate: true })}
                     />
                   )}
                 </motion.div>
@@ -121,7 +138,9 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
 
               <PresetPicker
                 value={preset}
-                onChange={(p) => dispatch({ type: 'SET_PRESET', payload: p })}
+                onChange={(p: VideoEncodingPreset) =>
+                  form.setValue('preset', p, { shouldValidate: true })
+                }
               />
 
               <div className="space-y-2">
@@ -130,7 +149,7 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
                 </label>
                 <OutputLocationPicker
                   value={outputDir}
-                  onChange={(dir) => dispatch({ type: 'SET_OUTPUT_DIR', payload: dir })}
+                  onChange={(dir) => form.setValue('outputDir', dir, { shouldValidate: true })}
                   size="md"
                 />
               </div>
