@@ -215,3 +215,23 @@ pub struct AudioExtractOptions {
     pub bitrate_kbps: Option<u32>,
     pub output_dir: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum VideoTrimMode {
+    /// Re-encode the trimmed portion — frame-accurate cuts, slower.
+    Accurate,
+    /// Stream-copy (`-c copy`) — instant, but the cut snaps to the nearest
+    /// keyframe so start/end may shift by a second or two.
+    Fast,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VideoTrimOptions {
+    pub mode: VideoTrimMode,
+    pub start_seconds: f64,
+    pub end_seconds: f64,
+    /// Re-encode quality (Accurate mode only).
+    pub crf: Option<u8>,
+    pub output_dir: Option<String>,
+}
