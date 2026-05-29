@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import {
+  applyAspect,
+  clampRect,
+  computeRenderedRect,
+  hitCorner,
+  toSourceCoords as toSourceCoordsPure,
+  type Corner,
+  type CropRect,
+  type RenderedRect,
+} from '@/lib/crop-math';
 
-export type CropRect = { x: number; y: number; width: number; height: number };
+export type { CropRect };
 
 type CropCanvasProps = {
   imageSrc: string;
@@ -17,52 +27,11 @@ type CropCanvasProps = {
   className?: string;
 };
 
-type Corner = 'tl' | 'tr' | 'bl' | 'br';
-
 type DragState =
   | { kind: 'none' }
   | { kind: 'new'; origin: { x: number; y: number } }
   | { kind: 'move'; offset: { x: number; y: number } }
   | { kind: 'resize'; corner: Corner };
-
-const MIN_SIZE = 8;
-const HANDLE_HIT_PX = 14;
-
-const clampRect = (r: CropRect, w: number, h: number): CropRect => {
-  const width = Math.max(MIN_SIZE, Math.min(r.width, w));
-  const height = Math.max(MIN_SIZE, Math.min(r.height, h));
-  const x = Math.max(0, Math.min(r.x, w - width));
-  const y = Math.max(0, Math.min(r.y, h - height));
-  return { x, y, width, height };
-};
-
-const applyAspect = (
-  r: CropRect,
-  ratio: number,
-  driver: 'width' | 'height'
-): CropRect => {
-  if (driver === 'width') return { ...r, height: r.width / ratio };
-  return { ...r, width: r.height * ratio };
-};
-
-const hitCorner = (
-  px: number,
-  py: number,
-  displayRect: { x: number; y: number; w: number; h: number },
-  scale: number
-): Corner | null => {
-  const handlePx = HANDLE_HIT_PX / scale;
-  const corners: { c: Corner; cx: number; cy: number }[] = [
-    { c: 'tl', cx: displayRect.x, cy: displayRect.y },
-    { c: 'tr', cx: displayRect.x + displayRect.w, cy: displayRect.y },
-    { c: 'bl', cx: displayRect.x, cy: displayRect.y + displayRect.h },
-    { c: 'br', cx: displayRect.x + displayRect.w, cy: displayRect.y + displayRect.h },
-  ];
-  for (const { c, cx, cy } of corners) {
-    if (Math.abs(px - cx) < handlePx && Math.abs(py - cy) < handlePx) return c;
-  }
-  return null;
-};
 
 const CropCanvas = ({
   imageSrc,
@@ -77,37 +46,19 @@ const CropCanvas = ({
   const imgRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef<DragState>({ kind: 'none' });
 
-  // Measure the *rendered* image rect, not the IMG element box. With
-  // `object-contain`, the IMG element fills its container but the actual
-  // image is letterboxed inside it — we have to compute the letterbox
-  // offsets from the source aspect ratio or pointer coords end up scaled
-  // to the wrong rectangle (output ends up more cropped than the user marked).
-  const [displaySize, setDisplaySize] = useState({ width: 0, height: 0, offsetX: 0, offsetY: 0 });
+  const [displaySize, setDisplaySize] = useState<RenderedRect>({
+    width: 0,
+    height: 0,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   const measure = useCallback(() => {
     const container = containerRef.current;
-    if (!container || imageWidth === 0 || imageHeight === 0) return;
+    if (!container) return;
     const { width: cw, height: ch } = container.getBoundingClientRect();
-    if (cw === 0 || ch === 0) return;
-    const sourceAspect = imageWidth / imageHeight;
-    const containerAspect = cw / ch;
-    let renderedW: number;
-    let renderedH: number;
-    if (containerAspect > sourceAspect) {
-      // Container wider than source — image is height-bound
-      renderedH = ch;
-      renderedW = ch * sourceAspect;
-    } else {
-      // Container taller than source — image is width-bound
-      renderedW = cw;
-      renderedH = cw / sourceAspect;
-    }
-    setDisplaySize({
-      width: renderedW,
-      height: renderedH,
-      offsetX: (cw - renderedW) / 2,
-      offsetY: (ch - renderedH) / 2,
-    });
+    const rendered = computeRenderedRect(cw, ch, imageWidth, imageHeight);
+    if (rendered) setDisplaySize(rendered);
   }, [imageWidth, imageHeight]);
 
   useEffect(() => {
@@ -119,22 +70,20 @@ const CropCanvas = ({
 
   const scale = displaySize.width > 0 ? displaySize.width / imageWidth : 1;
 
-  // Convert pointer event (page coords) to source pixel coords. Subtract the
-  // letterbox offset so coords are relative to the rendered image's
-  // top-left, not the container's.
   const toSourceCoords = useCallback(
-    (clientX: number, clientY: number): { x: number; y: number } | null => {
+    (clientX: number, clientY: number) => {
       const container = containerRef.current;
-      if (!container || scale === 0) return null;
+      if (!container) return null;
       const box = container.getBoundingClientRect();
-      const px = (clientX - box.left - displaySize.offsetX) / scale;
-      const py = (clientY - box.top - displaySize.offsetY) / scale;
-      return {
-        x: Math.max(0, Math.min(px, imageWidth)),
-        y: Math.max(0, Math.min(py, imageHeight)),
-      };
+      return toSourceCoordsPure(
+        clientX - box.left,
+        clientY - box.top,
+        displaySize,
+        imageWidth,
+        imageHeight
+      );
     },
-    [scale, imageWidth, imageHeight, displaySize.offsetX, displaySize.offsetY]
+    [imageWidth, imageHeight, displaySize]
   );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {

@@ -2,14 +2,12 @@ import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import { formatLabels, effectsList } from '@/types/image';
 import type {
   ImageInfo,
-  ImageFormat,
   OperationHistoryItem,
-  PipelineOptions,
   PipelineResult,
 } from '@/types/image';
+import { buildDetails, buildOptions, hasPipelineWork } from './pipeline-build';
 import type { PipelineFormValues } from './schema';
 
 type UsePipelineExecutionArgs = {
@@ -17,65 +15,11 @@ type UsePipelineExecutionArgs = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
 };
 
-const buildOptions = (values: PipelineFormValues): PipelineOptions => ({
-  crop:
-    values.cropEnabled && values.cropWidth > 0 && values.cropHeight > 0
-      ? {
-          x: values.cropX,
-          y: values.cropY,
-          width: values.cropWidth,
-          height: values.cropHeight,
-        }
-      : null,
-  beautify: values.beautifyEnabled
-    ? {
-        brightness: values.brightness,
-        contrast: values.contrast,
-        saturation: values.saturation,
-        sharpness: values.sharpness,
-        exposure: values.exposure,
-        hue_shift: values.hueShift,
-        temperature: values.temperature,
-        white_balance: values.whiteBalance,
-      }
-    : null,
-  effects: values.effectsEnabled
-    ? { effect: values.effectType, intensity: values.effectIntensity }
-    : null,
-  convert: values.convertEnabled
-    ? { format: values.convertFormat as ImageFormat, quality: values.convertQuality }
-    : null,
-  compress: values.compressEnabled ? { quality: values.compressQuality } : null,
-  output_dir: values.outputDir,
-});
-
-const buildDetails = (values: PipelineFormValues): string[] => {
-  const details: string[] = [];
-  if (values.cropEnabled && values.cropWidth > 0 && values.cropHeight > 0) {
-    details.push(`Crop ${values.cropWidth}×${values.cropHeight}`);
-  }
-  if (values.beautifyEnabled) details.push('Beautify');
-  if (values.effectsEnabled) {
-    const label = effectsList.find((e) => e.type === values.effectType)?.label ?? values.effectType;
-    details.push(`Effect: ${label}`);
-  }
-  if (values.convertEnabled) {
-    details.push(`Convert to ${formatLabels[values.convertFormat as ImageFormat]}`);
-  }
-  if (values.compressEnabled) details.push(`Compress @${values.compressQuality}%`);
-  return details;
-};
-
 export const usePipelineExecution = ({ images, onOperationComplete }: UsePipelineExecutionArgs) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const execute = async (values: PipelineFormValues) => {
-    const opCount =
-      Number(values.beautifyEnabled) +
-      Number(values.effectsEnabled) +
-      Number(values.convertEnabled) +
-      Number(values.compressEnabled);
-    if (images.length === 0 || opCount === 0) return;
+    if (images.length === 0 || !hasPipelineWork(values)) return;
 
     setIsProcessing(true);
     const processToast = createProcessToast({

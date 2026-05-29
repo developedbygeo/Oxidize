@@ -15,8 +15,9 @@ export type AspectRatioId = (typeof aspectRatios)[number]['id'];
 export const cropFormSchema = z.object({
   x: z.number().int().min(0),
   y: z.number().int().min(0),
-  width: z.number().int().min(1),
-  height: z.number().int().min(1),
+  // 0 is the "no rect drawn yet" state — runCrop short-circuits on it.
+  width: z.number().int().min(0),
+  height: z.number().int().min(0),
   aspectRatio: z.enum([
     'free',
     'square',
