@@ -132,3 +132,102 @@ pub async fn crop_images_batch(
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{DynamicImage, Rgba, RgbaImage};
+
+    fn params(x: u32, y: u32, w: u32, h: u32) -> PipelineCropParams {
+        PipelineCropParams {
+            x,
+            y,
+            width: w,
+            height: h,
+        }
+    }
+
+    // ────────────── clamp_rect ──────────────
+
+    #[test]
+    fn clamp_returns_none_when_rect_has_zero_area() {
+        assert!(clamp_rect(100, 100, &params(0, 0, 0, 50)).is_none());
+        assert!(clamp_rect(100, 100, &params(0, 0, 50, 0)).is_none());
+    }
+
+    #[test]
+    fn clamp_returns_none_when_origin_is_past_the_image_edge() {
+        assert!(clamp_rect(100, 100, &params(100, 0, 10, 10)).is_none());
+        assert!(clamp_rect(100, 100, &params(0, 200, 10, 10)).is_none());
+    }
+
+    #[test]
+    fn clamp_returns_full_rect_when_in_bounds() {
+        let r = clamp_rect(1000, 800, &params(50, 60, 200, 150));
+        assert_eq!(r, Some((50, 60, 200, 150)));
+    }
+
+    #[test]
+    fn clamp_shrinks_rect_to_fit_image_edges() {
+        // 500x500 image, rect at (450,450) wants 100x100 — only 50x50 fits.
+        let r = clamp_rect(500, 500, &params(450, 450, 100, 100));
+        assert_eq!(r, Some((450, 450, 50, 50)));
+    }
+
+    // ────────────── apply_crop ──────────────
+
+    fn solid_image(width: u32, height: u32, color: [u8; 4]) -> DynamicImage {
+        DynamicImage::ImageRgba8(RgbaImage::from_pixel(width, height, Rgba(color)))
+    }
+
+    #[test]
+    fn apply_crop_returns_subimage_for_valid_rect() {
+        let img = solid_image(100, 80, [10, 20, 30, 255]);
+        let cropped = apply_crop(img, &params(10, 10, 40, 30));
+        assert_eq!(cropped.dimensions(), (40, 30));
+    }
+
+    #[test]
+    fn apply_crop_returns_source_unchanged_for_degenerate_rect() {
+        // Zero area is a soft failure — apply_crop returns the source untouched
+        // so the pipeline can carry on with the next stage.
+        let img = solid_image(50, 50, [99, 99, 99, 255]);
+        let result = apply_crop(img, &params(0, 0, 0, 0));
+        assert_eq!(result.dimensions(), (50, 50));
+    }
+
+    #[test]
+    fn apply_crop_returns_source_unchanged_when_origin_past_edges() {
+        let img = solid_image(50, 50, [0, 0, 0, 255]);
+        let result = apply_crop(img, &params(200, 200, 10, 10));
+        assert_eq!(result.dimensions(), (50, 50));
+    }
+
+    #[test]
+    fn apply_crop_preserves_pixel_data_at_origin() {
+        // 4x4 grid where the first row is white and the rest is black.
+        let img = DynamicImage::ImageRgba8(RgbaImage::from_fn(4, 4, |_, y| {
+            if y == 0 {
+                Rgba([255, 255, 255, 255])
+            } else {
+                Rgba([0, 0, 0, 255])
+            }
+        }));
+
+        // Crop the top row only — should be 4x1 of white pixels.
+        let top = apply_crop(img.clone(), &params(0, 0, 4, 1));
+        assert_eq!(top.dimensions(), (4, 1));
+        let rgba = top.as_rgba8().expect("rgba buffer present after crop");
+        for px in rgba.pixels() {
+            assert_eq!(*px, Rgba([255, 255, 255, 255]));
+        }
+
+        // Crop the bottom 3 rows — should be 4x3 of black pixels.
+        let bottom = apply_crop(img, &params(0, 1, 4, 3));
+        assert_eq!(bottom.dimensions(), (4, 3));
+        let rgba = bottom.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert_eq!(*px, Rgba([0, 0, 0, 255]));
+        }
+    }
+}

@@ -36,6 +36,9 @@ tauri-plugin-fs = "2.4.4"
 tauri-plugin-shell = "2"
 chrono = "0.4"
 
+[dev-dependencies]
+tempfile = "3"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

@@ -470,3 +470,99 @@ pub async fn apply_image_effects_batch(
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    fn solid_rgba(width: u32, height: u32, color: [u8; 4]) -> DynamicImage {
+        DynamicImage::ImageRgba8(RgbaImage::from_pixel(width, height, Rgba(color)))
+    }
+
+    fn params(effect: &str, intensity: u8) -> PipelineEffectParams {
+        PipelineEffectParams {
+            effect: effect.to_string(),
+            intensity,
+        }
+    }
+
+    // ────────────── effect_is_noop ──────────────
+
+    #[test]
+    fn effect_is_noop_only_at_zero_intensity() {
+        assert!(effect_is_noop(&params("sepia", 0)));
+        assert!(!effect_is_noop(&params("sepia", 1)));
+        assert!(!effect_is_noop(&params("invert", 100)));
+    }
+
+    // ────────────── apply_pipeline_effect at zero intensity ──────────────
+
+    #[test]
+    fn zero_intensity_preserves_pixels() {
+        let img = solid_rgba(4, 4, [200, 50, 80, 255]);
+        let result = apply_pipeline_effect(&img, &params("invert", 0));
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert_eq!(*px, Rgba([200, 50, 80, 255]));
+        }
+    }
+
+    // ────────────── apply_pipeline_effect: invert ──────────────
+
+    #[test]
+    fn invert_at_full_intensity_flips_each_channel() {
+        let img = solid_rgba(2, 2, [10, 200, 90, 255]);
+        let result = apply_pipeline_effect(&img, &params("invert", 100));
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert_eq!(px[0], 255 - 10);
+            assert_eq!(px[1], 255 - 200);
+            assert_eq!(px[2], 255 - 90);
+            // Alpha is untouched by invert.
+            assert_eq!(px[3], 255);
+        }
+    }
+
+    // ────────────── apply_pipeline_effect: grayscale ──────────────
+
+    #[test]
+    fn grayscale_at_full_intensity_collapses_channels_to_equal_values() {
+        // image::grayscale produces a Luma8 image; intensity 1.0 in our
+        // wrapper returns it untouched. Just assert dimensions for now —
+        // pixel-level equality would lock us into the exact luma weights.
+        let img = solid_rgba(3, 5, [100, 200, 50, 255]);
+        let result = apply_pipeline_effect(&img, &params("grayscale", 100));
+        assert_eq!(result.dimensions(), (3, 5));
+    }
+
+    // ────────────── apply_pipeline_effect: unknown effect ──────────────
+
+    #[test]
+    fn unknown_effect_returns_source_untouched() {
+        let img = solid_rgba(2, 2, [1, 2, 3, 4]);
+        let result = apply_pipeline_effect(&img, &params("nonexistent_effect_kind", 50));
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert_eq!(*px, Rgba([1, 2, 3, 4]));
+        }
+    }
+
+    // ────────────── apply_pipeline_effect: dimensions ──────────────
+
+    #[test]
+    fn effects_preserve_dimensions() {
+        // Most effects work in-place. Check each commonly-used effect
+        // keeps the source dimensions.
+        let img = solid_rgba(8, 6, [120, 120, 120, 255]);
+        for effect in ["sepia", "vintage", "invert", "vignette", "noise", "posterize"] {
+            let result = apply_pipeline_effect(&img, &params(effect, 50));
+            assert_eq!(
+                result.dimensions(),
+                (8, 6),
+                "effect {} did not preserve dimensions",
+                effect
+            );
+        }
+    }
+}

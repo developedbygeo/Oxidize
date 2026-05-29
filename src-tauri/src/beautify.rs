@@ -490,3 +490,127 @@ pub async fn beautify_images_batch(
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    fn default_params() -> PipelineBeautifyParams {
+        PipelineBeautifyParams {
+            brightness: 0,
+            contrast: 0.0,
+            saturation: 0.0,
+            sharpness: 0.0,
+            exposure: 0.0,
+            hue_shift: 0,
+            temperature: 0,
+            white_balance: "daylight".to_string(),
+        }
+    }
+
+    fn solid_rgba(width: u32, height: u32, color: [u8; 4]) -> DynamicImage {
+        DynamicImage::ImageRgba8(RgbaImage::from_pixel(width, height, Rgba(color)))
+    }
+
+    // ────────────── rgb_to_hsl / hsl_to_rgb round-trip ──────────────
+
+    fn round_trip_rgb(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
+        let (h, s, l) = rgb_to_hsl(r, g, b);
+        hsl_to_rgb(h, s, l)
+    }
+
+    #[test]
+    fn hsl_round_trips_pure_red() {
+        let (r, g, b) = round_trip_rgb(255, 0, 0);
+        // Rounding via u8 + f32 means we tolerate ±2.
+        assert!((r as i32 - 255).abs() <= 2);
+        assert!((g as i32 - 0).abs() <= 2);
+        assert!((b as i32 - 0).abs() <= 2);
+    }
+
+    #[test]
+    fn hsl_round_trips_pure_green() {
+        let (r, g, b) = round_trip_rgb(0, 255, 0);
+        assert!((r as i32 - 0).abs() <= 2);
+        assert!((g as i32 - 255).abs() <= 2);
+        assert!((b as i32 - 0).abs() <= 2);
+    }
+
+    #[test]
+    fn hsl_round_trips_pure_blue() {
+        let (r, g, b) = round_trip_rgb(0, 0, 255);
+        assert!((r as i32 - 0).abs() <= 2);
+        assert!((g as i32 - 0).abs() <= 2);
+        assert!((b as i32 - 255).abs() <= 2);
+    }
+
+    #[test]
+    fn hsl_collapses_grayscale_to_zero_saturation() {
+        let (_, s, l) = rgb_to_hsl(128, 128, 128);
+        assert_eq!(s, 0.0);
+        assert!((l - 128.0 / 255.0).abs() < 1e-3);
+    }
+
+    // ────────────── beautify_is_noop ──────────────
+
+    #[test]
+    fn is_noop_for_default_params() {
+        assert!(beautify_is_noop(&default_params()));
+    }
+
+    #[test]
+    fn is_noop_for_explicit_auto_white_balance() {
+        let mut p = default_params();
+        p.white_balance = "auto".to_string();
+        assert!(beautify_is_noop(&p));
+    }
+
+    #[test]
+    fn is_not_noop_when_any_adjustment_is_set() {
+        let mut p = default_params();
+        p.brightness = 5;
+        assert!(!beautify_is_noop(&p));
+
+        let mut p = default_params();
+        p.white_balance = "cloudy".to_string();
+        assert!(!beautify_is_noop(&p));
+    }
+
+    // ────────────── apply_beautify smoke ──────────────
+
+    #[test]
+    fn apply_beautify_noop_preserves_pixel_data() {
+        let img = solid_rgba(8, 8, [120, 60, 200, 255]);
+        let result = apply_beautify(img, &default_params());
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            // Daylight white-balance + zero adjustments = source untouched.
+            assert_eq!(*px, Rgba([120, 60, 200, 255]));
+        }
+    }
+
+    #[test]
+    fn apply_beautify_brightness_positive_brightens_pixels() {
+        let img = solid_rgba(4, 4, [100, 100, 100, 255]);
+        let mut params = default_params();
+        params.brightness = 40;
+        let result = apply_beautify(img, &params);
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert!(px[0] > 100, "channel R should increase, got {}", px[0]);
+            assert!(px[1] > 100);
+            assert!(px[2] > 100);
+        }
+    }
+
+    #[test]
+    fn apply_beautify_does_not_change_dimensions() {
+        let img = solid_rgba(7, 11, [50, 60, 70, 255]);
+        let mut params = default_params();
+        params.contrast = 30.0;
+        params.saturation = 20.0;
+        let result = apply_beautify(img, &params);
+        assert_eq!(result.dimensions(), (7, 11));
+    }
+}
