@@ -5,6 +5,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
+import { resolveOutputDir } from '@/lib/utils';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
@@ -71,6 +73,12 @@ const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
     });
 
   const successCount = results.filter((r) => r.success).length;
+
+  useKeyboardShortcut('Enter', handleExtract, {
+    meta: true,
+    enabled: videos.length > 0 && !isExtracting,
+  });
+  useKeyboardShortcut('Escape', () => invoke('cancel_video_jobs'), { enabled: isExtracting });
 
   return (
     <div className="h-full overflow-auto">
@@ -163,6 +171,7 @@ const ExtractAudioPage = ({ onOperationComplete }: ExtractAudioPageProps) => {
               <ResultsBanner
                 title="Complete"
                 subtitle={`${successCount}/${results.length} extracted`}
+                outputDir={resolveOutputDir({ results, fallbackDir: outputDir })}
               />
               <ResultsList results={results}>
                 {(result) => (

@@ -5,6 +5,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
+import { resolveOutputDir } from '@/lib/utils';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
@@ -71,6 +73,12 @@ const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
     });
 
   const successCount = results.filter((r) => r.success).length;
+
+  useKeyboardShortcut('Enter', handleConvert, {
+    meta: true,
+    enabled: videos.length > 0 && !isConverting,
+  });
+  useKeyboardShortcut('Escape', () => invoke('cancel_video_jobs'), { enabled: isConverting });
 
   return (
     <div className="h-full overflow-auto">
@@ -166,6 +174,7 @@ const VideoConvertPage = ({ onOperationComplete }: VideoConvertPageProps) => {
               <ResultsBanner
                 title="Complete"
                 subtitle={`${successCount}/${results.length} converted`}
+                outputDir={resolveOutputDir({ results, fallbackDir: outputDir })}
               />
               <ResultsList results={results}>
                 {(result) => (

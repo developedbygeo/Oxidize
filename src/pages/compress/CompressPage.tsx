@@ -4,12 +4,15 @@ import { Minimize2, Zap, TrendingDown } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
+import { resolveOutputDir } from '@/lib/utils';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
+import { SourcePreview } from '@/components/page-parts/SourcePreview';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
   compressFormSchema,
@@ -18,6 +21,7 @@ import {
   type CompressFormValues,
   type CompressionLevel,
 } from './_components/schema';
+import { EmptyState } from './_components/EmptyState';
 import { LevelPicker } from './_components/LevelPicker';
 import { CustomQualityControl } from './_components/CustomQualityControl';
 import { runCompression } from './_components/useCompressExecution';
@@ -66,6 +70,15 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
   const avgSavings =
     results.length > 0 ? results.reduce((acc, r) => acc + r.savings_percent, 0) / results.length : 0;
 
+  useKeyboardShortcut('Enter', handleCompress, {
+    meta: true,
+    enabled: images.length > 0 && !isCompressing,
+  });
+
+  if (images.length === 0 && !showResults) {
+    return <EmptyState onImagesChange={setImages} />;
+  }
+
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-3xl mx-auto p-6 space-y-5">
@@ -86,6 +99,8 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
               exit="exit"
               className="space-y-5"
             >
+              <SourcePreview images={images} />
+
               <LevelPicker
                 value={compressionLevel}
                 useCustom={useCustom}
@@ -150,7 +165,11 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
               exit="exit"
               className="space-y-3"
             >
-              <ResultsBanner title="Complete" subtitle={`${successCount}/${results.length} compressed`}>
+              <ResultsBanner
+                title="Complete"
+                subtitle={`${successCount}/${results.length} compressed`}
+                outputDir={resolveOutputDir({ results, fallbackDir: outputDir })}
+              >
                 {totalSaved > 0 && (
                   <div className="text-right">
                     <div className="flex items-center gap-1 text-primary text-xs font-medium">

@@ -4,7 +4,8 @@ import { Crop, Sparkles } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { cn } from '@/lib/utils';
+import { cn, resolveOutputDir } from '@/lib/utils';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -81,6 +82,12 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
 
   const successCount = results.filter((r) => r.success).length;
   const quality = crfToQuality(crf);
+
+  useKeyboardShortcut('Enter', handleResize, {
+    meta: true,
+    enabled: videos.length > 0 && !isResizing,
+  });
+  useKeyboardShortcut('Escape', () => invoke('cancel_video_jobs'), { enabled: isResizing });
 
   return (
     <div className="h-full overflow-auto">
@@ -249,6 +256,7 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
               <ResultsBanner
                 title="Complete"
                 subtitle={`${successCount}/${results.length} resized`}
+                outputDir={resolveOutputDir({ results, fallbackDir: outputDir })}
               />
               <ResultsList results={results}>
                 {(result) => (

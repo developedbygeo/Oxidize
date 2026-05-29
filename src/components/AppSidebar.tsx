@@ -14,6 +14,7 @@ import {
   Crop,
   Music,
   Scissors,
+  Keyboard,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -28,19 +29,7 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-
-type Page =
-  | 'convert'
-  | 'compress'
-  | 'beautify'
-  | 'effects'
-  | 'pipeline'
-  | 'video-convert'
-  | 'video-compress'
-  | 'video-resize'
-  | 'video-trim'
-  | 'extract-audio'
-  | 'history';
+import type { Page } from '@/pages/registry';
 
 type NavItem = {
   id: Page;
@@ -57,6 +46,7 @@ type NavGroup = {
 type AppSidebarProps = {
   currentPage: Page;
   onNavigate: (page: Page) => void;
+  onOpenHelp: () => void;
 };
 
 const navGroups: NavGroup[] = [
@@ -89,7 +79,7 @@ const footerItem: NavItem = {
   icon: History,
 };
 
-const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
+const AppSidebar = ({ currentPage, onNavigate, onOpenHelp }: AppSidebarProps) => {
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains('dark')
   );
@@ -172,7 +162,19 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-2">
+      <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-2 space-y-0.5">
+        <button
+          onClick={onOpenHelp}
+          title="Keyboard shortcuts (Ctrl + /)"
+          className={cn(
+            'flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors',
+            'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+            'group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1.5'
+          )}
+        >
+          <Keyboard className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+          <span className="text-sm group-data-[collapsible=icon]:hidden">Shortcuts</span>
+        </button>
         <button
           onClick={toggleTheme}
           className={cn(
@@ -198,4 +200,3 @@ const AppSidebar = ({ currentPage, onNavigate }: AppSidebarProps) => {
 AppSidebar.displayName = 'AppSidebar';
 
 export { AppSidebar };
-export type { Page };

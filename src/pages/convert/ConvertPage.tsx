@@ -4,12 +4,15 @@ import { ArrowRightLeft, Sparkles } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
+import { resolveOutputDir } from '@/lib/utils';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
+import { SourcePreview } from '@/components/page-parts/SourcePreview';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import {
   formatLabels,
   type ConversionResult,
@@ -24,6 +27,7 @@ import {
   formatsWithQuality,
   type ConvertFormValues,
 } from './_components/schema';
+import { EmptyState } from './_components/EmptyState';
 import { FormatPicker } from './_components/FormatPicker';
 import { QualitySlider } from './_components/QualitySlider';
 import { runConversion } from './_components/useConvertExecution';
@@ -69,6 +73,15 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
   const successCount = results.filter((r) => r.success).length;
   const totalSaved = results.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
 
+  useKeyboardShortcut('Enter', handleConvert, {
+    meta: true,
+    enabled: images.length > 0 && !isConverting,
+  });
+
+  if (images.length === 0 && !showResults) {
+    return <EmptyState onImagesChange={setImages} />;
+  }
+
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-3xl mx-auto p-6 space-y-5">
@@ -89,6 +102,8 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
               exit="exit"
               className="space-y-5"
             >
+              <SourcePreview images={images} />
+
               <FormatPicker
                 value={targetFormat}
                 onChange={(format: ImageFormat) =>
@@ -147,6 +162,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                 subtitle={`${successCount}/${results.length} converted${
                   totalSaved > 0 ? ` · ${formatFileSize(Math.abs(totalSaved))} saved` : ''
                 }`}
+                outputDir={resolveOutputDir({ results, fallbackDir: outputDir })}
               />
               <ResultsList results={results}>
                 {(result) => (

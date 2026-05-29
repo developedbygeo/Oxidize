@@ -1,0 +1,126 @@
+import type { ComponentType } from 'react';
+import { ConvertPage } from '@/pages/convert';
+import { CompressPage } from '@/pages/compress';
+import { BeautifyPage } from '@/pages/beautify';
+import { EffectsPage } from '@/pages/effects';
+import { PipelinePage } from '@/pages/pipeline';
+import { VideoConvertPage } from '@/pages/video-convert';
+import { VideoCompressPage } from '@/pages/video-compress';
+import { VideoResizePage } from '@/pages/video-resize';
+import { VideoTrimPage } from '@/pages/video-trim';
+import { ExtractAudioPage } from '@/pages/extract-audio';
+import type { OperationHistoryItem } from '@/types/image';
+
+export type Page =
+  | 'convert'
+  | 'compress'
+  | 'beautify'
+  | 'effects'
+  | 'pipeline'
+  | 'video-convert'
+  | 'video-compress'
+  | 'video-resize'
+  | 'video-trim'
+  | 'extract-audio'
+  | 'history';
+
+export type OperationPageId = Exclude<Page, 'history'>;
+
+export type OperationPageProps = {
+  onOperationComplete: (
+    item: Omit<OperationHistoryItem, 'id' | 'timestamp'>
+  ) => void | Promise<void>;
+};
+
+type PageMeta = {
+  /** Long-form heading shown in the app header. */
+  title: string;
+  /** Header subtitle. */
+  subtitle: string;
+  /** Short label used in the sidebar and shortcut cheat sheet. */
+  navLabel: string;
+};
+
+export const pageMeta: Record<Page, PageMeta> = {
+  convert: {
+    title: 'Convert Images',
+    subtitle: 'Drag and drop files to get started',
+    navLabel: 'Convert',
+  },
+  compress: {
+    title: 'Compress Images',
+    subtitle: 'Drag and drop files to get started',
+    navLabel: 'Compress',
+  },
+  beautify: {
+    title: 'Beautify Images',
+    subtitle: 'Drag and drop files to get started',
+    navLabel: 'Beautify',
+  },
+  effects: {
+    title: 'Apply Effects',
+    subtitle: 'Drag and drop files to get started',
+    navLabel: 'Effects',
+  },
+  pipeline: {
+    title: 'Pipeline',
+    subtitle: 'Chain multiple operations together',
+    navLabel: 'Pipeline',
+  },
+  'video-convert': {
+    title: 'Convert Videos',
+    subtitle: 'Change video format and container',
+    navLabel: 'Video Convert',
+  },
+  'video-compress': {
+    title: 'Compress Videos',
+    subtitle: 'Shrink video files',
+    navLabel: 'Video Compress',
+  },
+  'video-resize': {
+    title: 'Resize Videos',
+    subtitle: 'Scale to a target resolution',
+    navLabel: 'Video Resize',
+  },
+  'video-trim': {
+    title: 'Trim Videos',
+    subtitle: 'Cut a portion out of a video',
+    navLabel: 'Video Trim',
+  },
+  'extract-audio': {
+    title: 'Extract Audio',
+    subtitle: 'Pull the audio track out of a video',
+    navLabel: 'Extract Audio',
+  },
+  history: {
+    title: 'Operation History',
+    subtitle: 'View and manage your recent operations',
+    navLabel: 'History',
+  },
+};
+
+/** Pages reachable via Ctrl+1..9. Order is meaningful — the index drives the digit. */
+export const navOrder: Page[] = [
+  'convert',
+  'compress',
+  'beautify',
+  'effects',
+  'pipeline',
+  'video-convert',
+  'video-compress',
+  'video-resize',
+  'video-trim',
+];
+
+export const operationPages: Record<OperationPageId, ComponentType<OperationPageProps>> = {
+  convert: ConvertPage,
+  compress: CompressPage,
+  beautify: BeautifyPage,
+  effects: EffectsPage,
+  pipeline: PipelinePage,
+  'video-convert': VideoConvertPage,
+  'video-compress': VideoCompressPage,
+  'video-resize': VideoResizePage,
+  'video-trim': VideoTrimPage,
+  'extract-audio': ExtractAudioPage,
+};

@@ -4,6 +4,8 @@ import { Sparkles } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp } from '@/lib/animations';
+import { resolveOutputDir } from '@/lib/utils';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
@@ -123,6 +125,11 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
 
   const successCount = results.filter((r) => r.success).length;
 
+  useKeyboardShortcut('Enter', handleBeautify, {
+    meta: true,
+    enabled: images.length > 0 && !isBeautifying,
+  });
+
   if (images.length === 0) {
     return (
       <EmptyState
@@ -194,6 +201,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                     title="Complete"
                     subtitle={`${successCount}/${results.length} enhanced`}
                     size="sm"
+                    outputDir={resolveOutputDir({ results, fallbackDir: outputDir })}
                   />
                   <ResultsList results={results} size="sm" maxHeight="max-h-24" />
                 </motion.div>

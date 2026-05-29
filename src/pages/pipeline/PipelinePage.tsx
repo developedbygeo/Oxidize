@@ -15,6 +15,7 @@ import {
 } from './_components/schema';
 import { StepsNav } from './_components/StepsNav';
 import { StepFooter } from './_components/StepFooter';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { ImagesStep } from './_components/ImagesStep';
 import { ConvertStep } from './_components/ConvertStep';
 import { CompressStep } from './_components/CompressStep';
@@ -87,6 +88,11 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
     execute(form.getValues());
   };
 
+  useKeyboardShortcut('Enter', handleExecute, {
+    meta: true,
+    enabled: currentStep === 'review' && images.length > 0 && !isProcessing,
+  });
+
   const renderStep = () => {
     switch (currentStep) {
       case 'images':
@@ -126,6 +132,7 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
             onNextImage={goToNextImage}
             onReset={handleReset}
             onExecute={handleExecute}
+            onSelectStep={goToStep}
           />
         );
       default:

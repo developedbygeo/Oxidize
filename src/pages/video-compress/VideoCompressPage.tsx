@@ -5,6 +5,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
+import { resolveOutputDir } from '@/lib/utils';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
@@ -79,6 +81,12 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
   const totalOriginal = results.reduce((acc, r) => acc + r.original_size, 0);
   const totalNew = results.reduce((acc, r) => acc + r.new_size, 0);
   const totalSaved = Math.max(0, totalOriginal - totalNew);
+
+  useKeyboardShortcut('Enter', handleCompress, {
+    meta: true,
+    enabled: videos.length > 0 && !isCompressing,
+  });
+  useKeyboardShortcut('Escape', () => invoke('cancel_video_jobs'), { enabled: isCompressing });
 
   return (
     <div className="h-full overflow-auto">
@@ -191,6 +199,7 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
                 subtitle={`${successCount}/${results.length} compressed${
                   totalSaved > 0 ? ` · ${formatFileSize(totalSaved)} saved` : ''
                 }`}
+                outputDir={resolveOutputDir({ results, fallbackDir: outputDir })}
               />
               <ResultsList results={results}>
                 {(result) => (
