@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 import { RotateCcw } from 'lucide-react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { expandHeight, fadeUp } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import { CropCanvas, type CropRect } from '@/components/CropCanvas';
@@ -126,7 +127,7 @@ const CropStep = ({ form, images, previewIndex, onPrevImage, onNextImage }: Crop
               >
                 <div className="h-75">
                   <CropCanvas
-                    imageSrc={previewImage.thumbnail}
+                    imageSrc={convertFileSrc(previewImage.path)}
                     imageWidth={previewImage.width}
                     imageHeight={previewImage.height}
                     rect={rect}

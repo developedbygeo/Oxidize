@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Crop, RotateCcw } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { fadeUp } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,6 @@ import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPick
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
-import { useImagePreview } from '@/hooks/useImagePreview';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import type { CropResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
@@ -63,7 +63,7 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
   const [isCropping, setIsCropping] = useState(false);
 
   const image = images[0];
-  const { src: previewSrc, isLoading: isLoadingPreview } = useImagePreview(image);
+  const previewSrc = image ? convertFileSrc(image.path) : '';
 
   // Seed a default crop rect when an image first loads — saves the user the
   // chore of dragging out an initial rectangle.
@@ -146,9 +146,7 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 border-r border-border/50 bg-muted/10">
           <div className="flex-1 flex items-center justify-center p-6 min-h-0">
-            {isLoadingPreview && !previewSrc ? (
-              <div className="text-xs text-muted-foreground">Loading preview…</div>
-            ) : previewSrc ? (
+            {previewSrc && (
               <CropCanvas
                 imageSrc={previewSrc}
                 imageWidth={image.width}
@@ -158,7 +156,7 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
                 aspectRatio={getRatioById(aspectRatioId)}
                 className="h-full max-h-[60vh] max-w-full"
               />
-            ) : null}
+            )}
           </div>
 
           <div className="border-t border-border/30 p-2.5 flex items-center justify-between text-[10px] text-muted-foreground">
