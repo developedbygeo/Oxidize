@@ -8,6 +8,7 @@ import {
   FileVideo,
   Film,
   Crop,
+  Maximize2,
   Music,
   Scissors,
 } from 'lucide-react';
@@ -18,10 +19,11 @@ export const operationIcons: Record<OperationType, LucideIcon> = {
   compress: Minimize2,
   beautify: Sparkles,
   effects: Wand2,
+  crop: Crop,
   pipeline: Workflow,
   'video-convert': FileVideo,
   'video-compress': Film,
-  'video-resize': Crop,
+  'video-resize': Maximize2,
   'video-trim': Scissors,
   'extract-audio': Music,
 };
@@ -31,6 +33,7 @@ export const operationLabels: Record<OperationType, string> = {
   compress: 'Compress',
   beautify: 'Beautify',
   effects: 'Effects',
+  crop: 'Crop',
   pipeline: 'Pipeline',
   'video-convert': 'Video Convert',
   'video-compress': 'Video Compress',

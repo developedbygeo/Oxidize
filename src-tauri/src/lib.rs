@@ -2,6 +2,7 @@ mod beautify;
 mod commands;
 mod compress;
 mod convert;
+mod crop;
 mod effects;
 mod loader;
 mod pipeline;
@@ -38,6 +39,9 @@ pub fn run() {
             // Effects
             effects::apply_image_effect,
             effects::apply_image_effects_batch,
+            // Crop
+            crop::crop_image,
+            crop::crop_images_batch,
             // Pipeline
             pipeline::process_pipeline_batch,
             // Video

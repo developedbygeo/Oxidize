@@ -1,8 +1,23 @@
 import { z } from 'zod';
-import { Images, ArrowRightLeft, Minimize2, Sparkles, Wand2, Play } from 'lucide-react';
+import { Images, ArrowRightLeft, Minimize2, Sparkles, Wand2, Play, Crop } from 'lucide-react';
 import type { ImageFormat, WhiteBalancePreset } from '@/types/image';
 
 export const pipelineSchema = z.object({
+  cropEnabled: z.boolean(),
+  cropX: z.number().int().min(0),
+  cropY: z.number().int().min(0),
+  cropWidth: z.number().int().min(0),
+  cropHeight: z.number().int().min(0),
+  cropAspectRatio: z.enum([
+    'free',
+    'square',
+    'widescreen',
+    'classic',
+    'dslr',
+    'portrait-mobile',
+    'portrait-insta',
+  ]),
+
   convertEnabled: z.boolean(),
   convertFormat: z.enum(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico', 'tiff']),
   convertQuality: z.number().min(1).max(100),
@@ -41,6 +56,13 @@ export const pipelineSchema = z.object({
 export type PipelineFormValues = z.infer<typeof pipelineSchema>;
 
 export const defaultValues: PipelineFormValues = {
+  cropEnabled: false,
+  cropX: 0,
+  cropY: 0,
+  cropWidth: 0,
+  cropHeight: 0,
+  cropAspectRatio: 'free',
+
   convertEnabled: false,
   convertFormat: 'webp',
   convertQuality: 90,
@@ -67,6 +89,7 @@ export const defaultValues: PipelineFormValues = {
 
 export const steps = [
   { id: 'images', label: 'Images', icon: Images, description: 'Select files' },
+  { id: 'crop', label: 'Crop', icon: Crop, description: 'Trim a region' },
   { id: 'convert', label: 'Convert', icon: ArrowRightLeft, description: 'Change format' },
   { id: 'compress', label: 'Compress', icon: Minimize2, description: 'Reduce size' },
   { id: 'beautify', label: 'Beautify', icon: Sparkles, description: 'Enhance' },

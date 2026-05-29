@@ -17,6 +17,7 @@ import { StepsNav } from './_components/StepsNav';
 import { StepFooter } from './_components/StepFooter';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { ImagesStep } from './_components/ImagesStep';
+import { CropStep } from './_components/CropStep';
 import { ConvertStep } from './_components/ConvertStep';
 import { CompressStep } from './_components/CompressStep';
 import { BeautifyStep } from './_components/BeautifyStep';
@@ -97,6 +98,16 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
     switch (currentStep) {
       case 'images':
         return <ImagesStep images={images} onImagesChange={handleImagesChange} />;
+      case 'crop':
+        return (
+          <CropStep
+            form={form}
+            images={images}
+            previewIndex={previewIndex}
+            onPrevImage={goToPrevImage}
+            onNextImage={goToNextImage}
+          />
+        );
       case 'convert':
         return <ConvertStep form={form} />;
       case 'compress':

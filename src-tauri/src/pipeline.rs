@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::beautify::{apply_beautify, beautify_is_noop};
 use crate::convert::encode_image;
+use crate::crop::apply_crop;
 use crate::effects::{apply_pipeline_effect, effect_is_noop};
 use crate::types::{PipelineOptions, PipelineResult};
 use crate::utils::{
@@ -25,21 +26,27 @@ fn process_pipeline_sync(
         .decode()
         .map_err(|e| e.to_string())?;
 
-    // 1. Beautify (pixel adjustments) — work on max-quality decoded image
+    // 1. Crop — geometry change first so downstream stages work on the
+    // reduced canvas (less pixel work, smaller intermediate buffers)
+    if let Some(params) = options.crop.as_ref() {
+        img = apply_crop(img, params);
+    }
+
+    // 2. Beautify (pixel adjustments) — work on max-quality decoded image
     if let Some(params) = options.beautify.as_ref() {
         if !beautify_is_noop(params) {
             img = apply_beautify(img, params);
         }
     }
 
-    // 2. Effects (pixel transforms)
+    // 3. Effects (pixel transforms)
     if let Some(params) = options.effects.as_ref() {
         if !effect_is_noop(params) {
             img = apply_pipeline_effect(&img, params);
         }
     }
 
-    // 3 + 4. Convert decides FORMAT, Compress decides QUALITY. Encode once.
+    // 4 + 5. Convert decides FORMAT, Compress decides QUALITY. Encode once.
     let source_format_str = detect_format(input).unwrap_or_else(|| "png".to_string());
     let target_format = match options.convert.as_ref() {
         Some(c) => get_format_from_string(&c.format)

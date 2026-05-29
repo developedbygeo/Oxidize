@@ -67,6 +67,25 @@ pub struct BeautifyResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CropOptions {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+    pub output_dir: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CropResult {
+    pub success: bool,
+    pub input_path: String,
+    pub output_path: Option<String>,
+    pub error: Option<String>,
+    pub original_size: u64,
+    pub new_size: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EffectOptions {
     pub effect: String,
     pub intensity: u8,
@@ -113,7 +132,16 @@ pub struct PipelineCompressParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PipelineCropParams {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PipelineOptions {
+    pub crop: Option<PipelineCropParams>,
     pub beautify: Option<PipelineBeautifyParams>,
     pub effects: Option<PipelineEffectParams>,
     pub convert: Option<PipelineConvertParams>,

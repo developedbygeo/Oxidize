@@ -18,6 +18,15 @@ type UsePipelineExecutionArgs = {
 };
 
 const buildOptions = (values: PipelineFormValues): PipelineOptions => ({
+  crop:
+    values.cropEnabled && values.cropWidth > 0 && values.cropHeight > 0
+      ? {
+          x: values.cropX,
+          y: values.cropY,
+          width: values.cropWidth,
+          height: values.cropHeight,
+        }
+      : null,
   beautify: values.beautifyEnabled
     ? {
         brightness: values.brightness,
@@ -42,6 +51,9 @@ const buildOptions = (values: PipelineFormValues): PipelineOptions => ({
 
 const buildDetails = (values: PipelineFormValues): string[] => {
   const details: string[] = [];
+  if (values.cropEnabled && values.cropWidth > 0 && values.cropHeight > 0) {
+    details.push(`Crop ${values.cropWidth}×${values.cropHeight}`);
+  }
   if (values.beautifyEnabled) details.push('Beautify');
   if (values.effectsEnabled) {
     const label = effectsList.find((e) => e.type === values.effectType)?.label ?? values.effectType;

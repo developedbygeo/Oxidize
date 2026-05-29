@@ -3,6 +3,7 @@ import { ConvertPage } from '@/pages/convert';
 import { CompressPage } from '@/pages/compress';
 import { BeautifyPage } from '@/pages/beautify';
 import { EffectsPage } from '@/pages/effects';
+import { CropPage } from '@/pages/crop';
 import { PipelinePage } from '@/pages/pipeline';
 import { VideoConvertPage } from '@/pages/video-convert';
 import { VideoCompressPage } from '@/pages/video-compress';
@@ -16,6 +17,7 @@ export type Page =
   | 'compress'
   | 'beautify'
   | 'effects'
+  | 'crop'
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'
@@ -62,6 +64,11 @@ export const pageMeta: Record<Page, PageMeta> = {
     subtitle: 'Drag and drop files to get started',
     navLabel: 'Effects',
   },
+  crop: {
+    title: 'Crop Image',
+    subtitle: 'Trim an image to a specific region or aspect ratio',
+    navLabel: 'Crop',
+  },
   pipeline: {
     title: 'Pipeline',
     subtitle: 'Chain multiple operations together',
@@ -105,11 +112,11 @@ export const navOrder: Page[] = [
   'compress',
   'beautify',
   'effects',
+  'crop',
   'pipeline',
   'video-convert',
   'video-compress',
   'video-resize',
-  'video-trim',
 ];
 
 export const operationPages: Record<OperationPageId, ComponentType<OperationPageProps>> = {
@@ -117,6 +124,7 @@ export const operationPages: Record<OperationPageId, ComponentType<OperationPage
   compress: CompressPage,
   beautify: BeautifyPage,
   effects: EffectsPage,
+  crop: CropPage,
   pipeline: PipelinePage,
   'video-convert': VideoConvertPage,
   'video-compress': VideoCompressPage,

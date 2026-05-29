@@ -102,6 +102,7 @@ export type OperationType =
   | 'compress'
   | 'beautify'
   | 'effects'
+  | 'crop'
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'
@@ -148,6 +149,23 @@ export interface EffectResult {
   new_size: number;
 }
 
+export interface CropOptions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  output_dir: string | null;
+}
+
+export interface CropResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
 export interface PipelineBeautifyParams {
   brightness: number;
   contrast: number;
@@ -173,7 +191,15 @@ export interface PipelineCompressParams {
   quality: number;
 }
 
+export interface PipelineCropParams {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface PipelineOptions {
+  crop: PipelineCropParams | null;
   beautify: PipelineBeautifyParams | null;
   effects: PipelineEffectParams | null;
   convert: PipelineConvertParams | null;

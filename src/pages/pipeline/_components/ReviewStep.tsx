@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Workflow,
   ChevronRight,
+  Crop,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,7 @@ type ReviewStepProps = {
 };
 
 const operationShortcuts: { id: StepId; label: string; description: string; icon: LucideIcon }[] = [
+  { id: 'crop', label: 'Crop', description: 'Trim a region', icon: Crop },
   { id: 'convert', label: 'Convert', description: 'Change format', icon: ArrowRightLeft },
   { id: 'compress', label: 'Compress', description: 'Reduce size', icon: Minimize2 },
   { id: 'beautify', label: 'Beautify', description: 'Enhance images', icon: Sparkles },
@@ -61,10 +63,14 @@ const ReviewStep = ({
   const previewImage = images[previewIndex] ?? images[0];
 
   const enabledCount =
+    Number(!!values.cropEnabled) +
     Number(!!values.convertEnabled) +
     Number(!!values.compressEnabled) +
     Number(!!values.beautifyEnabled) +
     Number(!!values.effectsEnabled);
+
+  const cropEnabledForBatch =
+    values.cropEnabled && (values.cropWidth ?? 0) > 0 && (values.cropHeight ?? 0) > 0;
 
   const previewSteps: PipelinePreviewStep[] = [
     ...(values.beautifyEnabled ? [{ kind: 'beautify' as const, options: beautifyOptions }] : []),
@@ -114,6 +120,14 @@ const ReviewStep = ({
               {images.length} image{images.length !== 1 ? 's' : ''} selected
             </CardDescription>
           </SummaryCard>
+
+          {cropEnabledForBatch && (
+            <SummaryCard icon={Crop} title="Crop">
+              <CardDescription>
+                {values.cropWidth} × {values.cropHeight} at ({values.cropX}, {values.cropY})
+              </CardDescription>
+            </SummaryCard>
+          )}
 
           {values.convertEnabled && (
             <SummaryCard icon={ArrowRightLeft} title="Convert">
