@@ -45,7 +45,8 @@ pub fn reveal_file(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
-            .args(["/select,", &path.to_string_lossy()])
+            .arg("/select,")
+            .arg(path)
             .spawn()
             .map_err(|e| format!("Failed to reveal file: {}", e))?;
     }
@@ -53,7 +54,8 @@ pub fn reveal_file(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .args(["-R", &path.to_string_lossy()])
+            .arg("-R")
+            .arg(path)
             .spawn()
             .map_err(|e| format!("Failed to reveal file: {}", e))?;
     }
