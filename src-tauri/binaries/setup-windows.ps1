@@ -9,11 +9,21 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = $PSScriptRoot
 $TargetTriple = 'x86_64-pc-windows-msvc'
 $ZipUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
+$Sha256Url = "$ZipUrl.sha256"
 $ZipPath = Join-Path $ScriptDir 'ffmpeg.zip'
 $ExtractPath = Join-Path $ScriptDir '_ffmpeg_extracted'
 
 Write-Host "Downloading ffmpeg static build from gyan.dev..." -ForegroundColor Cyan
 Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath
+
+Write-Host "Verifying SHA-256 checksum..." -ForegroundColor Cyan
+$ExpectedHash = (Invoke-WebRequest -Uri $Sha256Url -UseBasicParsing).Content.Trim().Split()[0].ToLowerInvariant()
+$ActualHash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($ExpectedHash -ne $ActualHash) {
+    Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+    throw "SHA-256 mismatch! Expected $ExpectedHash but got $ActualHash. Aborting — the downloaded zip may be corrupted or tampered with."
+}
+Write-Host "  Checksum OK: $ActualHash" -ForegroundColor DarkGray
 
 Write-Host "Extracting..." -ForegroundColor Cyan
 if (Test-Path $ExtractPath) { Remove-Item $ExtractPath -Recurse -Force }
