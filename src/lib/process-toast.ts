@@ -13,6 +13,11 @@ type ProcessResult = {
   successCount: number;
   failCount: number;
   extraInfo?: string;
+  /** A friendly one-line summary of the first failure — e.g. the title from
+   *  `humanizeImageError` or `humanizeFfmpegError`. Surfaces in the toast
+   *  description so the user gets at least one concrete reason for the
+   *  failure, not just a count. */
+  firstError?: string;
 };
 
 export const createProcessToast = ({
@@ -40,10 +45,11 @@ export const createProcessToast = ({
       toast.success(successTitle, { id: toastId, description });
     },
 
-    warning: ({ successCount, failCount }: ProcessResult) => {
+    warning: ({ successCount, failCount, firstError }: ProcessResult) => {
+      const base = `${successCount} succeeded, ${failCount} failed`;
       toast.warning(partialTitle, {
         id: toastId,
-        description: `${successCount} succeeded, ${failCount} failed`,
+        description: firstError ? `${base} — ${firstError}` : base,
       });
     },
 
@@ -80,7 +86,7 @@ export const createProcessToast = ({
       }
     },
 
-    finish: ({ successCount, failCount, extraInfo }: ProcessResult) => {
+    finish: ({ successCount, failCount, extraInfo, firstError }: ProcessResult) => {
       if (successCount > 0 && failCount === 0) {
         const plural = successCount !== 1 ? 's' : '';
         const description = extraInfo
@@ -89,14 +95,16 @@ export const createProcessToast = ({
 
         toast.success(successTitle, { id: toastId, description });
       } else if (successCount > 0 && failCount > 0) {
+        const base = `${successCount} succeeded, ${failCount} failed`;
         toast.warning(partialTitle, {
           id: toastId,
-          description: `${successCount} succeeded, ${failCount} failed`,
+          description: firstError ? `${base} — ${firstError}` : base,
         });
       } else {
+        const fallback = `No ${itemName}s were processed successfully`;
         toast.error(failTitle, {
           id: toastId,
-          description: `No ${itemName}s were processed successfully`,
+          description: firstError ?? fallback,
         });
       }
     },

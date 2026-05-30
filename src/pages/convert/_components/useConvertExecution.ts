@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { firstImageError, humanizeImageError } from '@/lib/image-errors';
 import { toOutputNaming } from '@/types/output-naming';
 import { formatLabels, type ConversionResult, type ImageInfo, type OperationHistoryItem } from '@/types/image';
 import type { ConvertFormValues } from './schema';
@@ -58,6 +59,7 @@ export const runConversion = async ({
         successCount,
         failCount,
         extraInfo: `converted to ${formatLabels[targetFormat]}`,
+        firstError: firstImageError(results),
       });
     }
 
@@ -78,7 +80,8 @@ export const runConversion = async ({
     }
   } catch (error) {
     console.error('Conversion failed:', error);
-    processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
+    const friendly = humanizeImageError(error);
+    processToast.error({ title: friendly.title, description: friendly.details });
     onFinish([]);
   }
 };

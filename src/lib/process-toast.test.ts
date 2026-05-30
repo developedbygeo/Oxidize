@@ -75,6 +75,24 @@ describe('createProcessToast.finish', () => {
       description: 'No images were processed successfully',
     });
   });
+
+  it('appends firstError to the partial-success description', () => {
+    const t = createProcessToast({ progressLabel: 'P', doneLabel: 'Done', itemCount: 5 });
+    t.finish({ successCount: 3, failCount: 2, firstError: 'Image file is corrupted' });
+    expect(mockedToast.warning).toHaveBeenCalledWith('Done partially complete', {
+      id: 'mock-toast-id',
+      description: '3 succeeded, 2 failed — Image file is corrupted',
+    });
+  });
+
+  it('uses firstError as the description when everything failed', () => {
+    const t = createProcessToast({ progressLabel: 'P', doneLabel: 'Done', itemCount: 2 });
+    t.finish({ successCount: 0, failCount: 2, firstError: 'File not found' });
+    expect(mockedToast.error).toHaveBeenCalledWith('Done failed', {
+      id: 'mock-toast-id',
+      description: 'File not found',
+    });
+  });
 });
 
 describe('createProcessToast.error', () => {

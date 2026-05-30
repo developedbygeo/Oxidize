@@ -74,6 +74,11 @@ function ResultsList<T extends ResultRow>({
         const cancelled = !result.success && isCancelledError(result.error);
         const skipped = !result.success && isSkippedError(result.error);
         const softFailure = cancelled || skipped;
+        // Surface the raw error string on hover for genuine failures so the
+        // user can see WHY a specific row failed. The toast already shows
+        // a humanized one-liner for the first failure; this is the detail.
+        const hoverTitle =
+          !result.success && !softFailure && result.error ? result.error : undefined;
         return (
           <button
             key={index}
@@ -81,6 +86,7 @@ function ResultsList<T extends ResultRow>({
               if (result.success && result.output_path) revealFile(result.output_path);
             }}
             disabled={!result.success || !result.output_path}
+            title={hoverTitle}
             className={cn(
               'w-full flex items-center justify-between transition-colors',
               styles.row,

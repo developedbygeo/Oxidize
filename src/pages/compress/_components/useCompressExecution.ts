@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { firstImageError, humanizeImageError } from '@/lib/image-errors';
 import { toOutputNaming } from '@/types/output-naming';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import { compressionPresets, resolveQuality, type CompressFormValues } from './schema';
@@ -64,6 +65,7 @@ export const runCompression = async ({
         successCount,
         failCount,
         extraInfo: avgSavingsPercent > 0 ? `${avgSavingsPercent.toFixed(1)}% saved` : undefined,
+        firstError: firstImageError(results),
       });
     }
 
@@ -88,7 +90,8 @@ export const runCompression = async ({
     }
   } catch (error) {
     console.error('Compression failed:', error);
-    processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
+    const friendly = humanizeImageError(error);
+    processToast.error({ title: friendly.title, description: friendly.details });
     onFinish([]);
   }
 };

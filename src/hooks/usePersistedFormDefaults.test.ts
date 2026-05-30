@@ -125,25 +125,34 @@ describe('usePersistedFormDefaults', () => {
   });
 
   it('mirrors outputDir changes to lastOutputDir', async () => {
-    const { form } = setup({});
-    await waitFor(() => expect(form().getValues('targetFormat')).toBe('webp'));
+    // Hydrate with a distinguishable value so waitFor actually waits for
+    // hydration to flip `hydratedRef` — asserting on the default
+    // ('webp' → 'webp') passes before hydration runs and races the watch
+    // subscription, causing intermittent flakes in the full suite.
+    const { form } = setup({ pageDefaults: { convert: { outputDir: '/initial' } } });
+    await waitFor(() => expect(form().getValues('outputDir')).toBe('/initial'));
 
-    vi.useFakeTimers();
     updateSettings.mockClear();
     act(() => {
       form().setValue('outputDir', '/Users/me/out');
     });
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
 
-    const patches = updateSettings.mock.calls.map((c) => c[0]);
-    expect(patches.some((p) => p.lastOutputDir === '/Users/me/out')).toBe(true);
-    expect(
-      patches.some(
-        (p) => (p.pageDefaults?.convert as Record<string, unknown> | undefined)?.outputDir === '/Users/me/out'
-      )
-    ).toBe(true);
+    // Wait for the real debounce + state-update chain instead of juggling
+    // fake timers. Fixed timeout > PERSIST_DEBOUNCE_MS (250).
+    await waitFor(
+      () => {
+        const patches = updateSettings.mock.calls.map((c) => c[0]);
+        expect(patches.some((p) => p.lastOutputDir === '/Users/me/out')).toBe(true);
+        expect(
+          patches.some(
+            (p) =>
+              (p.pageDefaults?.convert as Record<string, unknown> | undefined)?.outputDir ===
+              '/Users/me/out'
+          )
+        ).toBe(true);
+      },
+      { timeout: 1000 }
+    );
   });
 
   it('does not persist fields outside of persistKeys', async () => {

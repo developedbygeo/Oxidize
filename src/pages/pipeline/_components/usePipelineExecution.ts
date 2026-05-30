@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { firstImageError, humanizeImageError } from '@/lib/image-errors';
 import type {
   ImageInfo,
   OperationHistoryItem,
@@ -52,6 +53,7 @@ export const usePipelineExecution = ({ images, onOperationComplete }: UsePipelin
         processToast.finish({
           successCount: successful.length,
           failCount,
+          firstError: firstImageError(results),
         });
       }
 
@@ -72,7 +74,8 @@ export const usePipelineExecution = ({ images, onOperationComplete }: UsePipelin
       }
     } catch (error) {
       console.error('Pipeline failed:', error);
-      processToast.error(error instanceof Error ? error.message : 'Pipeline execution failed');
+      const friendly = humanizeImageError(error);
+      processToast.error({ title: friendly.title, description: friendly.details });
     } finally {
       setIsProcessing(false);
     }

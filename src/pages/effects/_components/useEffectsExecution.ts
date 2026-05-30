@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
 import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { firstImageError, humanizeImageError } from '@/lib/image-errors';
 import { toOutputNaming } from '@/types/output-naming';
 import { effectsList } from '@/types/image';
 import type { EffectResult, ImageInfo, OperationHistoryItem } from '@/types/image';
@@ -55,7 +56,7 @@ export const runEffects = async ({
     } else if (skippedCount > 0 && failCount === 0) {
       processToast.skipped({ successCount, skipCount: skippedCount });
     } else {
-      processToast.finish({ successCount, failCount });
+      processToast.finish({ successCount, failCount, firstError: firstImageError(results) });
     }
 
     if (successCount > 0 && onOperationComplete) {
@@ -74,7 +75,8 @@ export const runEffects = async ({
     }
   } catch (error) {
     console.error('Effect application failed:', error);
-    processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
+    const friendly = humanizeImageError(error);
+    processToast.error({ title: friendly.title, description: friendly.details });
     onFinish([]);
   }
 };
