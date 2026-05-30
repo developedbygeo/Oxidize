@@ -193,13 +193,14 @@ describe('runCompression', () => {
         outputDir: null,
         filenameTemplate: '',
         overwriteMode: 'auto-number',
+        preserveMetadata: false,
       },
       ...cb,
     });
 
     expect(invoke).toHaveBeenCalledWith('compress_images_batch', {
       inputPaths: ['/in/photo.png'],
-      options: { quality: 75, output_dir: null, naming: null },
+      options: { quality: 75, output_dir: null, naming: null, preserve_metadata: null },
     });
     expect(cb.onOperationComplete).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'compress' })
@@ -440,6 +441,7 @@ describe('image batch cancellation routing', () => {
         outputDir: null,
         filenameTemplate: '',
         overwriteMode: 'auto-number',
+        preserveMetadata: false,
       },
       ...noopCallbacks(),
     });
@@ -725,6 +727,7 @@ describe('image batch skip-toast routing', () => {
         outputDir: null,
         filenameTemplate: '',
         overwriteMode: 'skip',
+        preserveMetadata: false,
       },
       ...noopCallbacks(),
     });

@@ -24,8 +24,15 @@ export const runCompression = async ({
 }: RunCompressionArgs) => {
   if (images.length === 0) return;
 
-  const { compressionLevel, useCustom, customQuality, outputDir, filenameTemplate, overwriteMode } =
-    values;
+  const {
+    compressionLevel,
+    useCustom,
+    customQuality,
+    outputDir,
+    filenameTemplate,
+    overwriteMode,
+    preserveMetadata,
+  } = values;
   const quality = resolveQuality(values);
 
   onStart();
@@ -42,6 +49,7 @@ export const runCompression = async ({
         quality,
         output_dir: outputDir,
         naming: toOutputNaming(filenameTemplate, overwriteMode),
+        preserve_metadata: preserveMetadata || null,
       },
     });
     onFinish(results);

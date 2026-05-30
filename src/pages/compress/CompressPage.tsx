@@ -10,6 +10,7 @@ import { ImageDropzone } from '@/components/ImageDropzone';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { FilenameSettings } from '@/components/page-parts/FilenameSettings';
+import { Switch } from '@/components/ui/switch';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
@@ -53,6 +54,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
       'outputDir',
       'filenameTemplate',
       'overwriteMode',
+      'preserveMetadata',
     ],
   });
   const { control } = form;
@@ -62,6 +64,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
   const outputDir = useWatch({ control, name: 'outputDir' });
   const filenameTemplate = useWatch({ control, name: 'filenameTemplate' });
   const overwriteMode = useWatch({ control, name: 'overwriteMode' });
+  const preserveMetadata = useWatch({ control, name: 'preserveMetadata' });
 
   const [images, setImages] = useState<ImageInfo[]>([]);
   const [results, setResults] = useState<CompressionResult[]>([]);
@@ -184,6 +187,25 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
                 }
                 size="md"
               />
+
+              <label className="flex items-start gap-3 py-2 cursor-pointer">
+                <Switch
+                  checked={preserveMetadata}
+                  onCheckedChange={(v) =>
+                    form.setValue('preserveMetadata', v, { shouldValidate: true })
+                  }
+                  className="mt-0.5 shrink-0"
+                />
+                <div className="space-y-0.5 min-w-0">
+                  <span className="text-xs font-medium text-foreground">
+                    Preserve EXIF + color profile
+                  </span>
+                  <p className="text-[10px] text-muted-foreground/80 leading-tight">
+                    Carries camera / lens / ICC metadata from the source. Effective for
+                    JPEG output and lossless PNG; other formats strip regardless.
+                  </p>
+                </div>
+              </label>
 
               <ProcessButton
                 isProcessing={isCompressing}

@@ -8,8 +8,19 @@ use crate::utils::{
     detect_format, resolve_output_dir, resolve_output_path, ResolvedPath, TemplateContext,
 };
 
-/// Compress PNG using oxipng for maximum compression
-pub fn compress_png_oxipng(input_data: &[u8], quality: u8) -> Result<Vec<u8>, String> {
+/// Compress PNG using oxipng for maximum compression.
+///
+/// `preserve_metadata` is honoured only on the lossless path (quality > 85):
+/// oxipng's `StripChunks::None` keeps every ancillary chunk in the source,
+/// including iCCP (ICC), eXIf, tEXt/iTXt, gAMA, etc. The lossy quantization
+/// path always strips because it rewrites the file from indexed pixel data —
+/// metadata would have to be re-stitched chunk by chunk, which is out of
+/// scope here.
+pub fn compress_png_oxipng(
+    input_data: &[u8],
+    quality: u8,
+    preserve_metadata: bool,
+) -> Result<Vec<u8>, String> {
     use oxipng::Options;
 
     let opt_level = if quality >= 90 {
@@ -23,7 +34,11 @@ pub fn compress_png_oxipng(input_data: &[u8], quality: u8) -> Result<Vec<u8>, St
     };
 
     let mut options = Options::from_preset(opt_level);
-    options.strip = oxipng::StripChunks::Safe;
+    options.strip = if preserve_metadata {
+        oxipng::StripChunks::None
+    } else {
+        oxipng::StripChunks::Safe
+    };
 
     // Use lossy compression for quality <= 85 (covers "balanced" mode at 80)
     if quality <= 85 {
@@ -111,9 +126,23 @@ fn compress_png_lossy(input_data: &[u8], quality: u8) -> Result<Vec<u8>, String>
     Ok(output)
 }
 
-/// Compress JPEG using mozjpeg for better compression
+/// Compress JPEG using mozjpeg. Back-compat shim — equivalent to calling
+/// `compress_jpeg_with_markers` with no markers.
 pub fn compress_jpeg_mozjpeg(img: &DynamicImage, quality: u8) -> Result<Vec<u8>, String> {
-    use mozjpeg::{ColorSpace, Compress, ScanMode};
+    compress_jpeg_with_markers(img, quality, &[])
+}
+
+/// Compress JPEG and optionally embed APPn marker payloads in the output.
+/// `markers` is a list of `(n, payload)` tuples as produced by
+/// [`crate::metadata::read_jpeg_app_segments`] — each payload is written
+/// verbatim, so prefixes like `"Exif\0\0"` or `"ICC_PROFILE\0\x01\x01"` must
+/// already be included.
+pub fn compress_jpeg_with_markers(
+    img: &DynamicImage,
+    quality: u8,
+    markers: &[(u8, Vec<u8>)],
+) -> Result<Vec<u8>, String> {
+    use mozjpeg::{ColorSpace, Compress, Marker, ScanMode};
 
     let rgb = img.to_rgb8();
     let (width, height) = img.dimensions();
@@ -127,6 +156,12 @@ pub fn compress_jpeg_mozjpeg(img: &DynamicImage, quality: u8) -> Result<Vec<u8>,
     let mut comp = comp
         .start_compress(Vec::new())
         .map_err(|e| format!("Failed to start JPEG compression: {:?}", e))?;
+
+    // Markers must be written between start_compress and write_scanlines so
+    // they land in the JPEG header.
+    for (app_n, payload) in markers {
+        comp.write_marker(Marker::APP(*app_n), payload);
+    }
 
     comp.write_scanlines(rgb.as_raw())
         .map_err(|e| format!("Failed to write scanlines: {:?}", e))?;
@@ -318,11 +353,31 @@ fn compress_image_sync(
         .and_then(|s| s.to_str())
         .unwrap_or("output");
 
+    // EXIF (APP1) + ICC (APP2) markers from the source. Only extracted for
+    // JPEG sources — PNG metadata is handled in-place by oxipng via the
+    // `preserve_metadata` flag on `compress_png_oxipng`, and the lossy /
+    // re-encoding paths (gif, bmp, tiff, webp) strip regardless because the
+    // pixel data has already been transformed by the time we encode.
+    let preserve_metadata = options.preserve_metadata.unwrap_or(false);
+    let jpeg_markers: Vec<(u8, Vec<u8>)> = if preserve_metadata
+        && matches!(format_str.as_str(), "jpg" | "jpeg")
+    {
+        crate::metadata::read_jpeg_app_segments(&original_data, &[1, 2])
+    } else {
+        Vec::new()
+    };
+
     // Determine output format and extension
     // BMP and TIFF convert to PNG for compression (they're uncompressed formats)
     let (output_data, output_extension) = match format_str.as_str() {
-        "png" => (compress_png_oxipng(&original_data, options.quality)?, "png"),
-        "jpg" | "jpeg" => (compress_jpeg_mozjpeg(&img, options.quality)?, &format_str as &str),
+        "png" => (
+            compress_png_oxipng(&original_data, options.quality, preserve_metadata)?,
+            "png",
+        ),
+        "jpg" | "jpeg" => (
+            compress_jpeg_with_markers(&img, options.quality, &jpeg_markers)?,
+            &format_str as &str,
+        ),
         "webp" => (compress_webp(&img, options.quality)?, "webp"),
         "gif" => (compress_gif(&original_data, options.quality)?, "gif"),
         "bmp" => (compress_bmp(&img, options.quality)?, "png"),
@@ -413,4 +468,47 @@ pub async fn compress_images_batch(
             savings_percent: 0.0,
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::metadata::read_jpeg_app_segments;
+    use image::{Rgba, RgbaImage};
+
+    fn solid_image(w: u32, h: u32) -> DynamicImage {
+        DynamicImage::ImageRgba8(RgbaImage::from_pixel(w, h, Rgba([120, 180, 60, 255])))
+    }
+
+    #[test]
+    fn compress_jpeg_mozjpeg_default_path_writes_no_app_markers() {
+        // Sanity check: the back-compat shim still produces a metadata-free
+        // JPEG. If this fails, every other call site silently gained EXIF.
+        let bytes = compress_jpeg_mozjpeg(&solid_image(16, 16), 80).unwrap();
+        let markers = read_jpeg_app_segments(&bytes, &[1, 2]);
+        assert!(markers.is_empty(), "default JPEG path must not emit APP markers");
+    }
+
+    #[test]
+    fn compress_jpeg_with_markers_round_trips_exif_and_icc() {
+        // Two-payload round-trip: write APP1 (EXIF) + APP2 (ICC), parse them
+        // back out of the produced JPEG with the parser we trust.
+        let exif_payload: Vec<u8> = b"Exif\0\0synthetic-tiff-data".to_vec();
+        let icc_payload: Vec<u8> = b"ICC_PROFILE\0\x01\x01synthetic-icc".to_vec();
+        let markers = vec![(1, exif_payload.clone()), (2, icc_payload.clone())];
+
+        let bytes = compress_jpeg_with_markers(&solid_image(16, 16), 80, &markers).unwrap();
+        let got = read_jpeg_app_segments(&bytes, &[1, 2]);
+
+        let app1 = got
+            .iter()
+            .find(|(n, _)| *n == 1)
+            .expect("APP1 should be preserved");
+        let app2 = got
+            .iter()
+            .find(|(n, _)| *n == 2)
+            .expect("APP2 should be preserved");
+        assert_eq!(app1.1, exif_payload);
+        assert_eq!(app2.1, icc_payload);
+    }
 }

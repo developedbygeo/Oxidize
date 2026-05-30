@@ -25,7 +25,11 @@ pub fn encode_image(
             img.write_to(&mut buffer, ImageFormat::Png)
                 .map_err(|e| e.to_string())?;
             let png_data = buffer.into_inner();
-            compress_png_oxipng(&png_data, quality)
+            // Convert always rebuilds the PNG from decoded pixels, so any
+            // source metadata is already gone by this point. Preservation
+            // would have to plumb the original bytes through encode_image,
+            // which is out of scope for the current preserve-metadata pass.
+            compress_png_oxipng(&png_data, quality, false)
         }
         _ => {
             let mut buffer = Cursor::new(Vec::new());

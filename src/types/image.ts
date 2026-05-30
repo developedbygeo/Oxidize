@@ -41,6 +41,7 @@ export interface CompressionOptions {
   quality: number;
   output_dir: string | null;
   naming?: import('./output-naming').OutputNaming | null;
+  preserve_metadata?: boolean | null;
 }
 
 export interface CompressionResult {

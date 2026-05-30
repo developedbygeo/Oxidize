@@ -60,6 +60,12 @@ pub struct CompressionOptions {
     pub output_dir: Option<String>,
     #[serde(default)]
     pub naming: Option<OutputNaming>,
+    /// When true, EXIF and ICC profile metadata is carried from the source
+    /// file into the compressed output. Only effective for JPEG-out (mozjpeg
+    /// `write_marker`) and lossless PNG-out (oxipng `StripChunks::None`);
+    /// lossy PNG, GIF, BMP, TIFF, WebP outputs strip regardless.
+    #[serde(default)]
+    pub preserve_metadata: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

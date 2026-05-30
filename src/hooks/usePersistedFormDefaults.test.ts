@@ -98,30 +98,29 @@ describe('usePersistedFormDefaults', () => {
   });
 
   it('persists changes to persistKeys via updateSettings (debounced)', async () => {
-    const { form } = setup({});
-    await waitFor(() => expect(form().getValues('targetFormat')).toBe('webp'));
+    // Hydrate with a distinguishable value so waitFor blocks until hydration
+    // actually flips `hydratedRef` — see the sibling test below for context.
+    const { form } = setup({ pageDefaults: { convert: { quality: 99 } } });
+    await waitFor(() => expect(form().getValues('quality')).toBe(99));
 
-    vi.useFakeTimers();
     updateSettings.mockClear();
     act(() => {
       form().setValue('targetFormat', 'jpg');
       form().setValue('quality', 92);
     });
 
-    // Nothing persisted yet — within debounce window
-    expect(updateSettings).not.toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    const patches = updateSettings.mock.calls.map((c) => c[0]);
-    // Two persistKey fields → two patches against pageDefaults.convert
-    const convertSlots = patches
-      .map((p) => p.pageDefaults?.convert)
-      .filter((v): v is Record<string, unknown> => !!v);
-    expect(convertSlots.some((s) => s.targetFormat === 'jpg')).toBe(true);
-    expect(convertSlots.some((s) => s.quality === 92)).toBe(true);
+    // Wait for the real debounce — fake timers race the watch effect.
+    await waitFor(
+      () => {
+        const patches = updateSettings.mock.calls.map((c) => c[0]);
+        const convertSlots = patches
+          .map((p) => p.pageDefaults?.convert)
+          .filter((v): v is Record<string, unknown> => !!v);
+        expect(convertSlots.some((s) => s.targetFormat === 'jpg')).toBe(true);
+        expect(convertSlots.some((s) => s.quality === 92)).toBe(true);
+      },
+      { timeout: 1000 }
+    );
   });
 
   it('mirrors outputDir changes to lastOutputDir', async () => {
@@ -156,19 +155,20 @@ describe('usePersistedFormDefaults', () => {
   });
 
   it('does not persist fields outside of persistKeys', async () => {
-    const { form } = setup({});
-    await waitFor(() => expect(form().getValues('targetFormat')).toBe('webp'));
+    // Hydrate with a distinguishable value to await actual hydration —
+    // see "persists changes to persistKeys" for context.
+    const { form } = setup({ pageDefaults: { convert: { quality: 99 } } });
+    await waitFor(() => expect(form().getValues('quality')).toBe(99));
 
-    vi.useFakeTimers();
     updateSettings.mockClear();
     act(() => {
       // Unregistered field — not in persistKeys.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (form() as any).setValue('ignored', 'foo');
     });
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
+    // Give the (would-be) debounce + state-update chain time to fire if it
+    // were going to; if it doesn't, that's the assertion.
+    await new Promise((r) => setTimeout(r, 400));
     expect(updateSettings).not.toHaveBeenCalled();
   });
 });

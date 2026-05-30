@@ -7,6 +7,7 @@ mod crop;
 mod effects;
 mod image_jobs;
 mod loader;
+mod metadata;
 mod pipeline;
 mod types;
 mod utils;
