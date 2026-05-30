@@ -10,6 +10,7 @@ const allPages: Page[] = [
   'crop',
   'rotate',
   'resize',
+  'social',
   'pipeline',
   'video-convert',
   'video-compress',

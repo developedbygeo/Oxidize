@@ -16,6 +16,7 @@ import {
   RotateCw,
   Scaling,
   Scissors,
+  Share2,
   Keyboard,
 } from 'lucide-react';
 import {
@@ -54,6 +55,17 @@ type AppSidebarProps = {
 };
 
 const navGroups: NavGroup[] = [
+  {
+    label: 'Social',
+    items: [
+      {
+        id: 'social',
+        label: 'Presets',
+        description: 'Instagram / TikTok / LinkedIn …',
+        icon: Share2,
+      },
+    ],
+  },
   {
     label: 'Image',
     items: [

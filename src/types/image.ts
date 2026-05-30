@@ -120,6 +120,7 @@ export type OperationType =
   | 'crop'
   | 'rotate'
   | 'resize'
+  | 'social'
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'

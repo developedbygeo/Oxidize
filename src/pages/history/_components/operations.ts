@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   ArrowRightLeft,
   Minimize2,
+  Share2,
   Sparkles,
   Wand2,
   Workflow,
@@ -24,6 +25,7 @@ export const operationIcons: Record<OperationType, LucideIcon> = {
   crop: Crop,
   rotate: RotateCw,
   resize: Scaling,
+  social: Share2,
   pipeline: Workflow,
   'video-convert': FileVideo,
   'video-compress': Film,
@@ -40,6 +42,7 @@ export const operationLabels: Record<OperationType, string> = {
   crop: 'Crop',
   rotate: 'Rotate',
   resize: 'Resize',
+  social: 'Social preset',
   pipeline: 'Pipeline',
   'video-convert': 'Video Convert',
   'video-compress': 'Video Compress',

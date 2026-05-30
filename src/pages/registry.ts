@@ -6,6 +6,7 @@ import { EffectsPage } from '@/pages/effects';
 import { CropPage } from '@/pages/crop';
 import { RotatePage } from '@/pages/rotate';
 import { ResizePage } from '@/pages/resize';
+import { SocialPage } from '@/pages/social';
 import { PipelinePage } from '@/pages/pipeline';
 import { VideoConvertPage } from '@/pages/video-convert';
 import { VideoCompressPage } from '@/pages/video-compress';
@@ -22,6 +23,7 @@ export type Page =
   | 'crop'
   | 'rotate'
   | 'resize'
+  | 'social'
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'
@@ -83,6 +85,11 @@ export const pageMeta: Record<Page, PageMeta> = {
     subtitle: 'Scale to a target width, height, or both',
     navLabel: 'Resize',
   },
+  social: {
+    title: 'Social presets',
+    subtitle: 'One-click correct dimensions for the platforms you actually post to',
+    navLabel: 'Social',
+  },
   pipeline: {
     title: 'Pipeline',
     subtitle: 'Chain multiple operations together',
@@ -129,8 +136,8 @@ export const navOrder: Page[] = [
   'crop',
   'rotate',
   'resize',
+  'social',
   'pipeline',
-  'video-convert',
 ];
 
 export const operationPages: Record<OperationPageId, ComponentType<OperationPageProps>> = {
@@ -141,6 +148,7 @@ export const operationPages: Record<OperationPageId, ComponentType<OperationPage
   crop: CropPage,
   rotate: RotatePage,
   resize: ResizePage,
+  social: SocialPage,
   pipeline: PipelinePage,
   'video-convert': VideoConvertPage,
   'video-compress': VideoCompressPage,
