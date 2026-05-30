@@ -1,7 +1,8 @@
 use image::{DynamicImage, GenericImageView, ImageReader};
-use rayon::prelude::*;
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
 
+use crate::image_jobs::run_image_batch;
 use crate::types::{CompressionOptions, CompressionResult};
 use crate::utils::{detect_format, resolve_output_dir, unique_output_path};
 
@@ -360,15 +361,17 @@ pub async fn compress_image(
 
 #[tauri::command]
 pub async fn compress_images_batch(
+    app: AppHandle,
     input_paths: Vec<String>,
     options: CompressionOptions,
 ) -> Vec<CompressionResult> {
-    input_paths
-        .par_iter()
-        .map(|path| {
+    run_image_batch(
+        &app,
+        input_paths,
+        |path| {
             let input = Path::new(path);
             let output_dir = resolve_output_dir(&options.output_dir, input);
-            compress_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
+            compress_image_sync(path.to_string(), &options, &output_dir).unwrap_or_else(|e| {
                 CompressionResult {
                     success: false,
                     output_path: None,
@@ -378,6 +381,14 @@ pub async fn compress_images_batch(
                     savings_percent: 0.0,
                 }
             })
-        })
-        .collect()
+        },
+        |_path| CompressionResult {
+            success: false,
+            output_path: None,
+            error: Some("cancelled".into()),
+            original_size: 0,
+            new_size: 0,
+            savings_percent: 0.0,
+        },
+    )
 }

@@ -1,10 +1,13 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { invoke } from '@tauri-apps/api/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Workflow } from 'lucide-react';
 import { fadeIn, fadeSlide } from '@/lib/animations';
 import { Form } from '@/components/ui/form';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
+import { useImageProgress } from '@/hooks/useImageProgress';
 import type { ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
   pipelineSchema,
@@ -62,6 +65,7 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
   });
 
   const { isProcessing, execute } = usePipelineExecution({ images, onOperationComplete });
+  const progress = useImageProgress(isProcessing);
 
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
 
@@ -113,6 +117,7 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
     meta: true,
     enabled: currentStep === 'review' && images.length > 0 && !isProcessing,
   });
+  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isProcessing });
 
   const renderStep = () => {
     switch (currentStep) {
@@ -214,6 +219,17 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
             canGoNext={!(currentStep === 'images' && images.length === 0)}
             onPrev={goPrev}
             onNext={goNext}
+          />
+        )}
+
+        {isProcessing && images.length > 0 && (
+          <JobProgressBar
+            items={images.map((img) => ({ path: img.path, name: img.name }))}
+            progress={progress}
+            running={isProcessing}
+            verb="Running pipeline on"
+            itemName="image"
+            onCancel={() => invoke('cancel_image_jobs')}
           />
         )}
       </div>

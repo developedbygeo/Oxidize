@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { isCancelledError } from '@/lib/ffmpeg-errors';
 import { formatLabels, type ConversionResult, type ImageInfo, type OperationHistoryItem } from '@/types/image';
 import type { ConvertFormValues } from './schema';
 
@@ -37,14 +38,19 @@ export const runConversion = async ({
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
-    const failCount = results.length - successCount;
+    const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount;
     const totalSaved = results.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
 
-    processToast.finish({
-      successCount,
-      failCount,
-      extraInfo: `converted to ${formatLabels[targetFormat]}`,
-    });
+    if (cancelledCount > 0) {
+      processToast.cancelled(successCount);
+    } else {
+      processToast.finish({
+        successCount,
+        failCount,
+        extraInfo: `converted to ${formatLabels[targetFormat]}`,
+      });
+    }
 
     if (successCount > 0 && onOperationComplete) {
       const dir = resolveOutputDir({

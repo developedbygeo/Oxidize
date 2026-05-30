@@ -1,11 +1,12 @@
 use image::{DynamicImage, GenericImageView, ImageFormat, ImageReader};
-use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
+use crate::image_jobs::run_image_batch;
 use crate::types::{EffectOptions, EffectResult, PipelineEffectParams};
 use crate::utils::{detect_format, get_format_from_string, resolve_output_dir, unique_output_path};
 
@@ -449,26 +450,36 @@ pub async fn apply_image_effect(
 
 #[tauri::command]
 pub async fn apply_image_effects_batch(
+    app: AppHandle,
     input_paths: Vec<String>,
     options: EffectOptions,
 ) -> Vec<EffectResult> {
-    input_paths
-        .par_iter()
-        .map(|path| {
+    run_image_batch(
+        &app,
+        input_paths,
+        |path| {
             let input = Path::new(path);
             let output_dir = resolve_output_dir(&options.output_dir, input);
-            apply_image_effect_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
+            apply_image_effect_sync(path.to_string(), &options, &output_dir).unwrap_or_else(|e| {
                 EffectResult {
                     success: false,
-                    input_path: path.clone(),
+                    input_path: path.to_string(),
                     output_path: None,
                     error: Some(e),
                     original_size: 0,
                     new_size: 0,
                 }
             })
-        })
-        .collect()
+        },
+        |path| EffectResult {
+            success: false,
+            input_path: path.to_string(),
+            output_path: None,
+            error: Some("cancelled".into()),
+            original_size: 0,
+            new_size: 0,
+        },
+    )
 }
 
 #[cfg(test)]

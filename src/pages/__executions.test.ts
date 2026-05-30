@@ -317,6 +317,177 @@ describe('runCrop', () => {
   });
 });
 
+// ──────────────────────────── image batch cancellation ────────────────────────────
+
+describe('image batch cancellation routing', () => {
+  it('runConversion fires the cancelled warning when any result has the cancellation sentinel', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        output_path: null,
+        error: 'cancelled',
+        original_size: 0,
+        new_size: 0,
+      } as ConversionResult,
+    ]);
+    const cb = noopCallbacks();
+    await runConversion({
+      images: [image()],
+      values: { targetFormat: 'webp', quality: 80, outputDir: null },
+      ...cb,
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Conversion cancelled',
+      expect.objectContaining({ description: expect.stringContaining('cancel') })
+    );
+    expect(sonnerToast.success).not.toHaveBeenCalled();
+    expect(cb.onOperationComplete).not.toHaveBeenCalled();
+  });
+
+  it('runConversion still records history for the successes when a partial batch is cancelled', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: true,
+        output_path: '/out/a.webp',
+        error: null,
+        original_size: 1000,
+        new_size: 800,
+      } as ConversionResult,
+      {
+        success: false,
+        output_path: null,
+        error: 'cancelled',
+        original_size: 0,
+        new_size: 0,
+      } as ConversionResult,
+    ]);
+    const cb = noopCallbacks();
+    await runConversion({
+      images: [image({ path: '/in/a.png' }), image({ path: '/in/b.png' })],
+      values: { targetFormat: 'webp', quality: 80, outputDir: '/out' },
+      ...cb,
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Conversion cancelled',
+      expect.any(Object)
+    );
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'convert', fileCount: 1 })
+    );
+  });
+
+  it('runCompression fires the cancelled warning when any result has the cancellation sentinel', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        output_path: null,
+        error: 'cancelled',
+        original_size: 0,
+        new_size: 0,
+        savings_percent: 0,
+      } as CompressionResult,
+    ]);
+    await runCompression({
+      images: [image()],
+      values: {
+        compressionLevel: 'balanced',
+        customQuality: 80,
+        useCustom: false,
+        outputDir: null,
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Compression cancelled',
+      expect.any(Object)
+    );
+    expect(sonnerToast.success).not.toHaveBeenCalled();
+  });
+
+  it('runBeautify fires the cancelled warning when any result has the cancellation sentinel', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/photo.png',
+        output_path: null,
+        error: 'cancelled',
+        original_size: 0,
+        new_size: 0,
+      } as BeautifyResult,
+    ]);
+    await runBeautify({
+      images: [image()],
+      values: {
+        brightness: 0,
+        contrast: 0,
+        saturation: 0,
+        sharpness: 0,
+        exposure: 0,
+        hue_shift: 0,
+        temperature: 0,
+        white_balance: 'daylight',
+        outputDir: null,
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Beautification cancelled',
+      expect.any(Object)
+    );
+  });
+
+  it('runEffects fires the cancelled warning when any result has the cancellation sentinel', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/photo.png',
+        output_path: null,
+        error: 'cancelled',
+        original_size: 0,
+        new_size: 0,
+      } as EffectResult,
+    ]);
+    await runEffects({
+      images: [image()],
+      values: { selectedEffect: 'sepia', intensity: 60, outputDir: null },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      expect.stringMatching(/cancelled/i),
+      expect.any(Object)
+    );
+  });
+
+  it('runCrop fires the cancelled warning when any result has the cancellation sentinel', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/photo.png',
+        output_path: null,
+        error: 'cancelled',
+        original_size: 0,
+        new_size: 0,
+      } as CropResult,
+    ]);
+    await runCrop({
+      images: [image()],
+      values: {
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        aspectRatio: 'free',
+        outputDir: null,
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Crop cancelled',
+      expect.any(Object)
+    );
+  });
+});
+
 // ──────────────────────────── runVideoConvert ────────────────────────────
 
 describe('runVideoConvert cancellation routing', () => {

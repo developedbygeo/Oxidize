@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRightLeft, Sparkles } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
@@ -12,6 +13,8 @@ import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { SourcePreview } from '@/components/page-parts/SourcePreview';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
+import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import {
@@ -59,6 +62,8 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
   const [showResults, setShowResults] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
 
+  const progress = useImageProgress(isConverting);
+
   const showQuality = formatsWithQuality.includes(targetFormat);
 
   const handleConvert = () =>
@@ -84,6 +89,7 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
     meta: true,
     enabled: images.length > 0 && !isConverting,
   });
+  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isConverting });
 
   if (images.length === 0 && !showResults) {
     return <EmptyState onImagesChange={setImages} />;
@@ -154,6 +160,17 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {isConverting && images.length > 0 && (
+          <JobProgressBar
+            items={images.map((img) => ({ path: img.path, name: img.name }))}
+            progress={progress}
+            running={isConverting}
+            verb="Converting"
+            itemName="image"
+            onCancel={() => invoke('cancel_image_jobs')}
+          />
+        )}
 
         <AnimatePresence>
           {showResults && results.length > 0 && (

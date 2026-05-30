@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { isCancelledError } from '@/lib/ffmpeg-errors';
 import type {
   ImageInfo,
   OperationHistoryItem,
@@ -35,15 +36,21 @@ export const usePipelineExecution = ({ images, onOperationComplete }: UsePipelin
       });
 
       const successful = results.filter((r) => r.success);
+      const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
+      const failCount = results.length - successful.length - cancelledCount;
       const totalSaved = results.reduce(
         (acc, r) => acc + Math.max(0, r.original_size - r.new_size),
         0
       );
 
-      processToast.finish({
-        successCount: successful.length,
-        failCount: results.length - successful.length,
-      });
+      if (cancelledCount > 0) {
+        processToast.cancelled(successful.length);
+      } else {
+        processToast.finish({
+          successCount: successful.length,
+          failCount,
+        });
+      }
 
       if (successful.length > 0 && onOperationComplete) {
         const dir = resolveOutputDir({

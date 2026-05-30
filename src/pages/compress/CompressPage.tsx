@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Minimize2, Zap, TrendingDown } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
@@ -12,6 +13,8 @@ import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { SourcePreview } from '@/components/page-parts/SourcePreview';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
+import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
@@ -54,6 +57,8 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
   const [showResults, setShowResults] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
 
+  const progress = useImageProgress(isCompressing);
+
   const handleCompress = () =>
     runCompression({
       images,
@@ -81,6 +86,7 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
     meta: true,
     enabled: images.length > 0 && !isCompressing,
   });
+  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isCompressing });
 
   if (images.length === 0 && !showResults) {
     return <EmptyState onImagesChange={setImages} />;
@@ -162,6 +168,17 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {isCompressing && images.length > 0 && (
+          <JobProgressBar
+            items={images.map((img) => ({ path: img.path, name: img.name }))}
+            progress={progress}
+            running={isCompressing}
+            verb="Compressing"
+            itemName="image"
+            onCancel={() => invoke('cancel_image_jobs')}
+          />
+        )}
 
         <AnimatePresence>
           {showResults && results.length > 0 && (

@@ -1,11 +1,12 @@
 use image::ImageReader;
-use rayon::prelude::*;
 use std::path::Path;
+use tauri::AppHandle;
 
 use crate::beautify::{apply_beautify, beautify_is_noop};
 use crate::convert::encode_image;
 use crate::crop::apply_crop;
 use crate::effects::{apply_pipeline_effect, effect_is_noop};
+use crate::image_jobs::run_image_batch;
 use crate::types::{PipelineOptions, PipelineResult};
 use crate::utils::{
     detect_format, get_format_extension, get_format_from_string, resolve_output_dir,
@@ -86,20 +87,30 @@ fn process_pipeline_sync(
 
 #[tauri::command]
 pub async fn process_pipeline_batch(
+    app: AppHandle,
     input_paths: Vec<String>,
     options: PipelineOptions,
 ) -> Vec<PipelineResult> {
-    input_paths
-        .par_iter()
-        .map(|path| {
-            process_pipeline_sync(path.clone(), &options).unwrap_or_else(|e| PipelineResult {
+    run_image_batch(
+        &app,
+        input_paths,
+        |path| {
+            process_pipeline_sync(path.to_string(), &options).unwrap_or_else(|e| PipelineResult {
                 success: false,
-                input_path: path.clone(),
+                input_path: path.to_string(),
                 output_path: None,
                 error: Some(e),
                 original_size: 0,
                 new_size: 0,
             })
-        })
-        .collect()
+        },
+        |path| PipelineResult {
+            success: false,
+            input_path: path.to_string(),
+            output_path: None,
+            error: Some("cancelled".into()),
+            original_size: 0,
+            new_size: 0,
+        },
+    )
 }

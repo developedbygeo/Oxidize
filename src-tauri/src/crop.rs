@@ -1,9 +1,10 @@
 use image::{DynamicImage, GenericImageView, ImageFormat, ImageReader};
-use rayon::prelude::*;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
+use crate::image_jobs::run_image_batch;
 use crate::types::{CropOptions, CropResult, PipelineCropParams};
 use crate::utils::{detect_format, get_format_from_string, resolve_output_dir, unique_output_path};
 
@@ -113,24 +114,36 @@ pub async fn crop_image(
 
 #[tauri::command]
 pub async fn crop_images_batch(
+    app: AppHandle,
     input_paths: Vec<String>,
     options: CropOptions,
 ) -> Vec<CropResult> {
-    input_paths
-        .par_iter()
-        .map(|path| {
+    run_image_batch(
+        &app,
+        input_paths,
+        |path| {
             let input = Path::new(path);
             let output_dir = resolve_output_dir(&options.output_dir, input);
-            crop_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| CropResult {
-                success: false,
-                input_path: path.clone(),
-                output_path: None,
-                error: Some(e),
-                original_size: 0,
-                new_size: 0,
+            crop_image_sync(path.to_string(), &options, &output_dir).unwrap_or_else(|e| {
+                CropResult {
+                    success: false,
+                    input_path: path.to_string(),
+                    output_path: None,
+                    error: Some(e),
+                    original_size: 0,
+                    new_size: 0,
+                }
             })
-        })
-        .collect()
+        },
+        |path| CropResult {
+            success: false,
+            input_path: path.to_string(),
+            output_path: None,
+            error: Some("cancelled".into()),
+            original_size: 0,
+            new_size: 0,
+        },
+    )
 }
 
 #[cfg(test)]

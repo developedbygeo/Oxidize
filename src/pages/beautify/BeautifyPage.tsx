@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
+import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
@@ -66,6 +69,8 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
   const [results, setResults] = useState<BeautifyResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isBeautifying, setIsBeautifying] = useState(false);
+
+  const progress = useImageProgress(isBeautifying);
 
   const previewImage = images[previewIndex];
   const { src: previewSrc, isLoading: isLoadingPreview } = useImagePreview(previewImage);
@@ -137,6 +142,7 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     meta: true,
     enabled: images.length > 0 && !isBeautifying,
   });
+  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isBeautifying });
 
   if (images.length === 0) {
     return (
@@ -195,6 +201,17 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                 size="sm"
               />
             </div>
+
+            {isBeautifying && images.length > 0 && (
+              <JobProgressBar
+                items={images.map((img) => ({ path: img.path, name: img.name }))}
+                progress={progress}
+                running={isBeautifying}
+                verb="Beautifying"
+                itemName="image"
+                onCancel={() => invoke('cancel_image_jobs')}
+              />
+            )}
 
             <AnimatePresence>
               {showResults && results.length > 0 && (

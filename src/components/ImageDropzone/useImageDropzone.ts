@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { useOsDrag } from '@/hooks/useOsDrag';
+import { fileSizeWarning } from '@/lib/file-size-warnings';
 import type { ImageInfo } from '@/types/image';
 
 type RustResult = { Ok: ImageInfo } | { Err: string } | ImageInfo;
@@ -47,6 +49,9 @@ export const useImageDropzone = ({
             return null;
           })
           .filter((img): img is ImageInfo => img !== null);
+
+        const warning = fileSizeWarning(processedImages, 'image');
+        if (warning) toast.warning(warning.title, { description: warning.description });
 
         onImagesChange([...images, ...processedImages]);
       } catch (error) {

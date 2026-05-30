@@ -4,6 +4,7 @@ mod compress;
 mod convert;
 mod crop;
 mod effects;
+mod image_jobs;
 mod loader;
 mod pipeline;
 mod types;
@@ -20,6 +21,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .manage(video::VideoJobs::default())
+        .manage(image_jobs::ImageJobs::default())
         .invoke_handler(tauri::generate_handler![
             // Loader
             loader::load_image_info,
@@ -57,6 +59,8 @@ pub fn run() {
             video::audio::extract_audio_batch,
             video::trim::trim_video,
             video::jobs::cancel_video_jobs,
+            // Image batch control
+            image_jobs::cancel_image_jobs,
             // Commands
             commands::open_folder,
             commands::reveal_file,

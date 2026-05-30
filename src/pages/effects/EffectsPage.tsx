@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Wand2 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
+import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
@@ -59,6 +62,8 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   const [showResults, setShowResults] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const progress = useImageProgress(isProcessing);
+
   const previewImage = images[previewIndex];
   const { src: previewSrc, isLoading: isLoadingPreview } = useImagePreview(previewImage);
 
@@ -101,6 +106,7 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     meta: true,
     enabled: images.length > 0 && !isProcessing,
   });
+  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isProcessing });
 
   if (images.length === 0) {
     return (
@@ -163,6 +169,17 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                 size="sm"
               />
             </div>
+
+            {isProcessing && images.length > 0 && (
+              <JobProgressBar
+                items={images.map((img) => ({ path: img.path, name: img.name }))}
+                progress={progress}
+                running={isProcessing}
+                verb="Applying"
+                itemName="image"
+                onCancel={() => invoke('cancel_image_jobs')}
+              />
+            )}
 
             <AnimatePresence>
               {showResults && results.length > 0 && (

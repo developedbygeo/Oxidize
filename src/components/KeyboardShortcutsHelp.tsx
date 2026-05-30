@@ -24,7 +24,7 @@ const groups: ShortcutGroup[] = [
     heading: 'Actions',
     items: [
       { keys: ['Ctrl', 'Enter'], label: 'Run the current page’s primary action' },
-      { keys: ['Esc'], label: 'Cancel a running video job' },
+      { keys: ['Esc'], label: 'Cancel a running image or video job' },
       { keys: ['Ctrl', '/'], label: 'Open this shortcuts panel' },
     ],
   },

@@ -1,9 +1,10 @@
 use image::{DynamicImage, ImageFormat, ImageReader};
-use rayon::prelude::*;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_png_oxipng, compress_webp};
+use crate::image_jobs::run_image_batch;
 use crate::types::{ConversionOptions, ConversionResult};
 use crate::utils::{
     get_format_extension, get_format_from_string, resolve_output_dir, unique_output_path,
@@ -84,15 +85,17 @@ pub async fn convert_image(
 
 #[tauri::command]
 pub async fn convert_images_batch(
+    app: AppHandle,
     input_paths: Vec<String>,
     options: ConversionOptions,
 ) -> Vec<ConversionResult> {
-    input_paths
-        .par_iter()
-        .map(|path| {
+    run_image_batch(
+        &app,
+        input_paths,
+        |path| {
             let input = Path::new(path);
             let output_dir = resolve_output_dir(&options.output_dir, input);
-            convert_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
+            convert_image_sync(path.to_string(), &options, &output_dir).unwrap_or_else(|e| {
                 ConversionResult {
                     success: false,
                     output_path: None,
@@ -101,6 +104,13 @@ pub async fn convert_images_batch(
                     new_size: 0,
                 }
             })
-        })
-        .collect()
+        },
+        |_path| ConversionResult {
+            success: false,
+            output_path: None,
+            error: Some("cancelled".into()),
+            original_size: 0,
+            new_size: 0,
+        },
+    )
 }

@@ -3,15 +3,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Crop, RotateCcw } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { fadeUp } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CropCanvas, type CropRect } from '@/components/CropCanvas';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
+import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import type { CropResult, ImageInfo, OperationHistoryItem } from '@/types/image';
@@ -70,6 +72,8 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
   const [results, setResults] = useState<CropResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
+
+  const progress = useImageProgress(isCropping);
 
   const image = images[0];
   const previewSrc = image ? convertFileSrc(image.path) : '';
@@ -145,6 +149,7 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
   const canCrop = rect.width > 0 && rect.height > 0 && !isCropping;
 
   useKeyboardShortcut('Enter', handleCrop, { meta: true, enabled: canCrop });
+  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isCropping });
 
   if (!image) {
     return <EmptyState onImagesChange={handleImagesChange} />;
@@ -203,6 +208,17 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
                 size="sm"
               />
             </div>
+
+            {isCropping && images.length > 0 && (
+              <JobProgressBar
+                items={images.map((img) => ({ path: img.path, name: img.name }))}
+                progress={progress}
+                running={isCropping}
+                verb="Cropping"
+                itemName="image"
+                onCancel={() => invoke('cancel_image_jobs')}
+              />
+            )}
 
             <AnimatePresence>
               {showResults && results.length > 0 && (

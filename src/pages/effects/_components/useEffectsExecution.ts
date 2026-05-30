@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { isCancelledError } from '@/lib/ffmpeg-errors';
 import { effectsList } from '@/types/image';
 import type { EffectResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import type { EffectsFormValues } from './schema';
@@ -40,8 +41,13 @@ export const runEffects = async ({
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
-    const failCount = results.length - successCount;
-    processToast.finish({ successCount, failCount });
+    const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount;
+    if (cancelledCount > 0) {
+      processToast.cancelled(successCount);
+    } else {
+      processToast.finish({ successCount, failCount });
+    }
 
     if (successCount > 0 && onOperationComplete) {
       const dir = resolveOutputDir({

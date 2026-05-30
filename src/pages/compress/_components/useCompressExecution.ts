@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { isCancelledError } from '@/lib/ffmpeg-errors';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import { compressionPresets, resolveQuality, type CompressFormValues } from './schema';
 
@@ -39,18 +40,23 @@ export const runCompression = async ({
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
-    const failCount = results.length - successCount;
+    const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount;
     const totalSavedBytes = results.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
     const avgSavingsPercent =
       results.length > 0
         ? results.reduce((acc, r) => acc + r.savings_percent, 0) / results.length
         : 0;
 
-    processToast.finish({
-      successCount,
-      failCount,
-      extraInfo: avgSavingsPercent > 0 ? `${avgSavingsPercent.toFixed(1)}% saved` : undefined,
-    });
+    if (cancelledCount > 0) {
+      processToast.cancelled(successCount);
+    } else {
+      processToast.finish({
+        successCount,
+        failCount,
+        extraInfo: avgSavingsPercent > 0 ? `${avgSavingsPercent.toFixed(1)}% saved` : undefined,
+      });
+    }
 
     if (successCount > 0 && onOperationComplete) {
       const dir = resolveOutputDir({

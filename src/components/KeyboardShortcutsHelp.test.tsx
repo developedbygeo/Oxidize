@@ -30,7 +30,7 @@ describe('KeyboardShortcutsHelp', () => {
   it('lists the action shortcuts (Ctrl+Enter, Esc, Ctrl+/)', () => {
     render(<KeyboardShortcutsHelp open onOpenChange={() => {}} />);
     expect(screen.getByText(/Run the current page/i)).toBeInTheDocument();
-    expect(screen.getByText(/Cancel a running video job/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cancel a running image or video job/i)).toBeInTheDocument();
     expect(screen.getByText(/Open this shortcuts panel/i)).toBeInTheDocument();
   });
 });
