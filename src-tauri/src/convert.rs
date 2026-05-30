@@ -135,3 +135,36 @@ pub async fn convert_images_batch(
         },
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    fn tiny_image() -> DynamicImage {
+        // 8x8 is large enough for AVIF's tile machinery to do something
+        // meaningful without making the test slow.
+        DynamicImage::ImageRgba8(RgbaImage::from_pixel(8, 8, Rgba([200, 100, 50, 255])))
+    }
+
+    #[test]
+    fn encode_to_avif_produces_a_valid_avif_payload() {
+        // Proves the `avif` feature is enabled and the fallback arm of
+        // `encode_image` routes AVIF through `image::write_to`.
+        //
+        // We only check encoding — AVIF decoding requires the `avif-native`
+        // feature which pulls in dav1d (a C library) and complicates
+        // cross-platform builds. AVIF here is output-only; loading an
+        // .avif file as a source will fail at the decode step.
+        let img = tiny_image();
+        let bytes = encode_image(&img, ImageFormat::Avif, 80)
+            .expect("AVIF encoding should succeed when the feature flag is on");
+        assert!(!bytes.is_empty(), "encoded AVIF payload must not be empty");
+
+        // AVIF is an ISO-BMFF container — bytes 4..8 spell "ftyp", a
+        // version-stable assertion that we produced an ISO-BMFF file
+        // without locking to a specific brand (avif / avis / mif1).
+        assert!(bytes.len() >= 12, "AVIF header missing");
+        assert_eq!(&bytes[4..8], b"ftyp", "expected ISO-BMFF ftyp box header");
+    }
+}

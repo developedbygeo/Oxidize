@@ -16,6 +16,7 @@ import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { useClipboardImagePaste } from '@/hooks/useClipboardImagePaste';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import type { CropResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
@@ -154,6 +155,15 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
 
   useKeyboardShortcut('Enter', handleCrop, { meta: true, enabled: canCrop });
   useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isCropping });
+
+  // Crop is single-image — a paste replaces the current image and resets
+  // the per-image rect via handleImagesChange.
+  useClipboardImagePaste({
+    onImagesAdded: (added) => {
+      if (added.length > 0) handleImagesChange([added[0]]);
+    },
+    enabled: !isCropping,
+  });
 
   if (!image) {
     return <EmptyState onImagesChange={handleImagesChange} />;

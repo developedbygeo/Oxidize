@@ -8,6 +8,7 @@ import { fadeIn, fadeSlide } from '@/lib/animations';
 import { Form } from '@/components/ui/form';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { useImageProgress } from '@/hooks/useImageProgress';
+import { useClipboardImagePaste } from '@/hooks/useClipboardImagePaste';
 import type { ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
   pipelineSchema,
@@ -68,6 +69,17 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
 
   const { isProcessing, execute } = usePipelineExecution({ images, onOperationComplete });
   const progress = useImageProgress(isProcessing);
+
+  useClipboardImagePaste({
+    onImagesAdded: (added) => {
+      setImages((prev) => {
+        const next = [...prev, ...added];
+        if (prev.length === 0) setPreviewIndex(0);
+        return next;
+      });
+    },
+    enabled: !isProcessing,
+  });
 
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
 

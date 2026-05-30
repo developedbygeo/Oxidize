@@ -1,4 +1,5 @@
 mod beautify;
+mod clipboard_temp;
 mod commands;
 mod compress;
 mod convert;
@@ -22,6 +23,12 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .manage(video::VideoJobs::default())
         .manage(image_jobs::ImageJobs::default())
+        .setup(|app| {
+            // One-shot: nuke any clipboard-paste blobs left over from a
+            // previous session. Best-effort; failures swallowed inside.
+            clipboard_temp::sweep_on_startup(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // Loader
             loader::load_image_info,

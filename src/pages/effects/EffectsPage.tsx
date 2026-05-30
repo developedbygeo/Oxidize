@@ -8,6 +8,7 @@ import { fadeUp } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
 import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { useClipboardImagePaste } from '@/hooks/useClipboardImagePaste';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -72,6 +73,17 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const progress = useImageProgress(isProcessing);
+
+  useClipboardImagePaste({
+    onImagesAdded: (added) => {
+      setImages((prev) => {
+        const next = [...prev, ...added];
+        if (prev.length === 0) setPreviewIndex(0);
+        return next;
+      });
+    },
+    enabled: !isProcessing,
+  });
 
   const previewImage = images[previewIndex];
   const { src: previewSrc, isLoading: isLoadingPreview } = useImagePreview(previewImage);

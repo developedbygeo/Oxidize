@@ -76,7 +76,16 @@ export interface BeautifyResult {
   new_size: number;
 }
 
-export type ImageFormat = 'png' | 'jpg' | 'jpeg' | 'webp' | 'gif' | 'bmp' | 'ico' | 'tiff';
+export type ImageFormat =
+  | 'png'
+  | 'jpg'
+  | 'jpeg'
+  | 'webp'
+  | 'gif'
+  | 'bmp'
+  | 'ico'
+  | 'tiff'
+  | 'avif';
 
 export const formatLabels: Record<ImageFormat, string> = {
   png: 'PNG',
@@ -87,6 +96,7 @@ export const formatLabels: Record<ImageFormat, string> = {
   bmp: 'BMP',
   ico: 'ICO',
   tiff: 'TIFF',
+  avif: 'AVIF',
 };
 
 export const formatDescriptions: Record<ImageFormat, string> = {
@@ -98,6 +108,7 @@ export const formatDescriptions: Record<ImageFormat, string> = {
   bmp: 'Uncompressed bitmap',
   ico: 'Icon format for Windows',
   tiff: 'High quality, large files',
+  avif: 'Best compression, slow to encode · output only',
 };
 
 export type OperationType =

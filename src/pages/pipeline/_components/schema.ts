@@ -19,7 +19,7 @@ export const pipelineSchema = z.object({
   ]),
 
   convertEnabled: z.boolean(),
-  convertFormat: z.enum(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico', 'tiff']),
+  convertFormat: z.enum(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico', 'tiff', 'avif']),
   convertQuality: z.number().min(1).max(100),
 
   compressEnabled: z.boolean(),
@@ -107,6 +107,7 @@ export const formatOptions: { value: ImageFormat; label: string }[] = [
   { value: 'webp', label: 'WebP' },
   { value: 'png', label: 'PNG' },
   { value: 'jpg', label: 'JPEG' },
+  { value: 'avif', label: 'AVIF' },
   { value: 'gif', label: 'GIF' },
   { value: 'bmp', label: 'BMP' },
   { value: 'tiff', label: 'TIFF' },

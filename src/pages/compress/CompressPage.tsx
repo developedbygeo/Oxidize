@@ -17,6 +17,7 @@ import { SourcePreview } from '@/components/page-parts/SourcePreview';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { useImageProgress } from '@/hooks/useImageProgress';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { useClipboardImagePaste } from '@/hooks/useClipboardImagePaste';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
@@ -68,6 +69,11 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
   const [isCompressing, setIsCompressing] = useState(false);
 
   const progress = useImageProgress(isCompressing);
+
+  useClipboardImagePaste({
+    onImagesAdded: (added) => setImages((prev) => [...prev, ...added]),
+    enabled: !isCompressing,
+  });
 
   const handleCompress = () =>
     runCompression({

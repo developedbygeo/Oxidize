@@ -71,7 +71,7 @@ describe('schema defaults parse cleanly', () => {
 
 describe('schemas reject representative invalid input', () => {
   it('convert: rejects an unknown format', () => {
-    expect(convertFormSchema.safeParse({ ...convertDefaults, targetFormat: 'avif' }).success).toBe(
+    expect(convertFormSchema.safeParse({ ...convertDefaults, targetFormat: 'heic' }).success).toBe(
       false
     );
   });

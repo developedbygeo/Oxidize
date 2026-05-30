@@ -13,6 +13,7 @@ pub fn get_format_from_string(format: &str) -> Option<ImageFormat> {
         "bmp" => Some(ImageFormat::Bmp),
         "ico" => Some(ImageFormat::Ico),
         "tiff" | "tif" => Some(ImageFormat::Tiff),
+        "avif" => Some(ImageFormat::Avif),
         _ => None,
     }
 }
@@ -26,6 +27,7 @@ pub fn get_format_extension(format: &ImageFormat) -> &'static str {
         ImageFormat::Bmp => "bmp",
         ImageFormat::Ico => "ico",
         ImageFormat::Tiff => "tiff",
+        ImageFormat::Avif => "avif",
         _ => "png",
     }
 }
@@ -230,6 +232,7 @@ mod tests {
         assert!(matches!(get_format_from_string("ico"), Some(ImageFormat::Ico)));
         assert!(matches!(get_format_from_string("tiff"), Some(ImageFormat::Tiff)));
         assert!(matches!(get_format_from_string("tif"), Some(ImageFormat::Tiff)));
+        assert!(matches!(get_format_from_string("avif"), Some(ImageFormat::Avif)));
     }
 
     #[test]
@@ -240,7 +243,7 @@ mod tests {
 
     #[test]
     fn format_from_string_returns_none_for_unknown() {
-        assert!(get_format_from_string("avif").is_none());
+        assert!(get_format_from_string("heic").is_none());
         assert!(get_format_from_string("").is_none());
     }
 
@@ -255,6 +258,7 @@ mod tests {
         assert_eq!(get_format_extension(&ImageFormat::Bmp), "bmp");
         assert_eq!(get_format_extension(&ImageFormat::Ico), "ico");
         assert_eq!(get_format_extension(&ImageFormat::Tiff), "tiff");
+        assert_eq!(get_format_extension(&ImageFormat::Avif), "avif");
     }
 
     #[test]
@@ -270,6 +274,7 @@ mod tests {
             ImageFormat::Bmp,
             ImageFormat::Ico,
             ImageFormat::Tiff,
+            ImageFormat::Avif,
         ] {
             let ext = get_format_extension(&fmt);
             assert!(
