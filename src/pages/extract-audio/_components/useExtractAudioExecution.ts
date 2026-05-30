@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { humanizeFfmpegError, isCancelledError } from '@/lib/ffmpeg-errors';
 import type { OperationHistoryItem } from '@/types/image';
 import {
   audioFormatLabels,
@@ -51,14 +52,19 @@ export const runExtractAudio = async ({
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
-    const failCount = results.length - successCount;
+    const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount;
     const formatLabel = audioFormatLabels[targetFormat];
 
-    processToast.finish({
-      successCount,
-      failCount,
-      extraInfo: lossless ? `→ ${formatLabel}` : `→ ${formatLabel} @ ${bitrateKbps} kbps`,
-    });
+    if (cancelledCount > 0) {
+      processToast.cancelled(successCount);
+    } else {
+      processToast.finish({
+        successCount,
+        failCount,
+        extraInfo: lossless ? `→ ${formatLabel}` : `→ ${formatLabel} @ ${bitrateKbps} kbps`,
+      });
+    }
 
     if (successCount > 0 && onOperationComplete) {
       const dir = resolveOutputDir({
@@ -78,7 +84,12 @@ export const runExtractAudio = async ({
     }
   } catch (error) {
     console.error('Audio extraction failed:', error);
-    processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
     onFinish([]);
+    if (isCancelledError(error)) {
+      processToast.cancelled(0);
+      return;
+    }
+    const friendly = humanizeFfmpegError(error);
+    processToast.error({ title: friendly.title, description: friendly.details });
   }
 };

@@ -1,13 +1,16 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Ban } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { isCancelledError } from '@/lib/ffmpeg-errors';
 
 type Size = 'sm' | 'md';
 
 export type ResultRow = {
   success: boolean;
   output_path: string | null;
+  /** Optional per-item error string. Used to distinguish cancellation. */
+  error?: string | null;
 };
 
 type ResultsListProps<T extends ResultRow> = {
@@ -67,42 +70,53 @@ function ResultsList<T extends ResultRow>({
 
   return (
     <div className={cn(styles.spacing, maxHeight, 'overflow-y-auto')}>
-      {results.map((result, index) => (
-        <button
-          key={index}
-          onClick={() => {
-            if (result.success && result.output_path) revealFile(result.output_path);
-          }}
-          disabled={!result.success || !result.output_path}
-          className={cn(
-            'w-full flex items-center justify-between transition-colors',
-            styles.row,
-            styles.text,
-            result.success
-              ? 'bg-muted/30 hover:bg-muted/50 cursor-pointer'
-              : 'bg-destructive/5 cursor-default'
-          )}
-        >
-          <div className={cn('flex items-center min-w-0', styles.gap)}>
-            <div
-              className={cn(
-                styles.dot,
-                'rounded-full shrink-0',
-                result.success ? 'bg-primary' : 'bg-destructive'
-              )}
-            />
-            <span className="truncate">
-              {result.output_path?.split(/[/\\]/).pop() || `Image ${index + 1}`}
-            </span>
-          </div>
-          {result.success && (
-            <div className={cn('flex items-center ml-2', styles.gap)}>
-              {children?.(result)}
-              <ExternalLink className={cn(styles.icon, 'text-muted-foreground')} />
+      {results.map((result, index) => {
+        const cancelled = !result.success && isCancelledError(result.error);
+        return (
+          <button
+            key={index}
+            onClick={() => {
+              if (result.success && result.output_path) revealFile(result.output_path);
+            }}
+            disabled={!result.success || !result.output_path}
+            className={cn(
+              'w-full flex items-center justify-between transition-colors',
+              styles.row,
+              styles.text,
+              result.success && 'bg-muted/30 hover:bg-muted/50 cursor-pointer',
+              !result.success && cancelled && 'bg-amber-500/5 cursor-default',
+              !result.success && !cancelled && 'bg-destructive/5 cursor-default'
+            )}
+          >
+            <div className={cn('flex items-center min-w-0', styles.gap)}>
+              <div
+                className={cn(
+                  styles.dot,
+                  'rounded-full shrink-0',
+                  result.success && 'bg-primary',
+                  !result.success && cancelled && 'bg-amber-500',
+                  !result.success && !cancelled && 'bg-destructive'
+                )}
+              />
+              <span className="truncate">
+                {result.output_path?.split(/[/\\]/).pop() || `Image ${index + 1}`}
+              </span>
             </div>
-          )}
-        </button>
-      ))}
+            {result.success && (
+              <div className={cn('flex items-center ml-2', styles.gap)}>
+                {children?.(result)}
+                <ExternalLink className={cn(styles.icon, 'text-muted-foreground')} />
+              </div>
+            )}
+            {cancelled && (
+              <div className={cn('flex items-center ml-2', styles.gap)}>
+                <span className={cn(styles.text, 'text-amber-500 font-medium')}>Cancelled</span>
+                <Ban className={cn(styles.icon, 'text-amber-500')} />
+              </div>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

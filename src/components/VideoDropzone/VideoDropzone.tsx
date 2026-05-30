@@ -28,12 +28,13 @@ const VideoDropzone = ({
   maxVideos = 20,
   className,
 }: VideoDropzoneProps) => {
-  const { isLoading, selectFiles, removeVideo, clearAll } = useVideoDropzone({
+  const { isLoading, isOsDragOver, selectFiles, removeVideo, clearAll } = useVideoDropzone({
     videos,
     onVideosChange,
     maxVideos,
   });
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [isHtmlDragOver, setIsHtmlDragOver] = useState(false);
+  const isDragOver = isHtmlDragOver || isOsDragOver;
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -41,12 +42,12 @@ const VideoDropzone = ({
         onClick={selectFiles}
         onDragOver={(e) => {
           e.preventDefault();
-          setIsDragOver(true);
+          setIsHtmlDragOver(true);
         }}
-        onDragLeave={() => setIsDragOver(false)}
+        onDragLeave={() => setIsHtmlDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
-          setIsDragOver(false);
+          setIsHtmlDragOver(false);
         }}
         className={cn(
           'group relative border border-dashed rounded-lg p-6 transition-colors cursor-pointer',

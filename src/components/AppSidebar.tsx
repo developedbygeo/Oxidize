@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowRightLeft,
@@ -48,6 +47,8 @@ type AppSidebarProps = {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onOpenHelp: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 };
 
 const navGroups: NavGroup[] = [
@@ -81,17 +82,14 @@ const footerItem: NavItem = {
   icon: History,
 };
 
-const AppSidebar = ({ currentPage, onNavigate, onOpenHelp }: AppSidebarProps) => {
-  const [isDark, setIsDark] = useState(() =>
-    document.documentElement.classList.contains('dark')
-  );
-
-  useEffect(() => {
-    if (isDark) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [isDark]);
-
-  const toggleTheme = () => setIsDark((prev) => !prev);
+const AppSidebar = ({
+  currentPage,
+  onNavigate,
+  onOpenHelp,
+  theme,
+  onToggleTheme,
+}: AppSidebarProps) => {
+  const isDark = theme === 'dark';
 
   const renderItem = (item: NavItem) => {
     const isActive = currentPage === item.id;
@@ -178,7 +176,7 @@ const AppSidebar = ({ currentPage, onNavigate, onOpenHelp }: AppSidebarProps) =>
           <span className="text-sm group-data-[collapsible=icon]:hidden">Shortcuts</span>
         </button>
         <button
-          onClick={toggleTheme}
+          onClick={onToggleTheme}
           className={cn(
             'flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors',
             'text-muted-foreground hover:text-foreground hover:bg-muted/50',

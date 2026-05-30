@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useOsDrag } from '@/hooks/useOsDrag';
 import type { VideoInfo } from '@/types/video';
 
 type RustResult = { Ok: VideoInfo } | { Err: string };
@@ -81,28 +81,7 @@ export const useVideoDropzone = ({
     }
   }, [addPaths]);
 
-  // OS-native drag-and-drop. Tauri's window fires drop events with real file
-  // paths the webview wouldn't otherwise get from HTML drag events.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    getCurrentWindow()
-      .onDragDropEvent((event) => {
-        if (event.payload.type !== 'drop') return;
-        const matching = event.payload.paths.filter(matchesVideoExtension);
-        if (matching.length > 0) void addPaths(matching);
-      })
-      .then((fn) => {
-        if (cancelled) fn();
-        else unlisten = fn;
-      })
-      .catch((err) => console.error('Failed to register drag-drop listener:', err));
-
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [addPaths]);
+  const { isOsDragOver } = useOsDrag({ onDrop: addPaths, accept: matchesVideoExtension });
 
   const removeVideo = useCallback(
     (index: number) => onVideosChange(videos.filter((_, i) => i !== index)),
@@ -111,5 +90,5 @@ export const useVideoDropzone = ({
 
   const clearAll = useCallback(() => onVideosChange([]), [onVideosChange]);
 
-  return { isLoading, selectFiles, removeVideo, clearAll };
+  return { isLoading, isOsDragOver, selectFiles, removeVideo, clearAll };
 };

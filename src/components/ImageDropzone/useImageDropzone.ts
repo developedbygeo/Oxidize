@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useOsDrag } from '@/hooks/useOsDrag';
 import type { ImageInfo } from '@/types/image';
 
 type RustResult = { Ok: ImageInfo } | { Err: string } | ImageInfo;
@@ -73,29 +73,10 @@ export const useImageDropzone = ({
     }
   }, [addPaths]);
 
-  // OS-native drag-and-drop. The Tauri window fires drop events with paths
-  // the webview can use directly; the HTML drag handlers in the dropzone
-  // component drive only the visual hover state.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    getCurrentWindow()
-      .onDragDropEvent((event) => {
-        if (event.payload.type !== 'drop') return;
-        const matching = event.payload.paths.filter(matchesImageExtension);
-        if (matching.length > 0) void addPaths(matching);
-      })
-      .then((fn) => {
-        if (cancelled) fn();
-        else unlisten = fn;
-      })
-      .catch((err) => console.error('Failed to register drag-drop listener:', err));
-
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [addPaths]);
+  // OS-native drag-and-drop. The Tauri window fires drop events with real
+  // paths and also signals enter/over/leave so the dropzone can light up
+  // before the drop happens — HTML drag events don't fire for native OS drags.
+  const { isOsDragOver } = useOsDrag({ onDrop: addPaths, accept: matchesImageExtension });
 
   const removeImage = useCallback(
     (index: number) => onImagesChange(images.filter((_, i) => i !== index)),
@@ -104,5 +85,5 @@ export const useImageDropzone = ({
 
   const clearAll = useCallback(() => onImagesChange([]), [onImagesChange]);
 
-  return { isLoading, selectFiles, removeImage, clearAll };
+  return { isLoading, isOsDragOver, selectFiles, removeImage, clearAll };
 };

@@ -78,7 +78,7 @@ describe('createProcessToast.finish', () => {
 });
 
 describe('createProcessToast.error', () => {
-  it('shows a custom error message when provided', () => {
+  it('shows a custom error message when provided as a string', () => {
     const t = createProcessToast({ progressLabel: 'P', doneLabel: 'Done', itemCount: 1 });
     t.error('Disk full');
     expect(mockedToast.error).toHaveBeenCalledWith('Done failed', {
@@ -98,6 +98,68 @@ describe('createProcessToast.error', () => {
     expect(mockedToast.error).toHaveBeenCalledWith('Done failed', {
       id: 'mock-toast-id',
       description: 'No videos were processed successfully',
+    });
+  });
+
+  it('accepts a structured { title, description } object', () => {
+    const t = createProcessToast({ progressLabel: 'P', doneLabel: 'Done', itemCount: 1 });
+    t.error({ title: 'Permission denied', description: 'EACCES on /out/foo.mp4' });
+    expect(mockedToast.error).toHaveBeenCalledWith('Permission denied', {
+      id: 'mock-toast-id',
+      description: 'EACCES on /out/foo.mp4',
+    });
+  });
+
+  it('uses the default failTitle when the title is omitted from the object form', () => {
+    const t = createProcessToast({ progressLabel: 'P', doneLabel: 'Done', itemCount: 1 });
+    t.error({ description: 'something went wrong' });
+    expect(mockedToast.error).toHaveBeenCalledWith('Done failed', {
+      id: 'mock-toast-id',
+      description: 'something went wrong',
+    });
+  });
+});
+
+describe('createProcessToast.cancelled', () => {
+  it('shows a warning with a no-progress description when nothing finished', () => {
+    const t = createProcessToast({
+      progressLabel: 'P',
+      doneLabel: 'Conversion',
+      itemCount: 3,
+      itemName: 'video',
+    });
+    t.cancelled(0);
+    expect(mockedToast.warning).toHaveBeenCalledWith('Conversion cancelled', {
+      id: 'mock-toast-id',
+      description: 'No videos were processed before cancel',
+    });
+  });
+
+  it('reports partial progress when some items finished', () => {
+    const t = createProcessToast({
+      progressLabel: 'P',
+      doneLabel: 'Trim',
+      itemCount: 4,
+      itemName: 'video',
+    });
+    t.cancelled(2);
+    expect(mockedToast.warning).toHaveBeenCalledWith('Trim cancelled', {
+      id: 'mock-toast-id',
+      description: '2 videos finished before cancel',
+    });
+  });
+
+  it('singularises the description when only one item finished', () => {
+    const t = createProcessToast({
+      progressLabel: 'P',
+      doneLabel: 'Resize',
+      itemCount: 3,
+      itemName: 'image',
+    });
+    t.cancelled(1);
+    expect(mockedToast.warning).toHaveBeenCalledWith('Resize cancelled', {
+      id: 'mock-toast-id',
+      description: '1 image finished before cancel',
     });
   });
 });

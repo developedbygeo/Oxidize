@@ -25,13 +25,15 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invoke(...args),
 }));
 
+const sonnerToast = {
+  loading: vi.fn(() => 'toast-id'),
+  success: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+};
+
 vi.mock('sonner', () => ({
-  toast: {
-    loading: vi.fn(() => 'toast-id'),
-    success: vi.fn(),
-    warning: vi.fn(),
-    error: vi.fn(),
-  },
+  toast: sonnerToast,
 }));
 
 const { runConversion } = await import('./convert/_components/useConvertExecution');
@@ -85,6 +87,10 @@ const noopCallbacks = () => ({
 
 beforeEach(() => {
   invoke.mockReset();
+  sonnerToast.loading.mockClear();
+  sonnerToast.success.mockClear();
+  sonnerToast.warning.mockClear();
+  sonnerToast.error.mockClear();
 });
 
 // ──────────────────────────── runConversion ────────────────────────────
@@ -312,6 +318,66 @@ describe('runCrop', () => {
 });
 
 // ──────────────────────────── runVideoConvert ────────────────────────────
+
+describe('runVideoConvert cancellation routing', () => {
+  it('fires the cancelled warning toast when any result has the cancellation sentinel', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/clip.mp4',
+        output_path: null,
+        error: 'cancelled',
+        original_size: 10_000,
+        new_size: 0,
+      },
+    ]);
+
+    await runVideoConvert({
+      videos: [video()],
+      values: { targetFormat: 'mp4', mode: 'remux', crf: 23, outputDir: null },
+      ...noopCallbacks(),
+    });
+
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Conversion cancelled',
+      expect.objectContaining({ description: expect.stringContaining('cancel') })
+    );
+    expect(sonnerToast.success).not.toHaveBeenCalled();
+  });
+
+  it('humanises the catch-path error before showing the failure toast', async () => {
+    invoke.mockRejectedValue(new Error('Permission denied'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await runVideoConvert({
+      videos: [video()],
+      values: { targetFormat: 'mp4', mode: 'remux', crf: 23, outputDir: null },
+      ...noopCallbacks(),
+    });
+
+    expect(sonnerToast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/Permission denied/),
+      expect.objectContaining({ description: expect.any(String) })
+    );
+  });
+
+  it('routes to cancelled (not failure) when the catch path sees the cancellation sentinel', async () => {
+    invoke.mockRejectedValue('cancelled');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await runVideoConvert({
+      videos: [video()],
+      values: { targetFormat: 'mp4', mode: 'remux', crf: 23, outputDir: null },
+      ...noopCallbacks(),
+    });
+
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Conversion cancelled',
+      expect.any(Object)
+    );
+    expect(sonnerToast.error).not.toHaveBeenCalled();
+  });
+});
 
 describe('runVideoConvert', () => {
   it('invokes convert_videos_batch with the right command and history type', async () => {

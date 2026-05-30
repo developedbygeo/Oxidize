@@ -20,12 +20,13 @@ const ImageDropzone = ({
   maxImages = 50,
   className,
 }: ImageDropzoneProps) => {
-  const { isLoading, selectFiles, removeImage, clearAll } = useImageDropzone({
+  const { isLoading, isOsDragOver, selectFiles, removeImage, clearAll } = useImageDropzone({
     images,
     onImagesChange,
     maxImages,
   });
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [isHtmlDragOver, setIsHtmlDragOver] = useState(false);
+  const isDragOver = isHtmlDragOver || isOsDragOver;
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -33,12 +34,12 @@ const ImageDropzone = ({
         onClick={selectFiles}
         onDragOver={(e) => {
           e.preventDefault();
-          setIsDragOver(true);
+          setIsHtmlDragOver(true);
         }}
-        onDragLeave={() => setIsDragOver(false)}
+        onDragLeave={() => setIsHtmlDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
-          setIsDragOver(false);
+          setIsHtmlDragOver(false);
         }}
         className={cn(
           'group relative border border-dashed rounded-lg p-6 transition-colors cursor-pointer',

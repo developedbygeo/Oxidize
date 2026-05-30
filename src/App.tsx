@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
@@ -7,6 +7,7 @@ import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp';
 import { useCtrlDigitShortcut } from '@/hooks/useCtrlDigitShortcut';
 import { useHistory } from '@/hooks/useHistory';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { useSettings } from '@/hooks/useSettings';
 import { useWindowTitle } from '@/hooks/useWindowTitle';
 import { HistoryPage } from '@/pages/history';
 import { navOrder, operationPages, pageMeta, type Page } from '@/pages/registry';
@@ -15,10 +16,44 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState<Page>('convert');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const { history, addItem, removeItem, clear } = useHistory();
+  const { settings, isLoaded: settingsLoaded, setSetting } = useSettings();
+
+  // Restore the last-visited page once settings load. Done in an effect so
+  // we don't block first render — there's a brief flash of the default page
+  // (`convert`) before snapping to the saved one. Acceptable for now.
+  useEffect(() => {
+    if (settingsLoaded && settings.lastPage && settings.lastPage !== currentPage) {
+      setCurrentPage(settings.lastPage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoaded]);
+
+  // Persist page changes once the initial restore has happened. Without this
+  // gate, the first effect would write `convert` to disk before we get a
+  // chance to read the user's saved page.
+  const navigate = useCallback(
+    (page: Page) => {
+      setCurrentPage(page);
+      if (settingsLoaded) setSetting('lastPage', page);
+    },
+    [settingsLoaded, setSetting]
+  );
+
+  // Apply the loaded theme to <html>. Mirrors what AppSidebar's local state
+  // used to do — but now driven by persisted settings.
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    if (settings.theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  }, [settings.theme, settingsLoaded]);
+
+  const toggleTheme = useCallback(() => {
+    setSetting('theme', settings.theme === 'dark' ? 'light' : 'dark');
+  }, [settings.theme, setSetting]);
 
   useWindowTitle();
   useCtrlDigitShortcut((digit) => {
-    if (digit <= navOrder.length) setCurrentPage(navOrder[digit - 1]);
+    if (digit <= navOrder.length) navigate(navOrder[digit - 1]);
   });
   useKeyboardShortcut('/', () => setIsHelpOpen((open) => !open), { meta: true });
 
@@ -38,8 +73,10 @@ const App = () => {
     <SidebarProvider defaultOpen>
       <AppSidebar
         currentPage={currentPage}
-        onNavigate={setCurrentPage}
+        onNavigate={navigate}
         onOpenHelp={() => setIsHelpOpen(true)}
+        theme={settings.theme}
+        onToggleTheme={toggleTheme}
       />
       <SidebarInset>
         <header className="flex h-16 items-center gap-3 px-6 border-b border-border/50">

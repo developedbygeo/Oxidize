@@ -47,11 +47,21 @@ export const createProcessToast = ({
       });
     },
 
-    error: (message?: string) => {
-      toast.error(failTitle, {
+    error: (input?: string | { title?: string; description?: string }) => {
+      const { title, description } =
+        typeof input === 'string' ? { title: undefined, description: input } : input ?? {};
+      toast.error(title ?? failTitle, {
         id: toastId,
-        description: message || `No ${itemName}s were processed successfully`,
+        description: description || `No ${itemName}s were processed successfully`,
       });
+    },
+
+    cancelled: (successCount = 0) => {
+      const description =
+        successCount > 0
+          ? `${successCount} ${itemName}${successCount !== 1 ? 's' : ''} finished before cancel`
+          : `No ${itemName}s were processed before cancel`;
+      toast.warning(`${doneLabel} cancelled`, { id: toastId, description });
     },
 
     finish: ({ successCount, failCount, extraInfo }: ProcessResult) => {

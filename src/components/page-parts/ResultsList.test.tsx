@@ -75,4 +75,25 @@ describe('ResultsList', () => {
       expect.objectContaining({ description: expect.any(String) })
     );
   });
+
+  it('labels rows with the cancellation sentinel as Cancelled', () => {
+    render(
+      <ResultsList
+        results={[
+          { success: false, output_path: null, error: 'cancelled' },
+          { success: false, output_path: null, error: 'Some real ffmpeg failure' },
+        ]}
+      />
+    );
+    // Cancelled label appears once, only for the cancelled row.
+    const cancelledLabels = screen.getAllByText('Cancelled');
+    expect(cancelledLabels).toHaveLength(1);
+  });
+
+  it('treats a row without an error string as a generic failure', () => {
+    render(
+      <ResultsList results={[{ success: false, output_path: null }]} />
+    );
+    expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
+  });
 });

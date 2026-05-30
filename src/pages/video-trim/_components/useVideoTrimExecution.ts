@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
+import { humanizeFfmpegError, isCancelledError } from '@/lib/ffmpeg-errors';
 import { formatVideoDuration } from '@/types/video';
 import type { OperationHistoryItem } from '@/types/image';
 import type { VideoInfo, VideoResult, VideoTrimOptions } from '@/types/video';
@@ -79,17 +80,22 @@ export const runVideoTrim = async ({
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
-    const failCount = results.length - successCount;
+    const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount;
     const firstTrim = trims[videos[0].path];
     const sample = firstTrim
       ? `${formatVideoDuration(firstTrim.start)}–${formatVideoDuration(firstTrim.end)}`
       : '';
 
-    processToast.finish({
-      successCount,
-      failCount,
-      extraInfo: accurate ? `accurate · ${sample}` : `fast · ${sample}`,
-    });
+    if (cancelledCount > 0) {
+      processToast.cancelled(successCount);
+    } else {
+      processToast.finish({
+        successCount,
+        failCount,
+        extraInfo: accurate ? `accurate · ${sample}` : `fast · ${sample}`,
+      });
+    }
 
     if (successCount > 0 && onOperationComplete) {
       const dir = resolveOutputDir({
@@ -107,7 +113,12 @@ export const runVideoTrim = async ({
     }
   } catch (error) {
     console.error('Video trim failed:', error);
-    processToast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
     onFinish(results);
+    if (isCancelledError(error)) {
+      processToast.cancelled(0);
+      return;
+    }
+    const friendly = humanizeFfmpegError(error);
+    processToast.error({ title: friendly.title, description: friendly.details });
   }
 };
