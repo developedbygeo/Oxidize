@@ -16,6 +16,8 @@ import type {
   EffectResult,
   ImageInfo,
   OperationHistoryItem,
+  ResizeResult,
+  RotateResult,
 } from '@/types/image';
 import type { VideoInfo, VideoResult } from '@/types/video';
 
@@ -41,6 +43,8 @@ const { runCompression } = await import('./compress/_components/useCompressExecu
 const { runBeautify } = await import('./beautify/_components/useBeautifyExecution');
 const { runEffects } = await import('./effects/_components/useEffectsExecution');
 const { runCrop } = await import('./crop/_components/useCropExecution');
+const { runRotate } = await import('./rotate/_components/useRotateExecution');
+const { runResize } = await import('./resize/_components/useResizeExecution');
 const { runVideoConvert } = await import('./video-convert/_components/useVideoConvertExecution');
 const { runVideoCompress } = await import('./video-compress/_components/useVideoCompressExecution');
 const { runVideoResize } = await import('./video-resize/_components/useVideoResizeExecution');
@@ -346,6 +350,201 @@ describe('runCrop', () => {
     });
     expect(cb.onOperationComplete).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'crop', details: 'Cropped to 101×80' })
+    );
+  });
+});
+
+// ──────────────────────────── runRotate ────────────────────────────
+
+describe('runRotate', () => {
+  it('returns early without invoking when params are a no-op', async () => {
+    const cb = noopCallbacks();
+    await runRotate({
+      images: [image()],
+      values: {
+        rotationDegrees: 0,
+        flipHorizontal: false,
+        flipVertical: false,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...cb,
+    });
+    expect(cb.onStart).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('forwards rotation + flips with snake-case keys to rotate_images_batch', async () => {
+    const result: RotateResult = {
+      ...baseResult({}),
+      input_path: '/in/photo.png',
+      original_size: 1000,
+      new_size: 1000,
+      error: null,
+    };
+    invoke.mockResolvedValue([result]);
+
+    const cb = noopCallbacks();
+    await runRotate({
+      images: [image()],
+      values: {
+        rotationDegrees: 90,
+        flipHorizontal: true,
+        flipVertical: false,
+        outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...cb,
+    });
+
+    expect(invoke).toHaveBeenCalledWith('rotate_images_batch', {
+      inputPaths: ['/in/photo.png'],
+      options: {
+        rotation_degrees: 90,
+        flip_horizontal: true,
+        flip_vertical: false,
+        output_dir: '/out',
+        naming: null,
+      },
+    });
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'rotate',
+        // Summary string mirrors the rotate-then-flip composition order.
+        details: 'Rotate 90° · Flip horizontal',
+      })
+    );
+  });
+
+  it('omits the rotation token from history details when only flips are set', async () => {
+    invoke.mockResolvedValue([
+      { ...baseResult({}), input_path: '/in/photo.png', original_size: 1, new_size: 1, error: null },
+    ] as RotateResult[]);
+    const cb = noopCallbacks();
+    await runRotate({
+      images: [image()],
+      values: {
+        rotationDegrees: 0,
+        flipHorizontal: false,
+        flipVertical: true,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...cb,
+    });
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'rotate', details: 'Flip vertical' })
+    );
+  });
+});
+
+// ──────────────────────────── runResize ────────────────────────────
+
+describe('runResize', () => {
+  it('returns early without invoking when both dimensions are null', async () => {
+    const cb = noopCallbacks();
+    await runResize({
+      images: [image()],
+      values: {
+        width: null,
+        height: null,
+        fit: 'cover',
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...cb,
+    });
+    expect(cb.onStart).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('forwards both dimensions + fit to resize_images_batch with snake-case keys', async () => {
+    const result: ResizeResult = {
+      ...baseResult({}),
+      input_path: '/in/photo.png',
+      original_size: 1000,
+      new_size: 800,
+      error: null,
+    };
+    invoke.mockResolvedValue([result]);
+
+    const cb = noopCallbacks();
+    await runResize({
+      images: [image()],
+      values: {
+        width: 1080,
+        height: 1080,
+        fit: 'cover',
+        outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...cb,
+    });
+
+    expect(invoke).toHaveBeenCalledWith('resize_images_batch', {
+      inputPaths: ['/in/photo.png'],
+      options: {
+        width: 1080,
+        height: 1080,
+        fit: 'cover',
+        output_dir: '/out',
+        naming: null,
+      },
+    });
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'resize',
+        details: 'Resize to 1080×1080 (cover)',
+      })
+    );
+  });
+
+  it('writes a single-axis history detail when only width is set', async () => {
+    invoke.mockResolvedValue([
+      { ...baseResult({}), input_path: '/in/photo.png', original_size: 1, new_size: 1, error: null },
+    ] as ResizeResult[]);
+    const cb = noopCallbacks();
+    await runResize({
+      images: [image()],
+      values: {
+        width: 1920,
+        height: null,
+        fit: 'cover',
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...cb,
+    });
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'resize', details: 'Resize width to 1920px' })
+    );
+  });
+
+  it('writes a single-axis history detail when only height is set', async () => {
+    invoke.mockResolvedValue([
+      { ...baseResult({}), input_path: '/in/photo.png', original_size: 1, new_size: 1, error: null },
+    ] as ResizeResult[]);
+    const cb = noopCallbacks();
+    await runResize({
+      images: [image()],
+      values: {
+        width: null,
+        height: 1080,
+        fit: 'cover',
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...cb,
+    });
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'resize', details: 'Resize height to 1080px' })
     );
   });
 });

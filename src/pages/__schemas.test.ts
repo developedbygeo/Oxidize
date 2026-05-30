@@ -27,6 +27,14 @@ import {
   defaultFormValues as cropDefaults,
 } from './crop/_components/schema';
 import {
+  rotateFormSchema,
+  defaultFormValues as rotateDefaults,
+} from './rotate/_components/schema';
+import {
+  resizeFormSchema,
+  defaultFormValues as resizeDefaults,
+} from './resize/_components/schema';
+import {
   pipelineSchema,
   defaultValues as pipelineDefaults,
 } from './pipeline/_components/schema';
@@ -58,6 +66,8 @@ describe('schema defaults parse cleanly', () => {
     ['beautify', beautifyFormSchema, beautifyDefaults],
     ['effects', effectsFormSchema, effectsDefaults],
     ['crop', cropFormSchema, cropDefaults],
+    ['rotate', rotateFormSchema, rotateDefaults],
+    ['resize', resizeFormSchema, resizeDefaults],
     ['pipeline', pipelineSchema, pipelineDefaults],
     ['video-convert', videoConvertFormSchema, videoConvertDefaults],
     ['video-compress', videoCompressFormSchema, videoCompressDefaults],
@@ -106,6 +116,33 @@ describe('schemas reject representative invalid input', () => {
 
   it('crop: rejects negative coords', () => {
     expect(cropFormSchema.safeParse({ ...cropDefaults, x: -1 }).success).toBe(false);
+  });
+
+  it('rotate: rejects an arbitrary angle (only quarter-turns allowed)', () => {
+    // 45° is the canonical "not a quarter turn" — schema is z.union of literals.
+    expect(
+      rotateFormSchema.safeParse({ ...rotateDefaults, rotationDegrees: 45 }).success
+    ).toBe(false);
+  });
+
+  it('resize: rejects when both dimensions are null', () => {
+    // The refine() guards against no-op submissions before they hit the
+    // backend — at least one of width/height must be set.
+    expect(
+      resizeFormSchema.safeParse({ ...resizeDefaults, width: null, height: null }).success
+    ).toBe(false);
+  });
+
+  it('resize: rejects an absurd dimension above the 16k cap', () => {
+    expect(
+      resizeFormSchema.safeParse({ ...resizeDefaults, width: 99_999 }).success
+    ).toBe(false);
+  });
+
+  it('resize: accepts a single-axis request (height auto-derives)', () => {
+    expect(
+      resizeFormSchema.safeParse({ ...resizeDefaults, width: 1080, height: null }).success
+    ).toBe(true);
   });
 
   it('pipeline: rejects below-min compressQuality', () => {

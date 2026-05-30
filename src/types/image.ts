@@ -118,6 +118,8 @@ export type OperationType =
   | 'beautify'
   | 'effects'
   | 'crop'
+  | 'rotate'
+  | 'resize'
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'
@@ -175,6 +177,49 @@ export interface CropOptions {
 }
 
 export interface CropResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+/** Aspect-mismatch policy for resize when both width and height are set.
+ *  Mirrors the Rust `FitMode` enum (kebab-case wire format). */
+export type FitMode = 'stretch' | 'contain' | 'cover';
+
+export interface ResizeOptions {
+  width: number | null;
+  height: number | null;
+  fit?: FitMode;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface ResizeResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+/** Quarter-turn rotation in degrees. Arbitrary angles aren't supported —
+ *  they'd require interpolation + canvas-resize policy that doesn't fit
+ *  the "fast batch orient" use case. */
+export type RotationDegrees = 0 | 90 | 180 | 270;
+
+export interface RotateOptions {
+  rotation_degrees: RotationDegrees;
+  flip_horizontal: boolean;
+  flip_vertical: boolean;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface RotateResult {
   success: boolean;
   input_path: string;
   output_path: string | null;

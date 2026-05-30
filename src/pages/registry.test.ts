@@ -8,6 +8,8 @@ const allPages: Page[] = [
   'beautify',
   'effects',
   'crop',
+  'rotate',
+  'resize',
   'pipeline',
   'video-convert',
   'video-compress',

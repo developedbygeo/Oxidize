@@ -4,6 +4,8 @@ import { CompressPage } from '@/pages/compress';
 import { BeautifyPage } from '@/pages/beautify';
 import { EffectsPage } from '@/pages/effects';
 import { CropPage } from '@/pages/crop';
+import { RotatePage } from '@/pages/rotate';
+import { ResizePage } from '@/pages/resize';
 import { PipelinePage } from '@/pages/pipeline';
 import { VideoConvertPage } from '@/pages/video-convert';
 import { VideoCompressPage } from '@/pages/video-compress';
@@ -18,6 +20,8 @@ export type Page =
   | 'beautify'
   | 'effects'
   | 'crop'
+  | 'rotate'
+  | 'resize'
   | 'pipeline'
   | 'video-convert'
   | 'video-compress'
@@ -69,6 +73,16 @@ export const pageMeta: Record<Page, PageMeta> = {
     subtitle: 'Trim an image to a specific region or aspect ratio',
     navLabel: 'Crop',
   },
+  rotate: {
+    title: 'Rotate Images',
+    subtitle: 'Quarter-turn rotation and flips, applied across a batch',
+    navLabel: 'Rotate',
+  },
+  resize: {
+    title: 'Resize Images',
+    subtitle: 'Scale to a target width, height, or both',
+    navLabel: 'Resize',
+  },
   pipeline: {
     title: 'Pipeline',
     subtitle: 'Chain multiple operations together',
@@ -113,10 +127,10 @@ export const navOrder: Page[] = [
   'beautify',
   'effects',
   'crop',
+  'rotate',
+  'resize',
   'pipeline',
   'video-convert',
-  'video-compress',
-  'video-resize',
 ];
 
 export const operationPages: Record<OperationPageId, ComponentType<OperationPageProps>> = {
@@ -125,6 +139,8 @@ export const operationPages: Record<OperationPageId, ComponentType<OperationPage
   beautify: BeautifyPage,
   effects: EffectsPage,
   crop: CropPage,
+  rotate: RotatePage,
+  resize: ResizePage,
   pipeline: PipelinePage,
   'video-convert': VideoConvertPage,
   'video-compress': VideoCompressPage,

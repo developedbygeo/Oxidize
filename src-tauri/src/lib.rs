@@ -9,6 +9,8 @@ mod image_jobs;
 mod loader;
 mod metadata;
 mod pipeline;
+mod resize;
+mod rotate;
 mod types;
 mod utils;
 mod video;
@@ -52,6 +54,12 @@ pub fn run() {
             // Crop
             crop::crop_image,
             crop::crop_images_batch,
+            // Rotate
+            rotate::rotate_image,
+            rotate::rotate_images_batch,
+            // Resize
+            resize::resize_image,
+            resize::resize_images_batch,
             // Pipeline
             pipeline::process_pipeline_batch,
             // Video

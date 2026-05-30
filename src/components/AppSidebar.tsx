@@ -13,6 +13,8 @@ import {
   Crop,
   Maximize2,
   Music,
+  RotateCw,
+  Scaling,
   Scissors,
   Keyboard,
 } from 'lucide-react';
@@ -60,6 +62,8 @@ const navGroups: NavGroup[] = [
       { id: 'beautify', label: 'Beautify', description: 'Enhance images', icon: Sparkles },
       { id: 'effects', label: 'Effects', description: 'Apply filters', icon: Wand2 },
       { id: 'crop', label: 'Crop', description: 'Trim a region', icon: Crop },
+      { id: 'rotate', label: 'Rotate', description: 'Rotate + flip', icon: RotateCw },
+      { id: 'resize', label: 'Resize', description: 'Scale dimensions', icon: Scaling },
       { id: 'pipeline', label: 'Pipeline', description: 'Chain operations', icon: Workflow },
     ],
   },

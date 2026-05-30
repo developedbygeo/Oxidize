@@ -124,6 +124,72 @@ pub struct CropResult {
     pub new_size: u64,
 }
 
+/// How to handle aspect-ratio mismatch when both target width and height are
+/// specified. Ignored when only one dimension is given (the other auto-scales
+/// to preserve aspect ratio).
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum FitMode {
+    /// Stretch to exact target dimensions, ignoring source aspect ratio.
+    /// Distorts the image — rarely the right answer; here for completeness.
+    Stretch,
+    /// Shrink to fit *inside* the target box, preserving aspect ratio. The
+    /// output is smaller than the target on one axis — no
+    /// padding/letterboxing in this v1.
+    Contain,
+    /// Scale to *fill* the target box, then centre-crop the overflow. Output
+    /// matches the target exactly. The right answer for social-media presets
+    /// (e.g. landscape photo → 1080×1080 square).
+    #[default]
+    Cover,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ResizeOptions {
+    /// Target width in pixels. When None, computed from `height` + source AR.
+    pub width: Option<u32>,
+    /// Target height in pixels. When None, computed from `width` + source AR.
+    pub height: Option<u32>,
+    /// Aspect-mismatch policy when *both* width and height are set.
+    #[serde(default)]
+    pub fit: FitMode,
+    pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResizeResult {
+    pub success: bool,
+    pub input_path: String,
+    pub output_path: Option<String>,
+    pub error: Option<String>,
+    pub original_size: u64,
+    pub new_size: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RotateOptions {
+    /// Quarter-turn rotation in degrees: 0 / 90 / 180 / 270. Anything else
+    /// is treated as 0 (no rotation) — see `rotate::apply_rotate_flip`.
+    pub rotation_degrees: u16,
+    pub flip_horizontal: bool,
+    pub flip_vertical: bool,
+    pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RotateResult {
+    pub success: bool,
+    pub input_path: String,
+    pub output_path: Option<String>,
+    pub error: Option<String>,
+    pub original_size: u64,
+    pub new_size: u64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EffectOptions {
     pub effect: String,

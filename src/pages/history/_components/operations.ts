@@ -10,7 +10,9 @@ import {
   Crop,
   Maximize2,
   Music,
+  RotateCw,
   Scissors,
+  Scaling,
 } from 'lucide-react';
 import type { OperationType } from '@/types/image';
 
@@ -20,6 +22,8 @@ export const operationIcons: Record<OperationType, LucideIcon> = {
   beautify: Sparkles,
   effects: Wand2,
   crop: Crop,
+  rotate: RotateCw,
+  resize: Scaling,
   pipeline: Workflow,
   'video-convert': FileVideo,
   'video-compress': Film,
@@ -34,6 +38,8 @@ export const operationLabels: Record<OperationType, string> = {
   beautify: 'Beautify',
   effects: 'Effects',
   crop: 'Crop',
+  rotate: 'Rotate',
+  resize: 'Resize',
   pipeline: 'Pipeline',
   'video-convert': 'Video Convert',
   'video-compress': 'Video Compress',
