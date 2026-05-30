@@ -6,10 +6,19 @@ const SETTINGS_DIR = 'oxidize';
 
 export type Theme = 'light' | 'dark';
 
+/**
+ * Per-page form defaults. Each entry is the page id (matching `Page`) mapped
+ * to a plain key/value blob that mirrors that page's form schema. Typed loosely
+ * here because each page owns its own schema — readers are expected to merge
+ * the blob over their typed defaults via `usePersistedFormDefaults`.
+ */
+export type PageDefaults = Record<string, Record<string, unknown>>;
+
 export type AppSettings = {
   theme: Theme;
   lastPage: Page | null;
   lastOutputDir: string | null;
+  pageDefaults: PageDefaults;
 };
 
 type SettingsData = {
@@ -21,6 +30,7 @@ export const defaultSettings: AppSettings = {
   theme: 'dark',
   lastPage: null,
   lastOutputDir: null,
+  pageDefaults: {},
 };
 
 async function ensureDir(): Promise<void> {
@@ -57,13 +67,23 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   }
 }
 
+// Chains updateSettings calls so concurrent patches don't lose data via the
+// read-merge-write window. Each pending update awaits the previous one before
+// reading from disk.
+let writeQueue: Promise<unknown> = Promise.resolve();
+
 /**
  * Atomically patch one or more settings keys. Loads the current file,
- * merges the patch, writes it back, and returns the new state.
+ * merges the patch, writes it back, and returns the new state. Calls are
+ * serialized so concurrent patches don't clobber each other.
  */
 export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
-  const current = await loadSettings();
-  const next = { ...current, ...patch };
-  await saveSettings(next);
-  return next;
+  const run = writeQueue.then(async () => {
+    const current = await loadSettings();
+    const next = { ...current, ...patch };
+    await saveSettings(next);
+    return next;
+  });
+  writeQueue = run.catch(() => undefined);
+  return run;
 }

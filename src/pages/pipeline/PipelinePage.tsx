@@ -16,6 +16,7 @@ import {
 import { StepsNav } from './_components/StepsNav';
 import { StepFooter } from './_components/StepFooter';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { ImagesStep } from './_components/ImagesStep';
 import { CropStep } from './_components/CropStep';
 import { ConvertStep } from './_components/ConvertStep';
@@ -39,6 +40,25 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
     resolver: zodResolver(pipelineSchema),
     defaultValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'pipeline',
+    form,
+    baseDefaults: defaultValues,
+    persistKeys: [
+      'cropEnabled',
+      'cropAspectRatio',
+      'convertEnabled',
+      'convertFormat',
+      'convertQuality',
+      'compressEnabled',
+      'compressQuality',
+      'beautifyEnabled',
+      'effectsEnabled',
+      'effectType',
+      'effectIntensity',
+      'outputDir',
+    ],
   });
 
   const { isProcessing, execute } = usePipelineExecution({ images, onOperationComplete });

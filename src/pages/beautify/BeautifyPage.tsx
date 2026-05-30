@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
@@ -36,6 +37,13 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     resolver: zodResolver(beautifyFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'beautify',
+    form,
+    baseDefaults: defaultFormValues,
+    // Adjustments are per-image — only outputDir is meaningful as a saved default.
+    persistKeys: ['outputDir'],
   });
   const { control } = form;
   const values = useWatch({ control });

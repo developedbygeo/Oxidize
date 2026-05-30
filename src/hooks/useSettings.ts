@@ -5,12 +5,18 @@ import {
   updateSettings,
   type AppSettings,
 } from '@/lib/settings-store';
+import type { Page } from '@/pages/registry';
 
 type UseSettings = {
   settings: AppSettings;
   /** Whether the initial load from disk has completed. */
   isLoaded: boolean;
   setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  /**
+   * Patch a single field inside `pageDefaults[page]`. Used by per-page form
+   * persistence to remember the user's last-chosen format / quality / etc.
+   */
+  setPageDefault: (page: Page, field: string, value: unknown) => void;
 };
 
 /**
@@ -43,5 +49,16 @@ export const useSettings = (): UseSettings => {
     []
   );
 
-  return { settings, isLoaded, setSetting };
+  const setPageDefault = useCallback((page: Page, field: string, value: unknown) => {
+    setSettings((prev) => {
+      const nextPageDefaults = {
+        ...prev.pageDefaults,
+        [page]: { ...(prev.pageDefaults[page] ?? {}), [field]: value },
+      };
+      void updateSettings({ pageDefaults: nextPageDefaults });
+      return { ...prev, pageDefaults: nextPageDefaults };
+    });
+  }, []);
+
+  return { settings, isLoaded, setSetting, setPageDefault };
 };

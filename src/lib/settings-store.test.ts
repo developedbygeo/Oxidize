@@ -36,13 +36,14 @@ describe('loadSettings', () => {
     readTextFile.mockResolvedValue(
       JSON.stringify({
         version: 1,
-        settings: { theme: 'light', lastPage: 'effects', lastOutputDir: '/out' },
+        settings: { theme: 'light', lastPage: 'effects', lastOutputDir: '/out', pageDefaults: {} },
       })
     );
     expect(await loadSettings()).toEqual({
       theme: 'light',
       lastPage: 'effects',
       lastOutputDir: '/out',
+      pageDefaults: {},
     });
   });
 
@@ -53,6 +54,7 @@ describe('loadSettings', () => {
     expect(loaded.theme).toBe('light');
     expect(loaded.lastPage).toBe(defaultSettings.lastPage);
     expect(loaded.lastOutputDir).toBe(defaultSettings.lastOutputDir);
+    expect(loaded.pageDefaults).toEqual(defaultSettings.pageDefaults);
   });
 
   it('returns defaults when the file is malformed', async () => {
@@ -66,11 +68,21 @@ describe('loadSettings', () => {
 describe('saveSettings', () => {
   it('writes the version header + the full settings blob', async () => {
     exists.mockResolvedValue(true);
-    await saveSettings({ theme: 'light', lastPage: 'crop', lastOutputDir: null });
+    await saveSettings({
+      theme: 'light',
+      lastPage: 'crop',
+      lastOutputDir: null,
+      pageDefaults: { convert: { targetFormat: 'png' } },
+    });
     const [, content] = writeTextFile.mock.calls[0];
     expect(JSON.parse(content as string)).toEqual({
       version: 1,
-      settings: { theme: 'light', lastPage: 'crop', lastOutputDir: null },
+      settings: {
+        theme: 'light',
+        lastPage: 'crop',
+        lastOutputDir: null,
+        pageDefaults: { convert: { targetFormat: 'png' } },
+      },
     });
   });
 });
@@ -81,15 +93,46 @@ describe('updateSettings', () => {
     readTextFile.mockResolvedValue(
       JSON.stringify({
         version: 1,
-        settings: { theme: 'dark', lastPage: null, lastOutputDir: null },
+        settings: { theme: 'dark', lastPage: null, lastOutputDir: null, pageDefaults: {} },
       })
     );
 
     const next = await updateSettings({ lastPage: 'pipeline' });
-    expect(next).toEqual({ theme: 'dark', lastPage: 'pipeline', lastOutputDir: null });
+    expect(next).toEqual({
+      theme: 'dark',
+      lastPage: 'pipeline',
+      lastOutputDir: null,
+      pageDefaults: {},
+    });
 
     const written = JSON.parse(writeTextFile.mock.calls[0][1] as string);
     expect(written.settings.lastPage).toBe('pipeline');
     expect(written.settings.theme).toBe('dark');
+  });
+
+  it('serializes concurrent patches so neither write is lost', async () => {
+    exists.mockResolvedValue(true);
+    // Each loadSettings call hits readTextFile; return the most-recently written
+    // value so the queue chain sees committed state.
+    let stored = {
+      version: 1,
+      settings: { theme: 'dark', lastPage: null, lastOutputDir: null, pageDefaults: {} },
+    };
+    readTextFile.mockImplementation(() => Promise.resolve(JSON.stringify(stored)));
+    writeTextFile.mockImplementation((_path, content: string) => {
+      stored = JSON.parse(content);
+      return Promise.resolve();
+    });
+
+    const [a, b] = await Promise.all([
+      updateSettings({ theme: 'light' }),
+      updateSettings({ lastOutputDir: '/x' }),
+    ]);
+
+    expect(a.theme).toBe('light');
+    expect(b.theme).toBe('light');
+    expect(b.lastOutputDir).toBe('/x');
+    expect(stored.settings.theme).toBe('light');
+    expect(stored.settings.lastOutputDir).toBe('/x');
   });
 });

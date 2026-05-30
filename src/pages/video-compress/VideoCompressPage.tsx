@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
@@ -45,6 +46,12 @@ const VideoCompressPage = ({ onOperationComplete }: VideoCompressPageProps) => {
     resolver: zodResolver(videoCompressFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'video-compress',
+    form,
+    baseDefaults: defaultFormValues,
+    persistKeys: ['targetFormat', 'mode', 'crf', 'bitrateKbps', 'preset', 'outputDir'],
   });
   const { control } = form;
   const targetFormat = useWatch({ control, name: 'targetFormat' });

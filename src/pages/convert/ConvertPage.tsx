@@ -13,6 +13,7 @@ import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { SourcePreview } from '@/components/page-parts/SourcePreview';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import {
   formatLabels,
   type ConversionResult,
@@ -41,6 +42,12 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
     resolver: zodResolver(convertFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'convert',
+    form,
+    baseDefaults: defaultFormValues,
+    persistKeys: ['targetFormat', 'quality', 'outputDir'],
   });
   const { control } = form;
   const targetFormat = useWatch({ control, name: 'targetFormat' });

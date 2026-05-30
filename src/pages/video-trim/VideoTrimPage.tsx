@@ -6,6 +6,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn, resolveOutputDir } from '@/lib/utils';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -42,6 +43,12 @@ const VideoTrimPage = ({ onOperationComplete }: VideoTrimPageProps) => {
     resolver: zodResolver(videoTrimFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'video-trim',
+    form,
+    baseDefaults: defaultFormValues,
+    persistKeys: ['mode', 'crf', 'outputDir'],
   });
   const { control } = form;
   const mode = useWatch({ control, name: 'mode' });

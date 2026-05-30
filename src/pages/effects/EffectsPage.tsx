@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { fadeUp } from '@/lib/animations';
 import { resolveOutputDir } from '@/lib/utils';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
@@ -40,6 +41,12 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     resolver: zodResolver(effectsFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'effects',
+    form,
+    baseDefaults: defaultFormValues,
+    persistKeys: ['selectedEffect', 'intensity', 'outputDir'],
   });
   const { control } = form;
   const selectedEffect = useWatch({ control, name: 'selectedEffect' });

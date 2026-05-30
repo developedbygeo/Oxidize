@@ -13,6 +13,7 @@ import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import type { CropResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
   cropFormSchema,
@@ -46,6 +47,14 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
     resolver: zodResolver(cropFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'crop',
+    form,
+    baseDefaults: defaultFormValues,
+    // x/y/width/height are per-image; only the picker choice + output dir
+    // make sense as global defaults.
+    persistKeys: ['aspectRatio', 'outputDir'],
   });
   const { control, setValue, getValues, reset } = form;
   const rect: CropRect = {

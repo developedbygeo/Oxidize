@@ -1,0 +1,165 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { useForm, type UseFormReturn } from 'react-hook-form';
+import type { AppSettings } from '@/lib/settings-store';
+
+const loadSettings = vi.fn();
+const updateSettings = vi.fn();
+
+vi.mock('@/lib/settings-store', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/settings-store')>(
+    '@/lib/settings-store'
+  );
+  return {
+    ...actual,
+    loadSettings: () => loadSettings(),
+    updateSettings: (patch: Partial<AppSettings>) => updateSettings(patch),
+  };
+});
+
+const { usePersistedFormDefaults } = await import('./usePersistedFormDefaults');
+
+type Values = {
+  targetFormat: string;
+  quality: number;
+  outputDir: string | null;
+};
+
+const baseDefaults: Values = {
+  targetFormat: 'webp',
+  quality: 85,
+  outputDir: null,
+};
+
+const setup = (saved: Partial<AppSettings>) => {
+  loadSettings.mockResolvedValue({
+    theme: 'dark',
+    lastPage: null,
+    lastOutputDir: null,
+    pageDefaults: {},
+    ...saved,
+  });
+
+  let formRef!: UseFormReturn<Values>;
+  const hook = renderHook(() => {
+    const form = useForm<Values>({ defaultValues: baseDefaults, mode: 'onChange' });
+    formRef = form;
+    usePersistedFormDefaults({
+      page: 'convert',
+      form,
+      baseDefaults,
+      persistKeys: ['targetFormat', 'quality', 'outputDir'],
+    });
+    return form;
+  });
+  return { hook, form: () => formRef };
+};
+
+beforeEach(() => {
+  loadSettings.mockReset();
+  updateSettings.mockReset().mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('usePersistedFormDefaults', () => {
+  it('hydrates the form with saved per-page defaults once settings load', async () => {
+    const { form } = setup({
+      pageDefaults: { convert: { targetFormat: 'png', quality: 75 } },
+    });
+
+    // Initial render: form has the hard-coded baseDefaults
+    expect(form().getValues('targetFormat')).toBe('webp');
+
+    await waitFor(() => expect(form().getValues('targetFormat')).toBe('png'));
+    expect(form().getValues('quality')).toBe(75);
+    expect(form().getValues('outputDir')).toBeNull();
+  });
+
+  it('falls back to lastOutputDir when no page-specific outputDir is saved', async () => {
+    const { form } = setup({
+      lastOutputDir: '/Users/me/global',
+      pageDefaults: { convert: { targetFormat: 'jpg' } },
+    });
+
+    await waitFor(() => expect(form().getValues('outputDir')).toBe('/Users/me/global'));
+    expect(form().getValues('targetFormat')).toBe('jpg');
+  });
+
+  it('prefers the page-specific outputDir over lastOutputDir', async () => {
+    const { form } = setup({
+      lastOutputDir: '/Users/me/global',
+      pageDefaults: { convert: { outputDir: '/Users/me/convert-only' } },
+    });
+
+    await waitFor(() => expect(form().getValues('outputDir')).toBe('/Users/me/convert-only'));
+  });
+
+  it('persists changes to persistKeys via updateSettings (debounced)', async () => {
+    const { form } = setup({});
+    await waitFor(() => expect(form().getValues('targetFormat')).toBe('webp'));
+
+    vi.useFakeTimers();
+    updateSettings.mockClear();
+    act(() => {
+      form().setValue('targetFormat', 'jpg');
+      form().setValue('quality', 92);
+    });
+
+    // Nothing persisted yet — within debounce window
+    expect(updateSettings).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    const patches = updateSettings.mock.calls.map((c) => c[0]);
+    // Two persistKey fields → two patches against pageDefaults.convert
+    const convertSlots = patches
+      .map((p) => p.pageDefaults?.convert)
+      .filter((v): v is Record<string, unknown> => !!v);
+    expect(convertSlots.some((s) => s.targetFormat === 'jpg')).toBe(true);
+    expect(convertSlots.some((s) => s.quality === 92)).toBe(true);
+  });
+
+  it('mirrors outputDir changes to lastOutputDir', async () => {
+    const { form } = setup({});
+    await waitFor(() => expect(form().getValues('targetFormat')).toBe('webp'));
+
+    vi.useFakeTimers();
+    updateSettings.mockClear();
+    act(() => {
+      form().setValue('outputDir', '/Users/me/out');
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    const patches = updateSettings.mock.calls.map((c) => c[0]);
+    expect(patches.some((p) => p.lastOutputDir === '/Users/me/out')).toBe(true);
+    expect(
+      patches.some(
+        (p) => (p.pageDefaults?.convert as Record<string, unknown> | undefined)?.outputDir === '/Users/me/out'
+      )
+    ).toBe(true);
+  });
+
+  it('does not persist fields outside of persistKeys', async () => {
+    const { form } = setup({});
+    await waitFor(() => expect(form().getValues('targetFormat')).toBe('webp'));
+
+    vi.useFakeTimers();
+    updateSettings.mockClear();
+    act(() => {
+      // Unregistered field — not in persistKeys.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (form() as any).setValue('ignored', 'foo');
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(updateSettings).not.toHaveBeenCalled();
+  });
+});

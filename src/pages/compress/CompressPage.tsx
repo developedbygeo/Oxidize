@@ -13,6 +13,7 @@ import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { SourcePreview } from '@/components/page-parts/SourcePreview';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import {
   compressFormSchema,
@@ -35,6 +36,12 @@ const CompressPage = ({ onOperationComplete }: CompressPageProps) => {
     resolver: zodResolver(compressFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'compress',
+    form,
+    baseDefaults: defaultFormValues,
+    persistKeys: ['compressionLevel', 'customQuality', 'useCustom', 'outputDir'],
   });
   const { control } = form;
   const compressionLevel = useWatch({ control, name: 'compressionLevel' });

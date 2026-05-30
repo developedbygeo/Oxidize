@@ -6,6 +6,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn, resolveOutputDir } from '@/lib/utils';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { fadeUp, expandHeight } from '@/lib/animations';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
@@ -46,6 +47,13 @@ const VideoResizePage = ({ onOperationComplete }: VideoResizePageProps) => {
     resolver: zodResolver(videoResizeFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'video-resize',
+    form,
+    baseDefaults: defaultFormValues,
+    // customWidth/Height are per-source-video; everything else is a real preference.
+    persistKeys: ['targetFormat', 'mode', 'presetHeight', 'maintainAspect', 'crf', 'outputDir'],
   });
   const { control } = form;
   const targetFormat = useWatch({ control, name: 'targetFormat' });
