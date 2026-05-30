@@ -11,6 +11,7 @@ import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
+import { FilenameSettings } from '@/components/page-parts/FilenameSettings';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
@@ -49,12 +50,20 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
     page: 'effects',
     form,
     baseDefaults: defaultFormValues,
-    persistKeys: ['selectedEffect', 'intensity', 'outputDir'],
+    persistKeys: [
+      'selectedEffect',
+      'intensity',
+      'outputDir',
+      'filenameTemplate',
+      'overwriteMode',
+    ],
   });
   const { control } = form;
   const selectedEffect = useWatch({ control, name: 'selectedEffect' });
   const intensity = useWatch({ control, name: 'intensity' });
   const outputDir = useWatch({ control, name: 'outputDir' });
+  const filenameTemplate = useWatch({ control, name: 'filenameTemplate' });
+  const overwriteMode = useWatch({ control, name: 'overwriteMode' });
 
   const [images, setImages] = useState<ImageInfo[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -169,6 +178,18 @@ const EffectsPage = ({ onOperationComplete }: EffectsPageProps) => {
                 size="sm"
               />
             </div>
+
+            <FilenameSettings
+              template={filenameTemplate}
+              overwriteMode={overwriteMode}
+              onTemplateChange={(v) =>
+                form.setValue('filenameTemplate', v, { shouldValidate: true })
+              }
+              onOverwriteModeChange={(v) =>
+                form.setValue('overwriteMode', v, { shouldValidate: true })
+              }
+              size="sm"
+            />
 
             {isProcessing && images.length > 0 && (
               <JobProgressBar

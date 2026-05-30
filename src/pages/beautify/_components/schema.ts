@@ -25,12 +25,18 @@ export const beautifyFormSchema = z.object({
   temperature: z.number().int().min(-100).max(100),
   white_balance: z.enum(['auto', 'daylight', 'cloudy', 'tungsten', 'fluorescent']),
   outputDir: z.string().nullable(),
+  filenameTemplate: z.string(),
+  overwriteMode: z.enum(['auto-number', 'skip', 'overwrite']),
 });
 
 export type BeautifyFormValues = z.infer<typeof beautifyFormSchema>;
 
-/** Just the per-pixel adjustment fields — used by panels that don't care about output dir. */
-export type Adjustments = Omit<BeautifyFormValues, 'outputDir'>;
+/** Just the per-pixel adjustment fields — used by panels that don't care
+ *  about output dir or filename settings. */
+export type Adjustments = Omit<
+  BeautifyFormValues,
+  'outputDir' | 'filenameTemplate' | 'overwriteMode'
+>;
 
 export const defaultFormValues: BeautifyFormValues = {
   brightness: 0,
@@ -42,6 +48,8 @@ export const defaultFormValues: BeautifyFormValues = {
   temperature: 0,
   white_balance: 'daylight',
   outputDir: null,
+  filenameTemplate: '',
+  overwriteMode: 'auto-number',
 };
 
 export const defaultAdjustments: Adjustments = {

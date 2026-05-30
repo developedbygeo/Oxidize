@@ -8,7 +8,10 @@ use tauri::AppHandle;
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
 use crate::image_jobs::run_image_batch;
 use crate::types::{EffectOptions, EffectResult, PipelineEffectParams};
-use crate::utils::{detect_format, get_format_from_string, resolve_output_dir, unique_output_path};
+use crate::utils::{
+    detect_format, get_format_from_string, resolve_output_dir, resolve_output_path, ResolvedPath,
+    TemplateContext,
+};
 
 fn apply_grayscale(img: &DynamicImage, intensity: f32) -> DynamicImage {
     if intensity == 0.0 {
@@ -403,7 +406,27 @@ fn apply_image_effect_sync(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    let output_path = unique_output_path(output_dir, stem, &options.effect, &format_str);
+    let (width, height) = img.dimensions();
+    let naming = options.naming.clone().unwrap_or_default();
+    let ctx = TemplateContext {
+        name: stem,
+        op: &options.effect,
+        width: Some(width),
+        height: Some(height),
+    };
+    let output_path = match resolve_output_path(output_dir, &naming, &ctx, &format_str) {
+        ResolvedPath::Write(p) => p,
+        ResolvedPath::Skip(p) => {
+            return Ok(EffectResult {
+                success: false,
+                input_path,
+                output_path: Some(p.to_string_lossy().to_string()),
+                error: Some("skipped".to_string()),
+                original_size,
+                new_size: 0,
+            });
+        }
+    };
 
     let output_data = match format_str.as_str() {
         "jpg" | "jpeg" => compress_jpeg_mozjpeg(&result_img, 92)?,

@@ -1,8 +1,8 @@
-import { ExternalLink, Ban } from 'lucide-react';
+import { ExternalLink, Ban, SkipForward } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { isCancelledError } from '@/lib/ffmpeg-errors';
+import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
 
 type Size = 'sm' | 'md';
 
@@ -72,6 +72,8 @@ function ResultsList<T extends ResultRow>({
     <div className={cn(styles.spacing, maxHeight, 'overflow-y-auto')}>
       {results.map((result, index) => {
         const cancelled = !result.success && isCancelledError(result.error);
+        const skipped = !result.success && isSkippedError(result.error);
+        const softFailure = cancelled || skipped;
         return (
           <button
             key={index}
@@ -84,8 +86,8 @@ function ResultsList<T extends ResultRow>({
               styles.row,
               styles.text,
               result.success && 'bg-muted/30 hover:bg-muted/50 cursor-pointer',
-              !result.success && cancelled && 'bg-amber-500/5 cursor-default',
-              !result.success && !cancelled && 'bg-destructive/5 cursor-default'
+              !result.success && softFailure && 'bg-amber-500/5 cursor-default',
+              !result.success && !softFailure && 'bg-destructive/5 cursor-default'
             )}
           >
             <div className={cn('flex items-center min-w-0', styles.gap)}>
@@ -94,8 +96,8 @@ function ResultsList<T extends ResultRow>({
                   styles.dot,
                   'rounded-full shrink-0',
                   result.success && 'bg-primary',
-                  !result.success && cancelled && 'bg-amber-500',
-                  !result.success && !cancelled && 'bg-destructive'
+                  !result.success && softFailure && 'bg-amber-500',
+                  !result.success && !softFailure && 'bg-destructive'
                 )}
               />
               <span className="truncate">
@@ -112,6 +114,12 @@ function ResultsList<T extends ResultRow>({
               <div className={cn('flex items-center ml-2', styles.gap)}>
                 <span className={cn(styles.text, 'text-amber-500 font-medium')}>Cancelled</span>
                 <Ban className={cn(styles.icon, 'text-amber-500')} />
+              </div>
+            )}
+            {skipped && (
+              <div className={cn('flex items-center ml-2', styles.gap)}>
+                <span className={cn(styles.text, 'text-amber-500 font-medium')}>Skipped</span>
+                <SkipForward className={cn(styles.icon, 'text-amber-500')} />
               </div>
             )}
           </button>

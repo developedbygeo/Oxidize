@@ -9,6 +9,7 @@ import { resolveOutputDir } from '@/lib/utils';
 import { ImageDropzone } from '@/components/ImageDropzone';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
+import { FilenameSettings } from '@/components/page-parts/FilenameSettings';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
@@ -50,12 +51,14 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
     page: 'convert',
     form,
     baseDefaults: defaultFormValues,
-    persistKeys: ['targetFormat', 'quality', 'outputDir'],
+    persistKeys: ['targetFormat', 'quality', 'outputDir', 'filenameTemplate', 'overwriteMode'],
   });
   const { control } = form;
   const targetFormat = useWatch({ control, name: 'targetFormat' });
   const quality = useWatch({ control, name: 'quality' });
   const outputDir = useWatch({ control, name: 'outputDir' });
+  const filenameTemplate = useWatch({ control, name: 'filenameTemplate' });
+  const overwriteMode = useWatch({ control, name: 'overwriteMode' });
 
   const [images, setImages] = useState<ImageInfo[]>([]);
   const [results, setResults] = useState<ConversionResult[]>([]);
@@ -148,6 +151,18 @@ const ConvertPage = ({ onOperationComplete }: ConvertPageProps) => {
                   size="md"
                 />
               </div>
+
+              <FilenameSettings
+                template={filenameTemplate}
+                overwriteMode={overwriteMode}
+                onTemplateChange={(v) =>
+                  form.setValue('filenameTemplate', v, { shouldValidate: true })
+                }
+                onOverwriteModeChange={(v) =>
+                  form.setValue('overwriteMode', v, { shouldValidate: true })
+                }
+                size="md"
+              />
 
               <ProcessButton
                 isProcessing={isConverting}

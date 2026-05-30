@@ -1,5 +1,6 @@
 import { formatLabels, effectsList } from '@/types/image';
 import type { ImageFormat, PipelineOptions } from '@/types/image';
+import { toOutputNaming } from '@/types/output-naming';
 import type { PipelineFormValues } from './schema';
 
 const isCropActive = (values: PipelineFormValues): boolean =>
@@ -34,6 +35,7 @@ export const buildOptions = (values: PipelineFormValues): PipelineOptions => ({
     : null,
   compress: values.compressEnabled ? { quality: values.compressQuality } : null,
   output_dir: values.outputDir,
+  naming: toOutputNaming(values.filenameTemplate, values.overwriteMode),
 });
 
 export const buildDetails = (values: PipelineFormValues): string[] => {

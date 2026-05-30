@@ -64,6 +64,22 @@ export const createProcessToast = ({
       toast.warning(`${doneLabel} cancelled`, { id: toastId, description });
     },
 
+    skipped: ({ successCount, skipCount }: { successCount: number; skipCount: number }) => {
+      const skipPlural = skipCount !== 1 ? 's' : '';
+      if (successCount === 0) {
+        toast.warning(`${doneLabel} skipped`, {
+          id: toastId,
+          description: `${skipCount} ${itemName}${skipPlural} skipped — output already exists`,
+        });
+      } else {
+        const successPlural = successCount !== 1 ? 's' : '';
+        toast.warning(`${doneLabel} partially complete`, {
+          id: toastId,
+          description: `${successCount} ${itemName}${successPlural} processed, ${skipCount} skipped`,
+        });
+      }
+    },
+
     finish: ({ successCount, failCount, extraInfo }: ProcessResult) => {
       if (successCount > 0 && failCount === 0) {
         const plural = successCount !== 1 ? 's' : '';

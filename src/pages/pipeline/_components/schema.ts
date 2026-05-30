@@ -51,6 +51,8 @@ export const pipelineSchema = z.object({
   effectIntensity: z.number().min(0).max(100),
 
   outputDir: z.string().nullable(),
+  filenameTemplate: z.string(),
+  overwriteMode: z.enum(['auto-number', 'skip', 'overwrite']),
 });
 
 export type PipelineFormValues = z.infer<typeof pipelineSchema>;
@@ -85,6 +87,8 @@ export const defaultValues: PipelineFormValues = {
   effectIntensity: 50,
 
   outputDir: null,
+  filenameTemplate: '',
+  overwriteMode: 'auto-number',
 };
 
 export const steps = [

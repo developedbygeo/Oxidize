@@ -34,11 +34,13 @@ export interface ConversionOptions {
   format: string;
   quality: number;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface CompressionOptions {
   quality: number;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface CompressionResult {
@@ -62,6 +64,7 @@ export interface BeautifyOptions {
   temperature: number;
   white_balance: WhiteBalancePreset;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface BeautifyResult {
@@ -138,6 +141,7 @@ export interface EffectOptions {
   effect: EffectType;
   intensity: number; // 0-100
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface EffectResult {
@@ -155,6 +159,7 @@ export interface CropOptions {
   width: number;
   height: number;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface CropResult {
@@ -205,6 +210,7 @@ export interface PipelineOptions {
   convert: PipelineConvertParams | null;
   compress: PipelineCompressParams | null;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface PipelineResult {

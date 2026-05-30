@@ -1,4 +1,4 @@
-use image::{DynamicImage, ImageFormat, ImageReader};
+use image::{DynamicImage, GenericImageView, ImageFormat, ImageReader};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
@@ -7,7 +7,8 @@ use crate::compress::{compress_jpeg_mozjpeg, compress_png_oxipng, compress_webp}
 use crate::image_jobs::run_image_batch;
 use crate::types::{ConversionOptions, ConversionResult};
 use crate::utils::{
-    get_format_extension, get_format_from_string, resolve_output_dir, unique_output_path,
+    get_format_extension, get_format_from_string, resolve_output_dir, resolve_output_path,
+    ResolvedPath, TemplateContext,
 };
 
 /// Pure transform: encode a DynamicImage into bytes at the requested format/quality.
@@ -58,7 +59,26 @@ fn convert_image_sync(
         .and_then(|s| s.to_str())
         .unwrap_or("output");
     let extension = get_format_extension(&target_format);
-    let output_path = unique_output_path(output_dir, stem, "converted", extension);
+    let (width, height) = img.dimensions();
+    let naming = options.naming.clone().unwrap_or_default();
+    let ctx = TemplateContext {
+        name: stem,
+        op: "converted",
+        width: Some(width),
+        height: Some(height),
+    };
+    let output_path = match resolve_output_path(output_dir, &naming, &ctx, extension) {
+        ResolvedPath::Write(p) => p,
+        ResolvedPath::Skip(p) => {
+            return Ok(ConversionResult {
+                success: false,
+                output_path: Some(p.to_string_lossy().to_string()),
+                error: Some("skipped".to_string()),
+                original_size,
+                new_size: 0,
+            });
+        }
+    };
 
     let output_data = encode_image(&img, target_format, options.quality)?;
     let new_size = output_data.len() as u64;
@@ -72,6 +92,7 @@ fn convert_image_sync(
         new_size,
     })
 }
+
 
 #[tauri::command]
 pub async fn convert_image(

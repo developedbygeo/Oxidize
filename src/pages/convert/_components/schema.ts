@@ -9,6 +9,8 @@ export const convertFormSchema = z.object({
   targetFormat: z.enum(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'ico', 'tiff']),
   quality: z.number().int().min(1).max(100),
   outputDir: z.string().nullable(),
+  filenameTemplate: z.string(),
+  overwriteMode: z.enum(['auto-number', 'skip', 'overwrite']),
 });
 
 export type ConvertFormValues = z.infer<typeof convertFormSchema>;
@@ -17,6 +19,8 @@ export const defaultFormValues: ConvertFormValues = {
   targetFormat: 'webp',
   quality: 85,
   outputDir: null,
+  filenameTemplate: '',
+  overwriteMode: 'auto-number',
 };
 
 export const formatFileSize = (bytes: number): string => {

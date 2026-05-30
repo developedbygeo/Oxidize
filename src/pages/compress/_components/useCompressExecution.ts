@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import { isCancelledError } from '@/lib/ffmpeg-errors';
+import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { toOutputNaming } from '@/types/output-naming';
 import type { CompressionResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import { compressionPresets, resolveQuality, type CompressFormValues } from './schema';
 
@@ -22,7 +23,8 @@ export const runCompression = async ({
 }: RunCompressionArgs) => {
   if (images.length === 0) return;
 
-  const { compressionLevel, useCustom, customQuality, outputDir } = values;
+  const { compressionLevel, useCustom, customQuality, outputDir, filenameTemplate, overwriteMode } =
+    values;
   const quality = resolveQuality(values);
 
   onStart();
@@ -35,13 +37,18 @@ export const runCompression = async ({
   try {
     const results = await invoke<CompressionResult[]>('compress_images_batch', {
       inputPaths: images.map((img) => img.path),
-      options: { quality, output_dir: outputDir },
+      options: {
+        quality,
+        output_dir: outputDir,
+        naming: toOutputNaming(filenameTemplate, overwriteMode),
+      },
     });
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
     const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
-    const failCount = results.length - successCount - cancelledCount;
+    const skippedCount = results.filter((r) => isSkippedError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount - skippedCount;
     const totalSavedBytes = results.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
     const avgSavingsPercent =
       results.length > 0
@@ -50,6 +57,8 @@ export const runCompression = async ({
 
     if (cancelledCount > 0) {
       processToast.cancelled(successCount);
+    } else if (skippedCount > 0 && failCount === 0) {
+      processToast.skipped({ successCount, skipCount: skippedCount });
     } else {
       processToast.finish({
         successCount,

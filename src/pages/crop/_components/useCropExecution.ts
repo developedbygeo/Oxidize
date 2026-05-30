@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import { isCancelledError } from '@/lib/ffmpeg-errors';
+import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { toOutputNaming } from '@/types/output-naming';
 import type { CropOptions, CropResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import type { CropFormValues } from './schema';
 
@@ -37,6 +38,7 @@ export const runCrop = async ({
       width: Math.round(values.width),
       height: Math.round(values.height),
       output_dir: values.outputDir,
+      naming: toOutputNaming(values.filenameTemplate, values.overwriteMode),
     };
     const results = await invoke<CropResult[]>('crop_images_batch', {
       inputPaths: images.map((img) => img.path),
@@ -46,9 +48,12 @@ export const runCrop = async ({
 
     const successCount = results.filter((r) => r.success).length;
     const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
-    const failCount = results.length - successCount - cancelledCount;
+    const skippedCount = results.filter((r) => isSkippedError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount - skippedCount;
     if (cancelledCount > 0) {
       processToast.cancelled(successCount);
+    } else if (skippedCount > 0 && failCount === 0) {
+      processToast.skipped({ successCount, skipCount: skippedCount });
     } else {
       processToast.finish({ successCount, failCount });
     }

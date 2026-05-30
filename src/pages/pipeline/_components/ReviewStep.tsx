@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription } from '@/components/ui/card';
 import { PipelinePreview, type PipelinePreviewStep } from '@/components/PipelinePreview';
 import { PreviewNavigation } from '@/components/PreviewNavigation';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
+import { FilenameSettings } from '@/components/page-parts/FilenameSettings';
 import { effectsList, formatLabels, type ImageInfo, type ImageFormat } from '@/types/image';
 import { SummaryCard } from './SummaryCard';
 import type { PipelineFormValues, StepId } from './schema';
@@ -213,6 +214,14 @@ const ReviewStep = ({
           placeholder="Saved next to original files (click to choose folder)"
         />
       </div>
+
+      <FilenameSettings
+        template={values.filenameTemplate ?? ''}
+        overwriteMode={values.overwriteMode ?? 'auto-number'}
+        onTemplateChange={(v) => form.setValue('filenameTemplate', v, { shouldValidate: true })}
+        onOverwriteModeChange={(v) => form.setValue('overwriteMode', v, { shouldValidate: true })}
+        size="md"
+      />
 
       <div className="flex gap-3">
         <Button variant="outline" onClick={onReset} className="flex-1 h-12 gap-2">

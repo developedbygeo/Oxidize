@@ -163,3 +163,44 @@ describe('createProcessToast.cancelled', () => {
     });
   });
 });
+
+describe('createProcessToast.skipped', () => {
+  it('shows a pure-skip warning when nothing succeeded', () => {
+    const t = createProcessToast({
+      progressLabel: 'P',
+      doneLabel: 'Conversion',
+      itemCount: 3,
+    });
+    t.skipped({ successCount: 0, skipCount: 3 });
+    expect(mockedToast.warning).toHaveBeenCalledWith('Conversion skipped', {
+      id: 'mock-toast-id',
+      description: '3 images skipped — output already exists',
+    });
+  });
+
+  it('shows a partially-complete warning when some succeeded and some were skipped', () => {
+    const t = createProcessToast({
+      progressLabel: 'P',
+      doneLabel: 'Compression',
+      itemCount: 5,
+    });
+    t.skipped({ successCount: 3, skipCount: 2 });
+    expect(mockedToast.warning).toHaveBeenCalledWith('Compression partially complete', {
+      id: 'mock-toast-id',
+      description: '3 images processed, 2 skipped',
+    });
+  });
+
+  it('singularises both counts when only one of each', () => {
+    const t = createProcessToast({
+      progressLabel: 'P',
+      doneLabel: 'Crop',
+      itemCount: 2,
+    });
+    t.skipped({ successCount: 1, skipCount: 1 });
+    expect(mockedToast.warning).toHaveBeenCalledWith('Crop partially complete', {
+      id: 'mock-toast-id',
+      description: '1 image processed, 1 skipped',
+    });
+  });
+});

@@ -13,10 +13,15 @@ export type FriendlyError = {
 
 /** Sentinel emitted by the backend when the user cancels mid-job. */
 const CANCELLED_SENTINEL = 'cancelled';
+/** Sentinel returned by image batches when overwrite mode = "skip" and the
+ *  target file already exists. Soft outcome — not a real failure. */
+const SKIPPED_SENTINEL = 'skipped';
 
 const PATTERNS: ReadonlyArray<{ match: RegExp; title: string }> = [
   // Cancellation — exact sentinel, distinct from a real failure.
   { match: /^cancelled$/i, title: 'Cancelled' },
+  // Skipped — output exists and user chose Skip mode.
+  { match: /^skipped$/i, title: 'Skipped — output already exists' },
 
   // File system
   { match: /no such file or directory/i, title: 'File not found' },
@@ -74,4 +79,10 @@ export const isCancelledError = (raw: unknown): boolean => {
   const text =
     raw instanceof Error ? raw.message : typeof raw === 'string' ? raw : String(raw ?? '');
   return text.trim().toLowerCase() === CANCELLED_SENTINEL;
+};
+
+export const isSkippedError = (raw: unknown): boolean => {
+  const text =
+    raw instanceof Error ? raw.message : typeof raw === 'string' ? raw : String(raw ?? '');
+  return text.trim().toLowerCase() === SKIPPED_SENTINEL;
 };

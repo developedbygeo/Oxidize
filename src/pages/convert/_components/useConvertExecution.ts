@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import { isCancelledError } from '@/lib/ffmpeg-errors';
+import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { toOutputNaming } from '@/types/output-naming';
 import { formatLabels, type ConversionResult, type ImageInfo, type OperationHistoryItem } from '@/types/image';
 import type { ConvertFormValues } from './schema';
 
@@ -22,7 +23,7 @@ export const runConversion = async ({
 }: RunConversionArgs) => {
   if (images.length === 0) return;
 
-  const { targetFormat, quality, outputDir } = values;
+  const { targetFormat, quality, outputDir, filenameTemplate, overwriteMode } = values;
   onStart();
   const processToast = createProcessToast({
     progressLabel: 'Converting',
@@ -33,17 +34,25 @@ export const runConversion = async ({
   try {
     const results = await invoke<ConversionResult[]>('convert_images_batch', {
       inputPaths: images.map((img) => img.path),
-      options: { format: targetFormat, quality, output_dir: outputDir },
+      options: {
+        format: targetFormat,
+        quality,
+        output_dir: outputDir,
+        naming: toOutputNaming(filenameTemplate, overwriteMode),
+      },
     });
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
     const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
-    const failCount = results.length - successCount - cancelledCount;
+    const skippedCount = results.filter((r) => isSkippedError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount - skippedCount;
     const totalSaved = results.reduce((acc, r) => acc + (r.original_size - r.new_size), 0);
 
     if (cancelledCount > 0) {
       processToast.cancelled(successCount);
+    } else if (skippedCount > 0 && failCount === 0) {
+      processToast.skipped({ successCount, skipCount: skippedCount });
     } else {
       processToast.finish({
         successCount,

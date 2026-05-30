@@ -11,6 +11,7 @@ import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
+import { FilenameSettings } from '@/components/page-parts/FilenameSettings';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
@@ -45,8 +46,8 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     page: 'beautify',
     form,
     baseDefaults: defaultFormValues,
-    // Adjustments are per-image — only outputDir is meaningful as a saved default.
-    persistKeys: ['outputDir'],
+    // Adjustments are per-image; persist only the output-naming choices.
+    persistKeys: ['outputDir', 'filenameTemplate', 'overwriteMode'],
   });
   const { control } = form;
   const values = useWatch({ control });
@@ -63,6 +64,8 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
     white_balance: values.white_balance ?? defaultAdjustments.white_balance,
   };
   const outputDir = values.outputDir ?? null;
+  const filenameTemplate = values.filenameTemplate ?? '';
+  const overwriteMode = values.overwriteMode ?? 'auto-number';
 
   const [images, setImages] = useState<ImageInfo[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -105,8 +108,10 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
   };
 
   const resetAdjustments = () => {
-    // Keep the chosen output dir; only reset the pixel adjustments.
-    form.reset({ ...defaultFormValues, outputDir });
+    // Keep the chosen output dir + filename settings; only reset the pixel
+    // adjustments. Wiping naming preferences here would surprise the user
+    // since the button is labelled "reset adjustments", not "reset all".
+    form.reset({ ...defaultFormValues, outputDir, filenameTemplate, overwriteMode });
   };
 
   const handleImagesChange = (imgs: ImageInfo[]) => {
@@ -201,6 +206,18 @@ const BeautifyPage = ({ onOperationComplete }: BeautifyPageProps) => {
                 size="sm"
               />
             </div>
+
+            <FilenameSettings
+              template={filenameTemplate}
+              overwriteMode={overwriteMode}
+              onTemplateChange={(v) =>
+                form.setValue('filenameTemplate', v, { shouldValidate: true })
+              }
+              onOverwriteModeChange={(v) =>
+                form.setValue('overwriteMode', v, { shouldValidate: true })
+              }
+              size="sm"
+            />
 
             {isBeautifying && images.length > 0 && (
               <JobProgressBar

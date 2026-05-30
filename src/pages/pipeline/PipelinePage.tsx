@@ -61,6 +61,8 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
       'effectType',
       'effectIntensity',
       'outputDir',
+      'filenameTemplate',
+      'overwriteMode',
     ],
   });
 
@@ -106,7 +108,11 @@ const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
     setCurrentStep('images');
     setCompletedSteps(new Set());
     setPreviewIndex(0);
-    form.reset(defaultValues);
+    // Reset operation toggles + params, but keep the user's output naming
+    // preferences (dir, template, overwrite mode) — those are app-wide
+    // settings, not per-run state.
+    const { outputDir, filenameTemplate, overwriteMode } = form.getValues();
+    form.reset({ ...defaultValues, outputDir, filenameTemplate, overwriteMode });
   };
 
   const handleExecute = () => {

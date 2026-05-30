@@ -1,4 +1,4 @@
-use image::ImageReader;
+use image::{GenericImageView, ImageReader};
 use std::path::Path;
 use tauri::AppHandle;
 
@@ -10,7 +10,7 @@ use crate::image_jobs::run_image_batch;
 use crate::types::{PipelineOptions, PipelineResult};
 use crate::utils::{
     detect_format, get_format_extension, get_format_from_string, resolve_output_dir,
-    unique_output_path,
+    resolve_output_path, ResolvedPath, TemplateContext,
 };
 
 const DEFAULT_QUALITY: u8 = 92;
@@ -71,7 +71,27 @@ fn process_pipeline_sync(
         .unwrap_or("output");
     let extension = get_format_extension(&target_format);
     let output_dir = resolve_output_dir(&options.output_dir, input);
-    let output_path = unique_output_path(&output_dir, stem, "processed", extension);
+    let (width, height) = img.dimensions();
+    let naming = options.naming.clone().unwrap_or_default();
+    let ctx = TemplateContext {
+        name: stem,
+        op: "processed",
+        width: Some(width),
+        height: Some(height),
+    };
+    let output_path = match resolve_output_path(&output_dir, &naming, &ctx, extension) {
+        ResolvedPath::Write(p) => p,
+        ResolvedPath::Skip(p) => {
+            return Ok(PipelineResult {
+                success: false,
+                input_path,
+                output_path: Some(p.to_string_lossy().to_string()),
+                error: Some("skipped".to_string()),
+                original_size,
+                new_size: 0,
+            });
+        }
+    };
 
     std::fs::write(&output_path, output_data).map_err(|e| e.to_string())?;
 

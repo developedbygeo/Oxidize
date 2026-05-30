@@ -28,6 +28,8 @@ export const cropFormSchema = z.object({
     'portrait-insta',
   ]),
   outputDir: z.string().nullable(),
+  filenameTemplate: z.string(),
+  overwriteMode: z.enum(['auto-number', 'skip', 'overwrite']),
 });
 
 export type CropFormValues = z.infer<typeof cropFormSchema>;
@@ -39,6 +41,8 @@ export const defaultFormValues: CropFormValues = {
   height: 0,
   aspectRatio: 'free',
   outputDir: null,
+  filenameTemplate: '',
+  overwriteMode: 'auto-number',
 };
 
 export const getRatioById = (id: AspectRatioId): number | null =>

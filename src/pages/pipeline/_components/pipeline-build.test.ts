@@ -17,6 +17,7 @@ describe('buildOptions', () => {
       convert: null,
       compress: null,
       output_dir: null,
+      naming: null,
     });
   });
 

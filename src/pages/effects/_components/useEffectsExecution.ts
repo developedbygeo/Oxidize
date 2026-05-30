@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import { isCancelledError } from '@/lib/ffmpeg-errors';
+import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { toOutputNaming } from '@/types/output-naming';
 import { effectsList } from '@/types/image';
 import type { EffectResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import type { EffectsFormValues } from './schema';
@@ -23,7 +24,7 @@ export const runEffects = async ({
 }: RunArgs) => {
   if (images.length === 0) return;
 
-  const { selectedEffect, intensity, outputDir } = values;
+  const { selectedEffect, intensity, outputDir, filenameTemplate, overwriteMode } = values;
   const effectInfo = effectsList.find((e) => e.type === selectedEffect);
   const label = effectInfo?.label || selectedEffect;
   onStart();
@@ -36,15 +37,23 @@ export const runEffects = async ({
   try {
     const results = await invoke<EffectResult[]>('apply_image_effects_batch', {
       inputPaths: images.map((img) => img.path),
-      options: { effect: selectedEffect, intensity, output_dir: outputDir },
+      options: {
+        effect: selectedEffect,
+        intensity,
+        output_dir: outputDir,
+        naming: toOutputNaming(filenameTemplate, overwriteMode),
+      },
     });
     onFinish(results);
 
     const successCount = results.filter((r) => r.success).length;
     const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
-    const failCount = results.length - successCount - cancelledCount;
+    const skippedCount = results.filter((r) => isSkippedError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount - skippedCount;
     if (cancelledCount > 0) {
       processToast.cancelled(successCount);
+    } else if (skippedCount > 0 && failCount === 0) {
+      processToast.skipped({ successCount, skipCount: skippedCount });
     } else {
       processToast.finish({ successCount, failCount });
     }

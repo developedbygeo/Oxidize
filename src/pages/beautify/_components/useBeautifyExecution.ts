@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { resolveOutputDir, formatAdjustmentDetails } from '@/lib/utils';
 import { createProcessToast } from '@/lib/process-toast';
-import { isCancelledError } from '@/lib/ffmpeg-errors';
+import { isCancelledError, isSkippedError } from '@/lib/ffmpeg-errors';
+import { toOutputNaming } from '@/types/output-naming';
 import type { BeautifyOptions, BeautifyResult, ImageInfo, OperationHistoryItem } from '@/types/image';
 import type { BeautifyFormValues } from './schema';
 
@@ -22,7 +23,7 @@ export const runBeautify = async ({
 }: RunArgs) => {
   if (images.length === 0) return;
 
-  const { outputDir, ...adjustments } = values;
+  const { outputDir, filenameTemplate, overwriteMode, ...adjustments } = values;
   onStart();
   const processToast = createProcessToast({
     progressLabel: 'Beautifying',
@@ -31,7 +32,11 @@ export const runBeautify = async ({
   });
 
   try {
-    const options: BeautifyOptions = { ...adjustments, output_dir: outputDir };
+    const options: BeautifyOptions = {
+      ...adjustments,
+      output_dir: outputDir,
+      naming: toOutputNaming(filenameTemplate, overwriteMode),
+    };
     const results = await invoke<BeautifyResult[]>('beautify_images_batch', {
       inputPaths: images.map((img) => img.path),
       options,
@@ -40,9 +45,12 @@ export const runBeautify = async ({
 
     const successCount = results.filter((r) => r.success).length;
     const cancelledCount = results.filter((r) => isCancelledError(r.error)).length;
-    const failCount = results.length - successCount - cancelledCount;
+    const skippedCount = results.filter((r) => isSkippedError(r.error)).length;
+    const failCount = results.length - successCount - cancelledCount - skippedCount;
     if (cancelledCount > 0) {
       processToast.cancelled(successCount);
+    } else if (skippedCount > 0 && failCount === 0) {
+      processToast.skipped({ successCount, skipCount: skippedCount });
     } else {
       processToast.finish({ successCount, failCount });
     }

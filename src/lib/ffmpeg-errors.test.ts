@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { humanizeFfmpegError, isCancelledError } from './ffmpeg-errors';
+import { humanizeFfmpegError, isCancelledError, isSkippedError } from './ffmpeg-errors';
 
 describe('humanizeFfmpegError', () => {
   it('returns Cancelled for the cancellation sentinel', () => {
@@ -88,5 +88,26 @@ describe('isCancelledError', () => {
     expect(isCancelledError('Permission denied')).toBe(false);
     expect(isCancelledError('')).toBe(false);
     expect(isCancelledError(null)).toBe(false);
+  });
+});
+
+describe('isSkippedError', () => {
+  it('returns true only for the exact sentinel', () => {
+    expect(isSkippedError('skipped')).toBe(true);
+    expect(isSkippedError('Skipped')).toBe(true);
+    expect(isSkippedError('  skipped  ')).toBe(true);
+  });
+
+  it('returns false for anything else, including cancelled', () => {
+    expect(isSkippedError('cancelled')).toBe(false);
+    expect(isSkippedError('skip')).toBe(false);
+    expect(isSkippedError('output was skipped because exists')).toBe(false);
+    expect(isSkippedError('Permission denied')).toBe(false);
+    expect(isSkippedError('')).toBe(false);
+    expect(isSkippedError(null)).toBe(false);
+  });
+
+  it('humanizeFfmpegError routes the sentinel through a friendly title', () => {
+    expect(humanizeFfmpegError('skipped').title).toMatch(/Skipped/);
   });
 });

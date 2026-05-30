@@ -4,7 +4,9 @@ use tauri::AppHandle;
 
 use crate::image_jobs::run_image_batch;
 use crate::types::{CompressionOptions, CompressionResult};
-use crate::utils::{detect_format, resolve_output_dir, unique_output_path};
+use crate::utils::{
+    detect_format, resolve_output_dir, resolve_output_path, ResolvedPath, TemplateContext,
+};
 
 /// Compress PNG using oxipng for maximum compression
 pub fn compress_png_oxipng(input_data: &[u8], quality: u8) -> Result<Vec<u8>, String> {
@@ -328,7 +330,27 @@ fn compress_image_sync(
         _ => (original_data.clone(), &format_str as &str),
     };
 
-    let output_path = unique_output_path(output_dir, stem, "compressed", output_extension);
+    let (width, height) = img.dimensions();
+    let naming = options.naming.clone().unwrap_or_default();
+    let ctx = TemplateContext {
+        name: stem,
+        op: "compressed",
+        width: Some(width),
+        height: Some(height),
+    };
+    let output_path = match resolve_output_path(output_dir, &naming, &ctx, output_extension) {
+        ResolvedPath::Write(p) => p,
+        ResolvedPath::Skip(p) => {
+            return Ok(CompressionResult {
+                success: false,
+                output_path: Some(p.to_string_lossy().to_string()),
+                error: Some("skipped".to_string()),
+                original_size,
+                new_size: 0,
+                savings_percent: 0.0,
+            });
+        }
+    };
 
     let new_size = output_data.len() as u64;
     let savings_percent = if original_size > 0 {

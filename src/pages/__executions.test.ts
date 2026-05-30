@@ -100,7 +100,13 @@ describe('runConversion', () => {
     const cb = noopCallbacks();
     await runConversion({
       images: [],
-      values: { targetFormat: 'webp', quality: 80, outputDir: null },
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
       ...cb,
     });
     expect(cb.onStart).not.toHaveBeenCalled();
@@ -118,13 +124,19 @@ describe('runConversion', () => {
     const cb = noopCallbacks();
     await runConversion({
       images: [image()],
-      values: { targetFormat: 'webp', quality: 80, outputDir: '/out' },
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
       ...cb,
     });
 
     expect(invoke).toHaveBeenCalledWith('convert_images_batch', {
       inputPaths: ['/in/photo.png'],
-      options: { format: 'webp', quality: 80, output_dir: '/out' },
+      options: { format: 'webp', quality: 80, output_dir: '/out', naming: null },
     });
     expect(cb.onFinish).toHaveBeenCalledWith([result]);
     expect(cb.onOperationComplete).toHaveBeenCalledWith(
@@ -144,7 +156,13 @@ describe('runConversion', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await runConversion({
       images: [image()],
-      values: { targetFormat: 'webp', quality: 80, outputDir: null },
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
       ...cb,
     });
     expect(cb.onFinish).toHaveBeenCalledWith([]);
@@ -173,13 +191,15 @@ describe('runCompression', () => {
         customQuality: 75,
         useCustom: true,
         outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
       },
       ...cb,
     });
 
     expect(invoke).toHaveBeenCalledWith('compress_images_batch', {
       inputPaths: ['/in/photo.png'],
-      options: { quality: 75, output_dir: null },
+      options: { quality: 75, output_dir: null, naming: null },
     });
     expect(cb.onOperationComplete).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'compress' })
@@ -213,6 +233,8 @@ describe('runBeautify', () => {
         temperature: 0,
         white_balance: 'cloudy',
         outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
       },
       ...cb,
     });
@@ -248,13 +270,19 @@ describe('runEffects', () => {
     const cb = noopCallbacks();
     await runEffects({
       images: [image()],
-      values: { selectedEffect: 'sepia', intensity: 60, outputDir: null },
+      values: {
+        selectedEffect: 'sepia',
+        intensity: 60,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
       ...cb,
     });
 
     expect(invoke).toHaveBeenCalledWith('apply_image_effects_batch', {
       inputPaths: ['/in/photo.png'],
-      options: { effect: 'sepia', intensity: 60, output_dir: null },
+      options: { effect: 'sepia', intensity: 60, output_dir: null, naming: null },
     });
     expect(cb.onOperationComplete).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'effects' })
@@ -276,6 +304,8 @@ describe('runCrop', () => {
         height: 0,
         aspectRatio: 'free',
         outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
       },
       ...cb,
     });
@@ -303,13 +333,15 @@ describe('runCrop', () => {
         height: 80.3,
         aspectRatio: 'free',
         outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
       },
       ...cb,
     });
 
     expect(invoke).toHaveBeenCalledWith('crop_images_batch', {
       inputPaths: ['/in/photo.png'],
-      options: { x: 11, y: 20, width: 101, height: 80, output_dir: '/out' },
+      options: { x: 11, y: 20, width: 101, height: 80, output_dir: '/out', naming: null },
     });
     expect(cb.onOperationComplete).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'crop', details: 'Cropped to 101×80' })
@@ -333,7 +365,13 @@ describe('image batch cancellation routing', () => {
     const cb = noopCallbacks();
     await runConversion({
       images: [image()],
-      values: { targetFormat: 'webp', quality: 80, outputDir: null },
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
       ...cb,
     });
     expect(sonnerToast.warning).toHaveBeenCalledWith(
@@ -364,7 +402,13 @@ describe('image batch cancellation routing', () => {
     const cb = noopCallbacks();
     await runConversion({
       images: [image({ path: '/in/a.png' }), image({ path: '/in/b.png' })],
-      values: { targetFormat: 'webp', quality: 80, outputDir: '/out' },
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
       ...cb,
     });
     expect(sonnerToast.warning).toHaveBeenCalledWith(
@@ -394,6 +438,8 @@ describe('image batch cancellation routing', () => {
         customQuality: 80,
         useCustom: false,
         outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
       },
       ...noopCallbacks(),
     });
@@ -427,6 +473,8 @@ describe('image batch cancellation routing', () => {
         temperature: 0,
         white_balance: 'daylight',
         outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
       },
       ...noopCallbacks(),
     });
@@ -449,7 +497,13 @@ describe('image batch cancellation routing', () => {
     ]);
     await runEffects({
       images: [image()],
-      values: { selectedEffect: 'sepia', intensity: 60, outputDir: null },
+      values: {
+        selectedEffect: 'sepia',
+        intensity: 60,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
       ...noopCallbacks(),
     });
     expect(sonnerToast.warning).toHaveBeenCalledWith(
@@ -478,11 +532,294 @@ describe('image batch cancellation routing', () => {
         height: 100,
         aspectRatio: 'free',
         outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
       },
       ...noopCallbacks(),
     });
     expect(sonnerToast.warning).toHaveBeenCalledWith(
       'Crop cancelled',
+      expect.any(Object)
+    );
+  });
+});
+
+// ──────────────────────────── image batch skip-toast routing ────────────────────────────
+
+describe('image batch skip-toast routing', () => {
+  it('runConversion routes a full-batch skip to processToast.skipped', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        output_path: '/out/a.webp',
+        error: 'skipped',
+        original_size: 0,
+        new_size: 0,
+      } as ConversionResult,
+    ]);
+    await runConversion({
+      images: [image()],
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'skip',
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      expect.stringMatching(/skipped/i),
+      expect.any(Object)
+    );
+    expect(sonnerToast.success).not.toHaveBeenCalled();
+  });
+
+  it('runConversion routes a partial skip (no failures) to processToast.skipped', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: true,
+        output_path: '/out/a.webp',
+        error: null,
+        original_size: 1000,
+        new_size: 800,
+      } as ConversionResult,
+      {
+        success: false,
+        output_path: '/out/b.webp',
+        error: 'skipped',
+        original_size: 0,
+        new_size: 0,
+      } as ConversionResult,
+    ]);
+    const cb = noopCallbacks();
+    await runConversion({
+      images: [image({ path: '/in/a.png' }), image({ path: '/in/b.png' })],
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'skip',
+      },
+      ...cb,
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Conversion partially complete',
+      expect.objectContaining({ description: expect.stringContaining('1 skipped') })
+    );
+    // Real successes still produce a history record.
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'convert', fileCount: 1 })
+    );
+  });
+
+  it('runConversion forwards naming options through to invoke', async () => {
+    invoke.mockResolvedValue([]);
+    await runConversion({
+      images: [image()],
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: null,
+        filenameTemplate: '{name}-mini',
+        overwriteMode: 'overwrite',
+      },
+      ...noopCallbacks(),
+    });
+    const call = invoke.mock.calls[0][1] as {
+      options: { naming: { filename_template: string; overwrite_mode: string } | null };
+    };
+    expect(call.options.naming).toEqual({
+      filename_template: '{name}-mini',
+      overwrite_mode: 'overwrite',
+    });
+  });
+
+  it('runConversion sends naming=null when both fields are default', async () => {
+    invoke.mockResolvedValue([]);
+    await runConversion({
+      images: [image()],
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'auto-number',
+      },
+      ...noopCallbacks(),
+    });
+    const call = invoke.mock.calls[0][1] as { options: { naming: unknown } };
+    expect(call.options.naming).toBeNull();
+  });
+
+  it('falls through to processToast.finish when skip + fail coexist', async () => {
+    // Mixed batch: 1 succeeded, 1 skipped, 1 failed → the "skipped" toast
+    // path is only for clean partials; failures take priority and we route
+    // through the regular finish() warning.
+    invoke.mockResolvedValue([
+      {
+        success: true,
+        output_path: '/out/a.webp',
+        error: null,
+        original_size: 1000,
+        new_size: 900,
+      } as ConversionResult,
+      {
+        success: false,
+        output_path: '/out/b.webp',
+        error: 'skipped',
+        original_size: 0,
+        new_size: 0,
+      } as ConversionResult,
+      {
+        success: false,
+        output_path: null,
+        error: 'Permission denied',
+        original_size: 0,
+        new_size: 0,
+      } as ConversionResult,
+    ]);
+    await runConversion({
+      images: [
+        image({ path: '/in/a.png' }),
+        image({ path: '/in/b.png' }),
+        image({ path: '/in/c.png' }),
+      ],
+      values: {
+        targetFormat: 'webp',
+        quality: 80,
+        outputDir: '/out',
+        filenameTemplate: '',
+        overwriteMode: 'skip',
+      },
+      ...noopCallbacks(),
+    });
+    // Should hit the "partially complete" warning, NOT the skipped-only one.
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Conversion partially complete',
+      expect.objectContaining({ description: expect.stringContaining('failed') })
+    );
+  });
+
+  it('runCompression, runBeautify, runEffects, runCrop all surface skipped toasts', async () => {
+    // Spot-check the other 4 helpers with a single skip apiece. The toast
+    // copy comes from the page's doneLabel + the shared `skipped` channel,
+    // so we just look for the "skipped" substring in the title.
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        output_path: '/out/x.png',
+        error: 'skipped',
+        original_size: 0,
+        new_size: 0,
+        savings_percent: 0,
+      } as CompressionResult,
+    ]);
+    await runCompression({
+      images: [image()],
+      values: {
+        compressionLevel: 'balanced',
+        customQuality: 80,
+        useCustom: false,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'skip',
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Compression skipped',
+      expect.any(Object)
+    );
+
+    sonnerToast.warning.mockClear();
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/photo.png',
+        output_path: '/out/x.png',
+        error: 'skipped',
+        original_size: 0,
+        new_size: 0,
+      } as BeautifyResult,
+    ]);
+    await runBeautify({
+      images: [image()],
+      values: {
+        brightness: 0,
+        contrast: 0,
+        saturation: 0,
+        sharpness: 0,
+        exposure: 0,
+        hue_shift: 0,
+        temperature: 0,
+        white_balance: 'daylight',
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'skip',
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Beautification skipped',
+      expect.any(Object)
+    );
+
+    sonnerToast.warning.mockClear();
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/photo.png',
+        output_path: '/out/x.png',
+        error: 'skipped',
+        original_size: 0,
+        new_size: 0,
+      } as EffectResult,
+    ]);
+    await runEffects({
+      images: [image()],
+      values: {
+        selectedEffect: 'sepia',
+        intensity: 60,
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'skip',
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      expect.stringMatching(/skipped/i),
+      expect.any(Object)
+    );
+
+    sonnerToast.warning.mockClear();
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/photo.png',
+        output_path: '/out/x.png',
+        error: 'skipped',
+        original_size: 0,
+        new_size: 0,
+      } as CropResult,
+    ]);
+    await runCrop({
+      images: [image()],
+      values: {
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        aspectRatio: 'free',
+        outputDir: null,
+        filenameTemplate: '',
+        overwriteMode: 'skip',
+      },
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Crop skipped',
       expect.any(Object)
     );
   });

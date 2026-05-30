@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { CropCanvas, type CropRect } from '@/components/CropCanvas';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
+import { FilenameSettings } from '@/components/page-parts/FilenameSettings';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
@@ -54,9 +55,8 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
     page: 'crop',
     form,
     baseDefaults: defaultFormValues,
-    // x/y/width/height are per-image; only the picker choice + output dir
-    // make sense as global defaults.
-    persistKeys: ['aspectRatio', 'outputDir'],
+    // x/y/width/height are per-image; everything else makes sense to persist.
+    persistKeys: ['aspectRatio', 'outputDir', 'filenameTemplate', 'overwriteMode'],
   });
   const { control, setValue, getValues, reset } = form;
   const rect: CropRect = {
@@ -67,6 +67,8 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
   };
   const aspectRatioId = useWatch({ control, name: 'aspectRatio' });
   const outputDir = useWatch({ control, name: 'outputDir' });
+  const filenameTemplate = useWatch({ control, name: 'filenameTemplate' });
+  const overwriteMode = useWatch({ control, name: 'overwriteMode' });
 
   const [images, setImages] = useState<ImageInfo[]>([]);
   const [results, setResults] = useState<CropResult[]>([]);
@@ -142,7 +144,9 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
     setImages(next);
     setShowResults(false);
     setResults([]);
-    reset({ ...defaultFormValues, outputDir });
+    // Preserve the user's output naming preferences alongside the dir —
+    // only the per-image crop state needs to be reset.
+    reset({ ...defaultFormValues, outputDir, filenameTemplate, overwriteMode });
   };
 
   const successCount = results.filter((r) => r.success).length;
@@ -208,6 +212,18 @@ const CropPage = ({ onOperationComplete }: CropPageProps) => {
                 size="sm"
               />
             </div>
+
+            <FilenameSettings
+              template={filenameTemplate}
+              overwriteMode={overwriteMode}
+              onTemplateChange={(v) =>
+                setValue('filenameTemplate', v, { shouldValidate: true })
+              }
+              onOverwriteModeChange={(v) =>
+                setValue('overwriteMode', v, { shouldValidate: true })
+              }
+              size="sm"
+            />
 
             {isCropping && images.length > 0 && (
               <JobProgressBar

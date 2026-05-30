@@ -18,6 +18,8 @@ export const compressFormSchema = z.object({
   customQuality: z.number().int().min(10).max(100),
   useCustom: z.boolean(),
   outputDir: z.string().nullable(),
+  filenameTemplate: z.string(),
+  overwriteMode: z.enum(['auto-number', 'skip', 'overwrite']),
 });
 
 export type CompressFormValues = z.infer<typeof compressFormSchema>;
@@ -27,6 +29,8 @@ export const defaultFormValues: CompressFormValues = {
   customQuality: 80,
   useCustom: false,
   outputDir: null,
+  filenameTemplate: '',
+  overwriteMode: 'auto-number',
 };
 
 export const resolveQuality = (

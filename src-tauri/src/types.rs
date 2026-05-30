@@ -1,5 +1,30 @@
 use serde::{Deserialize, Serialize};
 
+/// What to do when the resolved output path already exists on disk.
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum OverwriteMode {
+    /// Append ` (1)`, ` (2)`, … to find a free name. (Historical default.)
+    #[default]
+    AutoNumber,
+    /// Refuse to write; surface the file as "skipped" in results.
+    Skip,
+    /// Overwrite the existing file in place.
+    Overwrite,
+}
+
+/// User-controllable output naming. Both fields are optional; absent means
+/// "use the historical defaults" — `{name}_{op}` template + auto-number on
+/// collision. Threaded through every `*Options` struct so each page can
+/// opt in independently.
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct OutputNaming {
+    /// Template string with `{name}`, `{op}`, `{date}`, `{time}`, `{width}`,
+    /// `{height}` placeholders. The extension is appended automatically.
+    pub filename_template: Option<String>,
+    pub overwrite_mode: Option<OverwriteMode>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImageInfo {
     pub path: String,
@@ -25,12 +50,16 @@ pub struct ConversionOptions {
     pub format: String,
     pub quality: u8,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompressionOptions {
     pub quality: u8,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -54,6 +83,8 @@ pub struct BeautifyOptions {
     pub temperature: i32,
     pub white_balance: String,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,6 +104,8 @@ pub struct CropOptions {
     pub width: u32,
     pub height: u32,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -90,6 +123,8 @@ pub struct EffectOptions {
     pub effect: String,
     pub intensity: u8,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -147,6 +182,8 @@ pub struct PipelineOptions {
     pub convert: Option<PipelineConvertParams>,
     pub compress: Option<PipelineCompressParams>,
     pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
