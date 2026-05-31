@@ -190,6 +190,54 @@ pub struct RotateResult {
     pub new_size: u64,
 }
 
+/// Where to anchor the watermark within the base image — a 9-cell grid.
+/// The corner/edge cells respect the margin offset; the centre cells ignore
+/// it (a margin from the centre is meaningless).
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum WatermarkPosition {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    MiddleLeft,
+    MiddleCenter,
+    MiddleRight,
+    BottomLeft,
+    BottomCenter,
+    #[default]
+    BottomRight,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WatermarkOptions {
+    /// Absolute path to the watermark/logo image (any decodable format).
+    pub watermark_path: String,
+    pub position: WatermarkPosition,
+    /// Watermark alpha multiplier, 0.0..=1.0. Multiplied into the watermark's
+    /// own alpha channel before compositing.
+    pub opacity: f32,
+    /// Watermark width as a percentage of the *base* image width, so the mark
+    /// scales consistently across a mixed-size batch. Height follows the
+    /// watermark's own aspect ratio.
+    pub scale_percent: f32,
+    /// Edge inset as a percentage of base width (also scales per source).
+    /// Ignored for the centre cells.
+    pub margin_percent: f32,
+    pub output_dir: Option<String>,
+    #[serde(default)]
+    pub naming: Option<OutputNaming>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WatermarkResult {
+    pub success: bool,
+    pub input_path: String,
+    pub output_path: Option<String>,
+    pub error: Option<String>,
+    pub original_size: u64,
+    pub new_size: u64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EffectOptions {
     pub effect: String,

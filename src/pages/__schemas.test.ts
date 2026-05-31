@@ -35,6 +35,10 @@ import {
   defaultFormValues as resizeDefaults,
 } from './resize/_components/schema';
 import {
+  watermarkFormSchema,
+  defaultFormValues as watermarkDefaults,
+} from './watermark/_components/schema';
+import {
   pipelineSchema,
   defaultValues as pipelineDefaults,
 } from './pipeline/_components/schema';
@@ -68,6 +72,7 @@ describe('schema defaults parse cleanly', () => {
     ['crop', cropFormSchema, cropDefaults],
     ['rotate', rotateFormSchema, rotateDefaults],
     ['resize', resizeFormSchema, resizeDefaults],
+    ['watermark', watermarkFormSchema, watermarkDefaults],
     ['pipeline', pipelineSchema, pipelineDefaults],
     ['video-convert', videoConvertFormSchema, videoConvertDefaults],
     ['video-compress', videoCompressFormSchema, videoCompressDefaults],
@@ -143,6 +148,24 @@ describe('schemas reject representative invalid input', () => {
     expect(
       resizeFormSchema.safeParse({ ...resizeDefaults, width: 1080, height: null }).success
     ).toBe(true);
+  });
+
+  it('watermark: rejects opacity above 100', () => {
+    expect(
+      watermarkFormSchema.safeParse({ ...watermarkDefaults, opacity: 150 }).success
+    ).toBe(false);
+  });
+
+  it('watermark: rejects an unknown position cell', () => {
+    expect(
+      watermarkFormSchema.safeParse({ ...watermarkDefaults, position: 'dead-center' }).success
+    ).toBe(false);
+  });
+
+  it('watermark: rejects a zero scale (would be invisible)', () => {
+    expect(
+      watermarkFormSchema.safeParse({ ...watermarkDefaults, scalePercent: 0 }).success
+    ).toBe(false);
   });
 
   it('pipeline: rejects below-min compressQuality', () => {

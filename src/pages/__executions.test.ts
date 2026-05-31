@@ -18,6 +18,7 @@ import type {
   OperationHistoryItem,
   ResizeResult,
   RotateResult,
+  WatermarkResult,
 } from '@/types/image';
 import type { VideoInfo, VideoResult } from '@/types/video';
 
@@ -45,6 +46,7 @@ const { runEffects } = await import('./effects/_components/useEffectsExecution')
 const { runCrop } = await import('./crop/_components/useCropExecution');
 const { runRotate } = await import('./rotate/_components/useRotateExecution');
 const { runResize } = await import('./resize/_components/useResizeExecution');
+const { runWatermark } = await import('./watermark/_components/useWatermarkExecution');
 const { runVideoConvert } = await import('./video-convert/_components/useVideoConvertExecution');
 const { runVideoCompress } = await import('./video-compress/_components/useVideoCompressExecution');
 const { runVideoResize } = await import('./video-resize/_components/useVideoResizeExecution');
@@ -546,6 +548,90 @@ describe('runResize', () => {
     expect(cb.onOperationComplete).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'resize', details: 'Resize height to 1080px' })
     );
+  });
+});
+
+// ──────────────────────────── runWatermark ────────────────────────────
+
+describe('runWatermark', () => {
+  const watermarkValues = (overrides = {}) => ({
+    watermarkPath: '/in/logo.png',
+    position: 'bottom-right' as const,
+    opacity: 80,
+    scalePercent: 20,
+    marginPercent: 3,
+    outputDir: '/out',
+    filenameTemplate: '',
+    overwriteMode: 'auto-number' as const,
+    ...overrides,
+  });
+
+  it('returns early without invoking when no watermark is picked', async () => {
+    const cb = noopCallbacks();
+    await runWatermark({
+      images: [image()],
+      values: watermarkValues({ watermarkPath: null }),
+      ...cb,
+    });
+    expect(cb.onStart).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('forwards snake-case options and converts opacity to a 0–1 fraction', async () => {
+    const result: WatermarkResult = {
+      ...baseResult({}),
+      input_path: '/in/photo.png',
+      original_size: 1000,
+      new_size: 1100,
+      error: null,
+    };
+    invoke.mockResolvedValue([result]);
+
+    const cb = noopCallbacks();
+    await runWatermark({
+      images: [image()],
+      values: watermarkValues(),
+      ...cb,
+    });
+
+    expect(invoke).toHaveBeenCalledWith('watermark_images_batch', {
+      inputPaths: ['/in/photo.png'],
+      options: {
+        watermark_path: '/in/logo.png',
+        position: 'bottom-right',
+        opacity: 0.8,
+        scale_percent: 20,
+        margin_percent: 3,
+        output_dir: '/out',
+        naming: null,
+      },
+    });
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'watermark', fileCount: 1 })
+    );
+  });
+
+  it('fires the cancelled warning when any result carries the cancellation sentinel', async () => {
+    invoke.mockResolvedValue([
+      {
+        success: false,
+        input_path: '/in/photo.png',
+        output_path: null,
+        error: 'cancelled',
+        original_size: 0,
+        new_size: 0,
+      } as WatermarkResult,
+    ]);
+    await runWatermark({
+      images: [image()],
+      values: watermarkValues(),
+      ...noopCallbacks(),
+    });
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Watermark cancelled',
+      expect.any(Object)
+    );
+    expect(sonnerToast.success).not.toHaveBeenCalled();
   });
 });
 

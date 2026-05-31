@@ -6,6 +6,7 @@ import { EffectsPage } from '@/pages/effects';
 import { CropPage } from '@/pages/crop';
 import { RotatePage } from '@/pages/rotate';
 import { ResizePage } from '@/pages/resize';
+import { WatermarkPage } from '@/pages/watermark';
 import { SocialPage } from '@/pages/social';
 import { PipelinePage } from '@/pages/pipeline';
 import { VideoConvertPage } from '@/pages/video-convert';
@@ -23,6 +24,7 @@ export type Page =
   | 'crop'
   | 'rotate'
   | 'resize'
+  | 'watermark'
   | 'social'
   | 'pipeline'
   | 'video-convert'
@@ -84,6 +86,11 @@ export const pageMeta: Record<Page, PageMeta> = {
     title: 'Resize Images',
     subtitle: 'Scale to a target width, height, or both',
     navLabel: 'Resize',
+  },
+  watermark: {
+    title: 'Watermark Images',
+    subtitle: 'Overlay a logo or mark across a batch',
+    navLabel: 'Watermark',
   },
   social: {
     title: 'Social presets',
@@ -148,6 +155,7 @@ export const operationPages: Record<OperationPageId, ComponentType<OperationPage
   crop: CropPage,
   rotate: RotatePage,
   resize: ResizePage,
+  watermark: WatermarkPage,
   social: SocialPage,
   pipeline: PipelinePage,
   'video-convert': VideoConvertPage,

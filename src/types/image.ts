@@ -126,7 +126,8 @@ export type OperationType =
   | 'video-compress'
   | 'video-resize'
   | 'video-trim'
-  | 'extract-audio';
+  | 'extract-audio'
+  | 'watermark';
 
 export interface OperationHistoryItem {
   id: string;
@@ -221,6 +222,41 @@ export interface RotateOptions {
 }
 
 export interface RotateResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+/** 9-cell anchor grid for watermark placement. Mirrors the Rust
+ *  `WatermarkPosition` enum (kebab-case wire format). */
+export type WatermarkPosition =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'middle-left'
+  | 'middle-center'
+  | 'middle-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+export interface WatermarkOptions {
+  watermark_path: string;
+  position: WatermarkPosition;
+  /** Alpha multiplier, 0.0..=1.0. */
+  opacity: number;
+  /** Watermark width as a percentage of the base image width. */
+  scale_percent: number;
+  /** Edge inset as a percentage of base width. Ignored for centre cells. */
+  margin_percent: number;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface WatermarkResult {
   success: boolean;
   input_path: string;
   output_path: string | null;

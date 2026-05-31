@@ -17,6 +17,7 @@ import {
   Scaling,
   Scissors,
   Share2,
+  Stamp,
   Keyboard,
 } from 'lucide-react';
 import {
@@ -76,6 +77,7 @@ const navGroups: NavGroup[] = [
       { id: 'crop', label: 'Crop', description: 'Trim a region', icon: Crop },
       { id: 'rotate', label: 'Rotate', description: 'Rotate + flip', icon: RotateCw },
       { id: 'resize', label: 'Resize', description: 'Scale dimensions', icon: Scaling },
+      { id: 'watermark', label: 'Watermark', description: 'Overlay a logo', icon: Stamp },
       { id: 'pipeline', label: 'Pipeline', description: 'Chain operations', icon: Workflow },
     ],
   },

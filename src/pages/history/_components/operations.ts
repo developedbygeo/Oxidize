@@ -14,6 +14,7 @@ import {
   RotateCw,
   Scissors,
   Scaling,
+  Stamp,
 } from 'lucide-react';
 import type { OperationType } from '@/types/image';
 
@@ -32,6 +33,7 @@ export const operationIcons: Record<OperationType, LucideIcon> = {
   'video-resize': Maximize2,
   'video-trim': Scissors,
   'extract-audio': Music,
+  watermark: Stamp,
 };
 
 export const operationLabels: Record<OperationType, string> = {
@@ -49,4 +51,5 @@ export const operationLabels: Record<OperationType, string> = {
   'video-resize': 'Video Resize',
   'video-trim': 'Video Trim',
   'extract-audio': 'Extract Audio',
+  watermark: 'Watermark',
 };

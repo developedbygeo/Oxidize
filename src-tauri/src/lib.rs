@@ -14,6 +14,7 @@ mod rotate;
 mod types;
 mod utils;
 mod video;
+mod watermark;
 
 pub use types::*;
 
@@ -60,6 +61,9 @@ pub fn run() {
             // Resize
             resize::resize_image,
             resize::resize_images_batch,
+            // Watermark
+            watermark::watermark_image,
+            watermark::watermark_images_batch,
             // Pipeline
             pipeline::process_pipeline_batch,
             // Video
