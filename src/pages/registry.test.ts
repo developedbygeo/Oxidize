@@ -16,6 +16,7 @@ const allPages: Page[] = [
   'video-convert',
   'video-compress',
   'video-resize',
+  'video-watermark',
   'video-trim',
   'extract-audio',
   'history',

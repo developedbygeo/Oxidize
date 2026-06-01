@@ -6,5 +6,6 @@ pub mod jobs;
 pub mod probe;
 pub mod resize;
 pub mod trim;
+pub mod watermark;
 
 pub use jobs::VideoJobs;

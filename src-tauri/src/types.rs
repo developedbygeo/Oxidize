@@ -393,6 +393,22 @@ pub struct VideoResizeOptions {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VideoWatermarkOptions {
+    pub format: String,
+    /// Absolute path to the watermark/logo image (any decodable format).
+    pub watermark_path: String,
+    pub position: WatermarkPosition,
+    /// Watermark alpha multiplier, 0.0..=1.0.
+    pub opacity: f32,
+    /// Watermark width as a percentage of the source video width.
+    pub scale_percent: f32,
+    /// Edge inset as a percentage of source video width. Ignored for centre cells.
+    pub margin_percent: f32,
+    pub crf: Option<u8>,
+    pub output_dir: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AudioExtractOptions {
     /// Output container/codec: "mp3", "aac", "opus", "flac", "wav".
     pub format: String,

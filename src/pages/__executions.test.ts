@@ -50,6 +50,9 @@ const { runWatermark } = await import('./watermark/_components/useWatermarkExecu
 const { runVideoConvert } = await import('./video-convert/_components/useVideoConvertExecution');
 const { runVideoCompress } = await import('./video-compress/_components/useVideoCompressExecution');
 const { runVideoResize } = await import('./video-resize/_components/useVideoResizeExecution');
+const { runVideoWatermark } = await import(
+  './video-watermark/_components/useVideoWatermarkExecution'
+);
 const { runVideoTrim } = await import('./video-trim/_components/useVideoTrimExecution');
 const { runExtractAudio } = await import('./extract-audio/_components/useExtractAudioExecution');
 
@@ -1244,6 +1247,85 @@ describe('runVideoResize', () => {
       ...cb,
     });
     expect(invoke).toHaveBeenCalledWith('resize_videos_batch', expect.any(Object));
+  });
+});
+
+// ──────────────────────────── runVideoWatermark ────────────────────────────
+
+describe('runVideoWatermark', () => {
+  const videoWatermarkValues = (overrides = {}) => ({
+    targetFormat: 'mp4' as const,
+    watermarkPath: '/in/logo.png',
+    position: 'bottom-right' as const,
+    opacity: 80,
+    scalePercent: 20,
+    marginPercent: 3,
+    crf: 23,
+    outputDir: '/out',
+    ...overrides,
+  });
+
+  it('returns early without invoking when no watermark is picked', async () => {
+    const cb = noopCallbacks();
+    await runVideoWatermark({
+      videos: [video()],
+      values: videoWatermarkValues({ watermarkPath: null }),
+      ...cb,
+    });
+    expect(cb.onStart).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('forwards snake-case options and converts opacity to a 0–1 fraction', async () => {
+    const result: VideoResult = {
+      ...baseResult({ output_path: '/out/clip.mp4' }),
+      input_path: '/in/clip.mp4',
+      original_size: 10_000,
+      new_size: 9_500,
+      error: null,
+    };
+    invoke.mockResolvedValue([result]);
+
+    const cb = noopCallbacks();
+    await runVideoWatermark({
+      videos: [video()],
+      values: videoWatermarkValues(),
+      ...cb,
+    });
+
+    expect(invoke).toHaveBeenCalledWith('watermark_videos_batch', {
+      inputPaths: ['/in/clip.mp4'],
+      options: {
+        format: 'mp4',
+        watermark_path: '/in/logo.png',
+        position: 'bottom-right',
+        opacity: 0.8,
+        scale_percent: 20,
+        margin_percent: 3,
+        crf: 23,
+        output_dir: '/out',
+      },
+    });
+    expect(cb.onOperationComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'video-watermark', fileCount: 1 })
+    );
+  });
+
+  it('routes the catch-path cancellation sentinel to the cancelled toast', async () => {
+    invoke.mockRejectedValue('cancelled');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await runVideoWatermark({
+      videos: [video()],
+      values: videoWatermarkValues(),
+      ...noopCallbacks(),
+    });
+
+    expect(sonnerToast.warning).toHaveBeenCalledWith(
+      'Watermark cancelled',
+      expect.any(Object)
+    );
+    expect(sonnerToast.error).not.toHaveBeenCalled();
   });
 });
 

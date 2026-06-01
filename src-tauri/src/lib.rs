@@ -75,6 +75,8 @@ pub fn run() {
             video::compress::compress_videos_batch,
             video::resize::resize_video,
             video::resize::resize_videos_batch,
+            video::watermark::watermark_video,
+            video::watermark::watermark_videos_batch,
             video::audio::extract_audio,
             video::audio::extract_audio_batch,
             video::trim::trim_video,

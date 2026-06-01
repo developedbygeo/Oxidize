@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import type { ImageInfo, WatermarkPosition } from '@/types/image';
-import { positionToAnchors } from './schema';
+import { positionToAnchors } from '@/components/watermark';
 
 type WatermarkPreviewProps = {
   source: ImageInfo;

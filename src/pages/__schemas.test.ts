@@ -55,6 +55,10 @@ import {
   defaultFormValues as videoResizeDefaults,
 } from './video-resize/_components/schema';
 import {
+  videoWatermarkFormSchema,
+  defaultFormValues as videoWatermarkDefaults,
+} from './video-watermark/_components/schema';
+import {
   videoTrimFormSchema,
   defaultFormValues as videoTrimDefaults,
 } from './video-trim/_components/schema';
@@ -77,6 +81,7 @@ describe('schema defaults parse cleanly', () => {
     ['video-convert', videoConvertFormSchema, videoConvertDefaults],
     ['video-compress', videoCompressFormSchema, videoCompressDefaults],
     ['video-resize', videoResizeFormSchema, videoResizeDefaults],
+    ['video-watermark', videoWatermarkFormSchema, videoWatermarkDefaults],
     ['video-trim', videoTrimFormSchema, videoTrimDefaults],
     ['extract-audio', extractAudioFormSchema, extractAudioDefaults],
   ])('%s', (_name, schema, defaults) => {
@@ -177,6 +182,28 @@ describe('schemas reject representative invalid input', () => {
   it('video-convert: rejects an unknown target format', () => {
     expect(
       videoConvertFormSchema.safeParse({ ...videoConvertDefaults, targetFormat: 'flv' }).success
+    ).toBe(false);
+  });
+
+  it('video-watermark: rejects an unknown target format', () => {
+    expect(
+      videoWatermarkFormSchema.safeParse({
+        ...videoWatermarkDefaults,
+        targetFormat: 'flv',
+      }).success
+    ).toBe(false);
+  });
+
+  it('video-watermark: rejects opacity above 100', () => {
+    expect(
+      videoWatermarkFormSchema.safeParse({ ...videoWatermarkDefaults, opacity: 150 }).success
+    ).toBe(false);
+  });
+
+  it('video-watermark: rejects an unknown position cell', () => {
+    expect(
+      videoWatermarkFormSchema.safeParse({ ...videoWatermarkDefaults, position: 'dead-center' })
+        .success
     ).toBe(false);
   });
 

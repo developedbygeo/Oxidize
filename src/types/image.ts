@@ -127,7 +127,8 @@ export type OperationType =
   | 'video-resize'
   | 'video-trim'
   | 'extract-audio'
-  | 'watermark';
+  | 'watermark'
+  | 'video-watermark';
 
 export interface OperationHistoryItem {
   id: string;

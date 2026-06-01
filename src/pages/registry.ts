@@ -12,6 +12,7 @@ import { PipelinePage } from '@/pages/pipeline';
 import { VideoConvertPage } from '@/pages/video-convert';
 import { VideoCompressPage } from '@/pages/video-compress';
 import { VideoResizePage } from '@/pages/video-resize';
+import { VideoWatermarkPage } from '@/pages/video-watermark';
 import { VideoTrimPage } from '@/pages/video-trim';
 import { ExtractAudioPage } from '@/pages/extract-audio';
 import type { OperationHistoryItem } from '@/types/image';
@@ -30,6 +31,7 @@ export type Page =
   | 'video-convert'
   | 'video-compress'
   | 'video-resize'
+  | 'video-watermark'
   | 'video-trim'
   | 'extract-audio'
   | 'history';
@@ -117,6 +119,11 @@ export const pageMeta: Record<Page, PageMeta> = {
     subtitle: 'Scale to a target resolution',
     navLabel: 'Video Resize',
   },
+  'video-watermark': {
+    title: 'Watermark Videos',
+    subtitle: 'Overlay a logo or mark onto a batch of videos',
+    navLabel: 'Video Watermark',
+  },
   'video-trim': {
     title: 'Trim Videos',
     subtitle: 'Cut a portion out of a video',
@@ -161,6 +168,7 @@ export const operationPages: Record<OperationPageId, ComponentType<OperationPage
   'video-convert': VideoConvertPage,
   'video-compress': VideoCompressPage,
   'video-resize': VideoResizePage,
+  'video-watermark': VideoWatermarkPage,
   'video-trim': VideoTrimPage,
   'extract-audio': ExtractAudioPage,
 };

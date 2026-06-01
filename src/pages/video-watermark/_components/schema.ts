@@ -1,7 +1,11 @@
 import { z } from 'zod';
+import type { VideoFormat } from '@/types/video';
 
-export const watermarkFormSchema = z.object({
-  /** Absolute path to the watermark/logo image. Null until the user picks one. */
+export const videoOutputFormats: VideoFormat[] = ['mp4', 'webm', 'mkv', 'mov'];
+
+export const videoWatermarkFormSchema = z.object({
+  targetFormat: z.enum(['mp4', 'webm', 'mkv', 'mov', 'avi']),
+  /** Absolute path to the watermark image. Null until the user picks one. */
   watermarkPath: z.string().nullable(),
   position: z.enum([
     'top-left',
@@ -16,30 +20,26 @@ export const watermarkFormSchema = z.object({
   ]),
   /** 0–100 in the UI; converted to a 0–1 fraction before the command runs. */
   opacity: z.number().min(0).max(100),
-  /** Watermark width as a percentage of the base image width. */
   scalePercent: z.number().min(1).max(100),
-  /** Edge inset as a percentage of base width. */
   marginPercent: z.number().min(0).max(25),
+  crf: z.number().int().min(0).max(51),
   outputDir: z.string().nullable(),
-  filenameTemplate: z.string(),
-  overwriteMode: z.enum(['auto-number', 'skip', 'overwrite']),
 });
 
-export type WatermarkFormValues = z.infer<typeof watermarkFormSchema>;
+export type VideoWatermarkFormValues = z.infer<typeof videoWatermarkFormSchema>;
 
-export const defaultFormValues: WatermarkFormValues = {
+export const defaultFormValues: VideoWatermarkFormValues = {
+  targetFormat: 'mp4',
   watermarkPath: null,
   position: 'bottom-right',
   opacity: 100,
   scalePercent: 20,
   marginPercent: 3,
+  crf: 23,
   outputDir: null,
-  filenameTemplate: '',
-  overwriteMode: 'auto-number',
 };
 
-/** No work to do without a watermark image, or when it would be invisible. */
-export const isNoop = (values: WatermarkFormValues): boolean =>
+export const isNoop = (values: VideoWatermarkFormValues): boolean =>
   !values.watermarkPath || values.opacity === 0 || values.scalePercent === 0;
 
 export const formatFileSize = (bytes: number): string => {

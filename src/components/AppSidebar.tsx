@@ -87,6 +87,7 @@ const navGroups: NavGroup[] = [
       { id: 'video-convert', label: 'Convert', description: 'Change video format', icon: FileVideo },
       { id: 'video-compress', label: 'Compress', description: 'Shrink video files', icon: Film },
       { id: 'video-resize', label: 'Resize', description: 'Change dimensions', icon: Maximize2 },
+      { id: 'video-watermark', label: 'Watermark', description: 'Overlay a logo', icon: Stamp },
       { id: 'video-trim', label: 'Trim', description: 'Cut a portion out', icon: Scissors },
       { id: 'extract-audio', label: 'Extract audio', description: 'Pull audio from video', icon: Music },
     ],

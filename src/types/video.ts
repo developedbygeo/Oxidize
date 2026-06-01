@@ -71,12 +71,27 @@ export interface VideoResizeOptions {
   output_dir: string | null;
 }
 
+export interface VideoWatermarkOptions {
+  format: VideoFormat;
+  watermark_path: string;
+  position: import('./image').WatermarkPosition;
+  /** Alpha multiplier, 0.0..=1.0. */
+  opacity: number;
+  /** Watermark width as a percentage of the source video width. */
+  scale_percent: number;
+  /** Edge inset as a percentage of source video width. */
+  margin_percent: number;
+  crf: number | null;
+  output_dir: string | null;
+}
+
 export type VideoOperationType =
   | 'video-convert'
   | 'video-compress'
   | 'video-resize'
   | 'video-trim'
-  | 'extract-audio';
+  | 'extract-audio'
+  | 'video-watermark';
 
 export type VideoTrimMode = 'accurate' | 'fast';
 

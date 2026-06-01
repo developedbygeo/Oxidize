@@ -34,6 +34,7 @@ export const operationIcons: Record<OperationType, LucideIcon> = {
   'video-trim': Scissors,
   'extract-audio': Music,
   watermark: Stamp,
+  'video-watermark': Stamp,
 };
 
 export const operationLabels: Record<OperationType, string> = {
@@ -52,4 +53,5 @@ export const operationLabels: Record<OperationType, string> = {
   'video-trim': 'Video Trim',
   'extract-audio': 'Extract Audio',
   watermark: 'Watermark',
+  'video-watermark': 'Video Watermark',
 };

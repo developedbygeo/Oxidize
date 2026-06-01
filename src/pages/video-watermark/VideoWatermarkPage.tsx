@@ -4,91 +4,86 @@ import { Stamp, Sparkles } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { cn, resolveOutputDir } from '@/lib/utils';
 import { fadeUp } from '@/lib/animations';
-import { resolveOutputDir } from '@/lib/utils';
-import { ImageDropzone } from '@/components/ImageDropzone';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
 import { PageHeader } from '@/components/page-parts/PageHeader';
 import { OutputLocationPicker } from '@/components/page-parts/OutputLocationPicker';
-import { FilenameSettings } from '@/components/page-parts/FilenameSettings';
 import { ProcessButton } from '@/components/page-parts/ProcessButton';
 import { ResultsBanner } from '@/components/page-parts/ResultsBanner';
 import { ResultsList } from '@/components/page-parts/ResultsList';
 import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
-import { useImageProgress } from '@/hooks/useImageProgress';
-import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
-import { useClipboardImagePaste } from '@/hooks/useClipboardImagePaste';
-import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
-import type { ImageInfo, OperationHistoryItem, WatermarkResult } from '@/types/image';
-import {
-  defaultFormValues,
-  formatFileSize,
-  isNoop,
-  watermarkFormSchema,
-  type WatermarkFormValues,
-} from './_components/schema';
+import { VideoDropzone } from '@/components/VideoDropzone';
+import { useFfmpegProgress } from '@/hooks/useFfmpegProgress';
+import { Slider } from '@/components/ui/slider';
+import { crfToQuality, qualityToCrf } from '@/lib/video-quality';
 import {
   PositionGrid,
   WatermarkSliders,
   WatermarkSourcePicker,
 } from '@/components/watermark';
-import { EmptyState } from './_components/EmptyState';
-import { WatermarkPreview } from './_components/WatermarkPreview';
-import { runWatermark } from './_components/useWatermarkExecution';
+import {
+  videoFormatLabels,
+  type VideoFormat,
+  type VideoInfo,
+  type VideoResult,
+} from '@/types/video';
+import type { OperationHistoryItem } from '@/types/image';
+import {
+  defaultFormValues,
+  formatFileSize,
+  videoOutputFormats,
+  videoWatermarkFormSchema,
+  type VideoWatermarkFormValues,
+} from './_components/schema';
+import { runVideoWatermark } from './_components/useVideoWatermarkExecution';
 
-type WatermarkPageProps = {
+type VideoWatermarkPageProps = {
   onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
 };
 
-const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
-  const form = useForm<WatermarkFormValues>({
-    resolver: zodResolver(watermarkFormSchema),
+const VideoWatermarkPage = ({ onOperationComplete }: VideoWatermarkPageProps) => {
+  const form = useForm<VideoWatermarkFormValues>({
+    resolver: zodResolver(videoWatermarkFormSchema),
     defaultValues: defaultFormValues,
     mode: 'onChange',
   });
   usePersistedFormDefaults({
-    page: 'watermark',
+    page: 'video-watermark',
     form,
     baseDefaults: defaultFormValues,
     persistKeys: [
+      'targetFormat',
       'position',
       'opacity',
       'scalePercent',
       'marginPercent',
+      'crf',
       'outputDir',
-      'filenameTemplate',
-      'overwriteMode',
     ],
   });
   const { control } = form;
+  const targetFormat = useWatch({ control, name: 'targetFormat' });
   const watermarkPath = useWatch({ control, name: 'watermarkPath' });
   const position = useWatch({ control, name: 'position' });
   const opacity = useWatch({ control, name: 'opacity' });
   const scalePercent = useWatch({ control, name: 'scalePercent' });
   const marginPercent = useWatch({ control, name: 'marginPercent' });
+  const crf = useWatch({ control, name: 'crf' });
   const outputDir = useWatch({ control, name: 'outputDir' });
-  const filenameTemplate = useWatch({ control, name: 'filenameTemplate' });
-  const overwriteMode = useWatch({ control, name: 'overwriteMode' });
 
-  const [images, setImages] = useState<ImageInfo[]>([]);
-  const [results, setResults] = useState<WatermarkResult[]>([]);
+  const [videos, setVideos] = useState<VideoInfo[]>([]);
+  const [results, setResults] = useState<VideoResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const progress = useImageProgress(isProcessing);
-
-  useClipboardImagePaste({
-    onImagesAdded: (added) => setImages((prev) => [...prev, ...added]),
-    enabled: !isProcessing,
-  });
-
-  const formValues = form.getValues();
-  const noop = isNoop(formValues);
-  const canRun = images.length > 0 && !noop && !isProcessing;
+  const progress = useFfmpegProgress(isProcessing);
 
   const handleWatermark = () =>
-    runWatermark({
-      images,
-      values: formValues,
+    runVideoWatermark({
+      videos,
+      values: form.getValues(),
       onStart: () => {
         setIsProcessing(true);
         setShowResults(false);
@@ -101,29 +96,26 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
       onOperationComplete,
     });
 
+  const canRun = videos.length > 0 && !!watermarkPath && !isProcessing;
   useKeyboardShortcut('Enter', handleWatermark, { meta: true, enabled: canRun });
-  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isProcessing });
+  useKeyboardShortcut('Escape', () => invoke('cancel_video_jobs'), { enabled: isProcessing });
 
   const successCount = results.filter((r) => r.success).length;
-  const previewImage = images[0];
-
-  if (images.length === 0 && !showResults) {
-    return <EmptyState onImagesChange={setImages} />;
-  }
+  const quality = crfToQuality(crf);
 
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-3xl mx-auto p-6 space-y-5">
         <PageHeader
           icon={Stamp}
-          title="Watermark"
-          description="Overlay a logo or mark across a batch of images"
+          title="Video Watermark"
+          description="Overlay a logo or mark onto a batch of videos"
         />
 
-        <ImageDropzone images={images} onImagesChange={setImages} />
+        <VideoDropzone videos={videos} onVideosChange={setVideos} />
 
         <AnimatePresence>
-          {images.length > 0 && (
+          {videos.length > 0 && (
             <motion.div
               variants={fadeUp}
               initial="hidden"
@@ -138,17 +130,10 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
                 }
               />
 
-              {previewImage && watermarkPath && (
-                <WatermarkPreview
-                  source={previewImage}
-                  sourceCount={images.length}
-                  watermarkPath={watermarkPath}
-                  position={position}
-                  opacity={opacity}
-                  scalePercent={scalePercent}
-                  marginPercent={marginPercent}
-                />
-              )}
+              <p className="text-[10px] text-muted-foreground/80 -mt-2">
+                Live preview is not available for video. The result lines up with the image
+                watermark page — pick a position, then run a short test clip if you're tuning.
+              </p>
 
               <PositionGrid
                 value={position}
@@ -166,6 +151,68 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
 
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Container
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {videoOutputFormats.map((format) => (
+                    <button
+                      key={format}
+                      type="button"
+                      onClick={() =>
+                        form.setValue('targetFormat', format as VideoFormat, {
+                          shouldValidate: true,
+                        })
+                      }
+                      className={cn(
+                        'px-3 py-2 rounded-md text-xs font-medium transition-colors',
+                        targetFormat === format
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      {videoFormatLabels[format]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Re-encode quality
+                  </label>
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className={cn(
+                        'text-xs font-mono tabular-nums',
+                        quality >= 60
+                          ? 'text-primary'
+                          : quality <= 40
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
+                      )}
+                    >
+                      {quality}%
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground/60">
+                      CRF {crf}
+                    </span>
+                  </div>
+                </div>
+                <Slider
+                  value={[quality]}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onValueChange={(values) =>
+                    form.setValue('crf', qualityToCrf(values[0]), { shouldValidate: true })
+                  }
+                  className="**:data-[slot=slider-range]:bg-primary **:data-[slot=slider-thumb]:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Output Location
                 </label>
                 <OutputLocationPicker
@@ -175,18 +222,6 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
                 />
               </div>
 
-              <FilenameSettings
-                template={filenameTemplate}
-                overwriteMode={overwriteMode}
-                onTemplateChange={(v) =>
-                  form.setValue('filenameTemplate', v, { shouldValidate: true })
-                }
-                onOverwriteModeChange={(v) =>
-                  form.setValue('overwriteMode', v, { shouldValidate: true })
-                }
-                size="md"
-              />
-
               <ProcessButton
                 isProcessing={isProcessing}
                 disabled={!canRun}
@@ -195,7 +230,7 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
                 label={
                   !watermarkPath
                     ? 'Choose a watermark image to enable'
-                    : `Watermark ${images.length} image${images.length !== 1 ? 's' : ''}`
+                    : `Watermark ${videos.length} video${videos.length !== 1 ? 's' : ''}`
                 }
                 processingLabel="Watermarking..."
               />
@@ -203,14 +238,14 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
           )}
         </AnimatePresence>
 
-        {isProcessing && images.length > 0 && (
+        {isProcessing && videos.length > 0 && (
           <JobProgressBar
-            items={images.map((img) => ({ path: img.path, name: img.name }))}
+            items={videos.map((v) => ({ path: v.path, name: v.name }))}
             progress={progress}
             running={isProcessing}
             verb="Watermarking"
-            itemName="image"
-            onCancel={() => invoke('cancel_image_jobs')}
+            itemName="video"
+            onCancel={() => invoke('cancel_video_jobs')}
           />
         )}
 
@@ -231,7 +266,7 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
               <ResultsList results={results}>
                 {(result) => (
                   <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                    {formatFileSize(result.new_size)}
+                    {formatFileSize(result.original_size)} → {formatFileSize(result.new_size)}
                   </span>
                 )}
               </ResultsList>
@@ -243,6 +278,6 @@ const WatermarkPage = ({ onOperationComplete }: WatermarkPageProps) => {
   );
 };
 
-WatermarkPage.displayName = 'WatermarkPage';
+VideoWatermarkPage.displayName = 'VideoWatermarkPage';
 
-export { WatermarkPage };
+export { VideoWatermarkPage };
