@@ -4,6 +4,8 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { Toaster } from '@/components/ui/sonner';
 import { AppSidebar } from '@/components/AppSidebar';
 import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp';
+import { WhatsNewSheet } from '@/components/WhatsNewSheet';
+import { APP_VERSION, shouldAutoOpen } from '@/lib/changelog';
 import { useCtrlDigitShortcut } from '@/hooks/useCtrlDigitShortcut';
 import { useHistory } from '@/hooks/useHistory';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
@@ -15,6 +17,7 @@ import { navOrder, operationPages, pageMeta, type Page } from '@/pages/registry'
 const App = () => {
   const [currentPage, setCurrentPage] = useState<Page>('convert');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
   const { history, addItem, removeItem, clear } = useHistory();
   const { settings, isLoaded: settingsLoaded, setSetting } = useSettings();
 
@@ -47,6 +50,27 @@ const App = () => {
     else document.documentElement.classList.remove('dark');
   }, [settings.theme, settingsLoaded]);
 
+  // Auto-open the What's-new panel on first launch and after a version bump.
+  // Runs once when settings finish loading so we don't surprise the user on
+  // every render; the panel itself updates `lastSeenVersion` when closed.
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    if (shouldAutoOpen(settings.lastSeenVersion)) setIsWhatsNewOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoaded]);
+
+  const handleWhatsNewOpenChange = useCallback(
+    (open: boolean) => {
+      setIsWhatsNewOpen(open);
+      // Persist on close — opening doesn't need to write, but once they've
+      // seen the panel we shouldn't auto-pop it again for this version.
+      if (!open && settingsLoaded && settings.lastSeenVersion !== APP_VERSION) {
+        setSetting('lastSeenVersion', APP_VERSION);
+      }
+    },
+    [settingsLoaded, settings.lastSeenVersion, setSetting]
+  );
+
   const toggleTheme = useCallback(() => {
     setSetting('theme', settings.theme === 'dark' ? 'light' : 'dark');
   }, [settings.theme, setSetting]);
@@ -56,6 +80,7 @@ const App = () => {
     if (digit <= navOrder.length) navigate(navOrder[digit - 1]);
   });
   useKeyboardShortcut('/', () => setIsHelpOpen((open) => !open), { meta: true });
+  useKeyboardShortcut('.', () => handleWhatsNewOpenChange(!isWhatsNewOpen), { meta: true });
 
   const meta = pageMeta[currentPage];
 
@@ -75,6 +100,7 @@ const App = () => {
         currentPage={currentPage}
         onNavigate={navigate}
         onOpenHelp={() => setIsHelpOpen(true)}
+        onOpenWhatsNew={() => handleWhatsNewOpenChange(true)}
         theme={settings.theme}
         onToggleTheme={toggleTheme}
       />
@@ -110,6 +136,7 @@ const App = () => {
       </SidebarInset>
       <Toaster />
       <KeyboardShortcutsHelp open={isHelpOpen} onOpenChange={setIsHelpOpen} />
+      <WhatsNewSheet open={isWhatsNewOpen} onOpenChange={handleWhatsNewOpenChange} />
     </SidebarProvider>
   );
 };

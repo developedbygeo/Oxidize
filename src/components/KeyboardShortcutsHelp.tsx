@@ -27,6 +27,7 @@ const groups: ShortcutGroup[] = [
       { keys: ['Ctrl', 'V'], label: 'Paste a clipboard image into the current image page' },
       { keys: ['Esc'], label: 'Cancel a running image or video job' },
       { keys: ['Ctrl', '/'], label: 'Open this shortcuts panel' },
+      { keys: ['Ctrl', '.'], label: 'Open the What’s new panel' },
     ],
   },
 ];

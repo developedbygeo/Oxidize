@@ -105,7 +105,7 @@ describe('useSettings', () => {
 
     const { result, unmount } = renderHook(() => useSettings());
     unmount();
-    resolveLoad({ theme: 'light', lastPage: 'crop', lastOutputDir: null, pageDefaults: {} });
+    resolveLoad({ theme: 'light', lastPage: 'crop', lastOutputDir: null, pageDefaults: {}, lastSeenVersion: null });
     await Promise.resolve();
     await Promise.resolve();
     expect(result.current.isLoaded).toBe(false);

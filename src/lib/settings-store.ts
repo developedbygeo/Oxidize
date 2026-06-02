@@ -19,6 +19,10 @@ export type AppSettings = {
   lastPage: Page | null;
   lastOutputDir: string | null;
   pageDefaults: PageDefaults;
+  /** The newest changelog version the user has acknowledged. Null until they
+   *  see the What's-new panel once; updated when they open/close it. Drives
+   *  the auto-open trigger after a version bump. */
+  lastSeenVersion: string | null;
 };
 
 type SettingsData = {
@@ -31,6 +35,7 @@ export const defaultSettings: AppSettings = {
   lastPage: null,
   lastOutputDir: null,
   pageDefaults: {},
+  lastSeenVersion: null,
 };
 
 async function ensureDir(): Promise<void> {

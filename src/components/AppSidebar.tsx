@@ -17,6 +17,7 @@ import {
   Scaling,
   Scissors,
   Share2,
+  Sparkles as SparklesIcon,
   Stamp,
   Keyboard,
 } from 'lucide-react';
@@ -51,6 +52,7 @@ type AppSidebarProps = {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onOpenHelp: () => void;
+  onOpenWhatsNew: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 };
@@ -105,6 +107,7 @@ const AppSidebar = ({
   currentPage,
   onNavigate,
   onOpenHelp,
+  onOpenWhatsNew,
   theme,
   onToggleTheme,
 }: AppSidebarProps) => {
@@ -182,6 +185,18 @@ const AppSidebar = ({
       </SidebarContent>
 
       <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-2 space-y-0.5">
+        <button
+          onClick={onOpenWhatsNew}
+          title="What's new (Ctrl + .)"
+          className={cn(
+            'flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors',
+            'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+            'group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1.5'
+          )}
+        >
+          <SparklesIcon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+          <span className="text-sm group-data-[collapsible=icon]:hidden">What's new</span>
+        </button>
         <button
           onClick={onOpenHelp}
           title="Keyboard shortcuts (Ctrl + /)"

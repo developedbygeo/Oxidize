@@ -44,6 +44,7 @@ describe('loadSettings', () => {
       lastPage: 'effects',
       lastOutputDir: '/out',
       pageDefaults: {},
+      lastSeenVersion: null,
     });
   });
 
@@ -73,6 +74,7 @@ describe('saveSettings', () => {
       lastPage: 'crop',
       lastOutputDir: null,
       pageDefaults: { convert: { targetFormat: 'png' } },
+      lastSeenVersion: null,
     });
     const [, content] = writeTextFile.mock.calls[0];
     expect(JSON.parse(content as string)).toEqual({
@@ -82,6 +84,7 @@ describe('saveSettings', () => {
         lastPage: 'crop',
         lastOutputDir: null,
         pageDefaults: { convert: { targetFormat: 'png' } },
+        lastSeenVersion: null,
       },
     });
   });
@@ -103,6 +106,7 @@ describe('updateSettings', () => {
       lastPage: 'pipeline',
       lastOutputDir: null,
       pageDefaults: {},
+      lastSeenVersion: null,
     });
 
     const written = JSON.parse(writeTextFile.mock.calls[0][1] as string);
