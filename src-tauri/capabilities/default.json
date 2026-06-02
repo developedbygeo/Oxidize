@@ -16,6 +16,14 @@
     {
       "identifier": "fs:allow-appdata-write-recursive",
       "allow": [{ "path": "$APPDATA/**" }]
+    },
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "binaries/ffmpeg", "sidecar": true, "args": true },
+        { "name": "binaries/ffprobe", "sidecar": true, "args": true }
+      ]
     }
   ]
 }

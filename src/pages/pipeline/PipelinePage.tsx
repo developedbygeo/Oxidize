@@ -1,0 +1,260 @@
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { invoke } from '@tauri-apps/api/core';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Workflow } from 'lucide-react';
+import { fadeIn, fadeSlide } from '@/lib/animations';
+import { Form } from '@/components/ui/form';
+import { JobProgressBar } from '@/components/page-parts/JobProgressBar';
+import { useImageProgress } from '@/hooks/useImageProgress';
+import { useClipboardImagePaste } from '@/hooks/useClipboardImagePaste';
+import type { ImageInfo, OperationHistoryItem } from '@/types/image';
+import {
+  pipelineSchema,
+  defaultValues,
+  steps,
+  type PipelineFormValues,
+  type StepId,
+} from './_components/schema';
+import { StepsNav } from './_components/StepsNav';
+import { StepFooter } from './_components/StepFooter';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { usePersistedFormDefaults } from '@/hooks/usePersistedFormDefaults';
+import { ImagesStep } from './_components/ImagesStep';
+import { CropStep } from './_components/CropStep';
+import { ConvertStep } from './_components/ConvertStep';
+import { CompressStep } from './_components/CompressStep';
+import { BeautifyStep } from './_components/BeautifyStep';
+import { EffectsStep } from './_components/EffectsStep';
+import { ReviewStep } from './_components/ReviewStep';
+import { usePipelineExecution } from './_components/usePipelineExecution';
+
+type PipelinePageProps = {
+  onOperationComplete?: (item: Omit<OperationHistoryItem, 'id' | 'timestamp'>) => void;
+};
+
+const PipelinePage = ({ onOperationComplete }: PipelinePageProps) => {
+  const [currentStep, setCurrentStep] = useState<StepId>('images');
+  const [images, setImages] = useState<ImageInfo[]>([]);
+  const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(() => new Set());
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  const form = useForm<PipelineFormValues>({
+    resolver: zodResolver(pipelineSchema),
+    defaultValues,
+    mode: 'onChange',
+  });
+  usePersistedFormDefaults({
+    page: 'pipeline',
+    form,
+    baseDefaults: defaultValues,
+    persistKeys: [
+      'cropEnabled',
+      'cropAspectRatio',
+      'convertEnabled',
+      'convertFormat',
+      'convertQuality',
+      'compressEnabled',
+      'compressQuality',
+      'beautifyEnabled',
+      'effectsEnabled',
+      'effectType',
+      'effectIntensity',
+      'outputDir',
+      'filenameTemplate',
+      'overwriteMode',
+    ],
+  });
+
+  const { isProcessing, execute } = usePipelineExecution({ images, onOperationComplete });
+  const progress = useImageProgress(isProcessing);
+
+  useClipboardImagePaste({
+    onImagesAdded: (added) => {
+      setImages((prev) => {
+        const next = [...prev, ...added];
+        if (prev.length === 0) setPreviewIndex(0);
+        return next;
+      });
+    },
+    enabled: !isProcessing,
+  });
+
+  const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
+
+  const goToStep = (stepId: StepId) => {
+    if (stepId === 'images' || images.length > 0) {
+      setCurrentStep(stepId);
+    }
+  };
+
+  const goNext = () => {
+    if (currentStepIndex < steps.length - 1) {
+      setCompletedSteps((prev) => new Set([...prev, currentStep]));
+      setCurrentStep(steps[currentStepIndex + 1].id);
+    }
+  };
+
+  const goPrev = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStep(steps[currentStepIndex - 1].id);
+    }
+  };
+
+  const handleImagesChange = useCallback((newImages: ImageInfo[]) => {
+    setImages(newImages);
+    setPreviewIndex(0);
+  }, []);
+
+  const goToPrevImage = useCallback(() => {
+    setPreviewIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  }, [images.length]);
+
+  const goToNextImage = useCallback(() => {
+    setPreviewIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  }, [images.length]);
+
+  const handleReset = () => {
+    setImages([]);
+    setCurrentStep('images');
+    setCompletedSteps(new Set());
+    setPreviewIndex(0);
+    // Reset operation toggles + params, but keep the user's output naming
+    // preferences (dir, template, overwrite mode) — those are app-wide
+    // settings, not per-run state.
+    const { outputDir, filenameTemplate, overwriteMode } = form.getValues();
+    form.reset({ ...defaultValues, outputDir, filenameTemplate, overwriteMode });
+  };
+
+  const handleExecute = () => {
+    execute(form.getValues());
+  };
+
+  useKeyboardShortcut('Enter', handleExecute, {
+    meta: true,
+    enabled: currentStep === 'review' && images.length > 0 && !isProcessing,
+  });
+  useKeyboardShortcut('Escape', () => invoke('cancel_image_jobs'), { enabled: isProcessing });
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 'images':
+        return <ImagesStep images={images} onImagesChange={handleImagesChange} />;
+      case 'crop':
+        return (
+          <CropStep
+            form={form}
+            images={images}
+            previewIndex={previewIndex}
+            onPrevImage={goToPrevImage}
+            onNextImage={goToNextImage}
+          />
+        );
+      case 'convert':
+        return <ConvertStep form={form} />;
+      case 'compress':
+        return <CompressStep form={form} />;
+      case 'beautify':
+        return (
+          <BeautifyStep
+            form={form}
+            images={images}
+            previewIndex={previewIndex}
+            onPrevImage={goToPrevImage}
+            onNextImage={goToNextImage}
+          />
+        );
+      case 'effects':
+        return (
+          <EffectsStep
+            form={form}
+            images={images}
+            previewIndex={previewIndex}
+            onPrevImage={goToPrevImage}
+            onNextImage={goToNextImage}
+          />
+        );
+      case 'review':
+        return (
+          <ReviewStep
+            form={form}
+            images={images}
+            isProcessing={isProcessing}
+            previewIndex={previewIndex}
+            onPrevImage={goToPrevImage}
+            onNextImage={goToNextImage}
+            onReset={handleReset}
+            onExecute={handleExecute}
+            onSelectStep={goToStep}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="h-full overflow-auto">
+      <div className="max-w-3xl mx-auto p-6 space-y-5">
+        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Workflow className="w-4 h-4 text-primary" strokeWidth={1.75} />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Pipeline</h1>
+            <p className="text-xs text-muted-foreground">Chain multiple operations in a workflow</p>
+          </div>
+        </motion.div>
+
+        <StepsNav
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          hasImages={images.length > 0}
+          onStepClick={goToStep}
+        />
+
+        <Form {...form}>
+          <form onSubmit={(e) => e.preventDefault()}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                variants={fadeSlide}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="min-h-100"
+              >
+                {renderStep()}
+              </motion.div>
+            </AnimatePresence>
+          </form>
+        </Form>
+
+        {currentStep !== 'review' && (
+          <StepFooter
+            canGoPrev={currentStepIndex > 0}
+            canGoNext={!(currentStep === 'images' && images.length === 0)}
+            onPrev={goPrev}
+            onNext={goNext}
+          />
+        )}
+
+        {isProcessing && images.length > 0 && (
+          <JobProgressBar
+            items={images.map((img) => ({ path: img.path, name: img.name }))}
+            progress={progress}
+            running={isProcessing}
+            verb="Running pipeline on"
+            itemName="image"
+            onCancel={() => invoke('cancel_image_jobs')}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+PipelinePage.displayName = 'PipelinePage';
+
+export { PipelinePage };

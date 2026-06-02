@@ -1,3 +1,17 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  Contrast,
+  Coffee,
+  Film,
+  Droplets,
+  Focus,
+  Eclipse,
+  Aperture,
+  Radio,
+  Grid2x2,
+  Layers,
+} from 'lucide-react';
+
 export interface ImageInfo {
   path: string;
   name: string;
@@ -20,11 +34,14 @@ export interface ConversionOptions {
   format: string;
   quality: number;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface CompressionOptions {
   quality: number;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+  preserve_metadata?: boolean | null;
 }
 
 export interface CompressionResult {
@@ -48,6 +65,7 @@ export interface BeautifyOptions {
   temperature: number;
   white_balance: WhiteBalancePreset;
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface BeautifyResult {
@@ -59,7 +77,16 @@ export interface BeautifyResult {
   new_size: number;
 }
 
-export type ImageFormat = 'png' | 'jpg' | 'jpeg' | 'webp' | 'gif' | 'bmp' | 'ico' | 'tiff';
+export type ImageFormat =
+  | 'png'
+  | 'jpg'
+  | 'jpeg'
+  | 'webp'
+  | 'gif'
+  | 'bmp'
+  | 'ico'
+  | 'tiff'
+  | 'avif';
 
 export const formatLabels: Record<ImageFormat, string> = {
   png: 'PNG',
@@ -70,6 +97,7 @@ export const formatLabels: Record<ImageFormat, string> = {
   bmp: 'BMP',
   ico: 'ICO',
   tiff: 'TIFF',
+  avif: 'AVIF',
 };
 
 export const formatDescriptions: Record<ImageFormat, string> = {
@@ -81,9 +109,26 @@ export const formatDescriptions: Record<ImageFormat, string> = {
   bmp: 'Uncompressed bitmap',
   ico: 'Icon format for Windows',
   tiff: 'High quality, large files',
+  avif: 'Best compression, slow to encode · output only',
 };
 
-export type OperationType = 'convert' | 'compress' | 'beautify' | 'effects';
+export type OperationType =
+  | 'convert'
+  | 'compress'
+  | 'beautify'
+  | 'effects'
+  | 'crop'
+  | 'rotate'
+  | 'resize'
+  | 'social'
+  | 'pipeline'
+  | 'video-convert'
+  | 'video-compress'
+  | 'video-resize'
+  | 'video-trim'
+  | 'extract-audio'
+  | 'watermark'
+  | 'video-watermark';
 
 export interface OperationHistoryItem {
   id: string;
@@ -113,9 +158,157 @@ export interface EffectOptions {
   effect: EffectType;
   intensity: number; // 0-100
   output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
 }
 
 export interface EffectResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+export interface CropOptions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface CropResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+/** Aspect-mismatch policy for resize when both width and height are set.
+ *  Mirrors the Rust `FitMode` enum (kebab-case wire format). */
+export type FitMode = 'stretch' | 'contain' | 'cover';
+
+export interface ResizeOptions {
+  width: number | null;
+  height: number | null;
+  fit?: FitMode;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface ResizeResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+/** Quarter-turn rotation in degrees. Arbitrary angles aren't supported —
+ *  they'd require interpolation + canvas-resize policy that doesn't fit
+ *  the "fast batch orient" use case. */
+export type RotationDegrees = 0 | 90 | 180 | 270;
+
+export interface RotateOptions {
+  rotation_degrees: RotationDegrees;
+  flip_horizontal: boolean;
+  flip_vertical: boolean;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface RotateResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+/** 9-cell anchor grid for watermark placement. Mirrors the Rust
+ *  `WatermarkPosition` enum (kebab-case wire format). */
+export type WatermarkPosition =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'middle-left'
+  | 'middle-center'
+  | 'middle-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+export interface WatermarkOptions {
+  watermark_path: string;
+  position: WatermarkPosition;
+  /** Alpha multiplier, 0.0..=1.0. */
+  opacity: number;
+  /** Watermark width as a percentage of the base image width. */
+  scale_percent: number;
+  /** Edge inset as a percentage of base width. Ignored for centre cells. */
+  margin_percent: number;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface WatermarkResult {
+  success: boolean;
+  input_path: string;
+  output_path: string | null;
+  error: string | null;
+  original_size: number;
+  new_size: number;
+}
+
+export interface PipelineBeautifyParams {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  sharpness: number;
+  exposure: number;
+  hue_shift: number;
+  temperature: number;
+  white_balance: WhiteBalancePreset;
+}
+
+export interface PipelineEffectParams {
+  effect: EffectType;
+  intensity: number;
+}
+
+export interface PipelineConvertParams {
+  format: ImageFormat;
+  quality: number;
+}
+
+export interface PipelineCompressParams {
+  quality: number;
+}
+
+export interface PipelineCropParams {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PipelineOptions {
+  crop: PipelineCropParams | null;
+  beautify: PipelineBeautifyParams | null;
+  effects: PipelineEffectParams | null;
+  convert: PipelineConvertParams | null;
+  compress: PipelineCompressParams | null;
+  output_dir: string | null;
+  naming?: import('./output-naming').OutputNaming | null;
+}
+
+export interface PipelineResult {
   success: boolean;
   input_path: string;
   output_path: string | null;
@@ -128,19 +321,18 @@ export interface EffectInfo {
   type: EffectType;
   label: string;
   description: string;
-  gradient: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
 export const effectsList: EffectInfo[] = [
-  { type: 'grayscale', label: 'Grayscale', description: 'Convert to black & white', gradient: 'from-slate-400 to-slate-600', icon: '🌑' },
-  { type: 'sepia', label: 'Sepia', description: 'Warm brownish tone', gradient: 'from-amber-600 to-yellow-700', icon: '🟤' },
-  { type: 'vintage', label: 'Vintage', description: 'Retro film look', gradient: 'from-rose-400 to-amber-500', icon: '📷' },
-  { type: 'blur', label: 'Blur', description: 'Soft gaussian blur', gradient: 'from-blue-400 to-indigo-500', icon: '💨' },
-  { type: 'sharpen', label: 'Sharpen', description: 'Enhance details', gradient: 'from-emerald-400 to-teal-500', icon: '🔪' },
-  { type: 'invert', label: 'Invert', description: 'Negative colors', gradient: 'from-purple-400 to-pink-500', icon: '🔄' },
-  { type: 'vignette', label: 'Vignette', description: 'Dark corners', gradient: 'from-gray-600 to-gray-800', icon: '🔲' },
-  { type: 'noise', label: 'Noise', description: 'Film grain effect', gradient: 'from-orange-400 to-red-500', icon: '📺' },
-  { type: 'pixelate', label: 'Pixelate', description: 'Retro pixel art', gradient: 'from-cyan-400 to-blue-500', icon: '🎮' },
-  { type: 'posterize', label: 'Posterize', description: 'Reduce color levels', gradient: 'from-pink-400 to-purple-500', icon: '🎨' },
+  { type: 'grayscale', label: 'Grayscale', description: 'Convert to black & white', icon: Contrast },
+  { type: 'sepia', label: 'Sepia', description: 'Warm brownish tone', icon: Coffee },
+  { type: 'vintage', label: 'Vintage', description: 'Retro film look', icon: Film },
+  { type: 'blur', label: 'Blur', description: 'Soft gaussian blur', icon: Droplets },
+  { type: 'sharpen', label: 'Sharpen', description: 'Enhance details', icon: Focus },
+  { type: 'invert', label: 'Invert', description: 'Negative colors', icon: Eclipse },
+  { type: 'vignette', label: 'Vignette', description: 'Dark corners', icon: Aperture },
+  { type: 'noise', label: 'Noise', description: 'Film grain effect', icon: Radio },
+  { type: 'pixelate', label: 'Pixelate', description: 'Retro pixel art', icon: Grid2x2 },
+  { type: 'posterize', label: 'Posterize', description: 'Reduce color levels', icon: Layers },
 ];

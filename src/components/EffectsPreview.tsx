@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Eye, EyeOff, Columns2, Loader2 } from 'lucide-react';
 import { debounce } from 'lodash-es';
 import { cn } from '@/lib/utils';
+import { fadeIn } from '@/lib/animations';
 import { Button } from '@/components/ui/button';
 import {
   type EffectPreviewOptions,
@@ -182,7 +183,7 @@ const EffectsPreview = ({ src, options, className }: EffectsPreviewProps) => {
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'adjusted' })}
           className={cn(
             'h-7 px-2 text-xs',
-            viewMode === 'adjusted' && 'bg-violet-500/20 text-violet-500'
+            viewMode === 'adjusted' && 'bg-primary/20 text-primary'
           )}
           title="Show with effect"
         >
@@ -194,7 +195,7 @@ const EffectsPreview = ({ src, options, className }: EffectsPreviewProps) => {
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'original' })}
           className={cn(
             'h-7 px-2 text-xs',
-            viewMode === 'original' && 'bg-violet-500/20 text-violet-500'
+            viewMode === 'original' && 'bg-primary/20 text-primary'
           )}
           title="Show original"
         >
@@ -206,7 +207,7 @@ const EffectsPreview = ({ src, options, className }: EffectsPreviewProps) => {
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', payload: 'split' })}
           className={cn(
             'h-7 px-2 text-xs',
-            viewMode === 'split' && 'bg-violet-500/20 text-violet-500'
+            viewMode === 'split' && 'bg-primary/20 text-primary'
           )}
           title="Split comparison"
         >
@@ -218,12 +219,13 @@ const EffectsPreview = ({ src, options, className }: EffectsPreviewProps) => {
       <AnimatePresence>
         {isProcessing && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={fadeIn}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             className="absolute top-3 left-3 z-20 flex items-center gap-2 px-2 py-1 rounded-lg bg-background/80 backdrop-blur-sm border border-border/50"
           >
-            <Loader2 className="w-3 h-3 animate-spin text-violet-500" />
+            <Loader2 className="w-3 h-3 animate-spin text-primary" />
             <span className="text-xs text-muted-foreground">Processing...</span>
           </motion.div>
         )}

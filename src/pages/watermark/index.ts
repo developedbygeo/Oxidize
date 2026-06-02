@@ -1,0 +1,1 @@
+export { WatermarkPage } from './WatermarkPage';

@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 
 #[tauri::command]
@@ -44,7 +45,8 @@ pub fn reveal_file(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
-            .args(["/select,", &path.to_string_lossy()])
+            .arg("/select,")
+            .arg(path)
             .spawn()
             .map_err(|e| format!("Failed to reveal file: {}", e))?;
     }
@@ -52,7 +54,8 @@ pub fn reveal_file(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .args(["-R", &path.to_string_lossy()])
+            .arg("-R")
+            .arg(path)
             .spawn()
             .map_err(|e| format!("Failed to reveal file: {}", e))?;
     }
@@ -68,4 +71,14 @@ pub fn reveal_file(path: String) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn delete_file(path: String) -> Result<(), String> {
+    let path = Path::new(&path);
+    if !path.exists() {
+        return Ok(());
+    }
+
+    fs::remove_file(path).map_err(|e| format!("Failed to delete file: {}", e))
 }

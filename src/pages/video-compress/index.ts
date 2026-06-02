@@ -1,0 +1,1 @@
+export { VideoCompressPage } from './VideoCompressPage';

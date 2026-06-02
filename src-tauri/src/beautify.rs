@@ -1,11 +1,15 @@
 use image::{DynamicImage, GenericImageView, ImageFormat, ImageReader};
-use rayon::prelude::*;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
-use crate::types::{BeautifyOptions, BeautifyResult};
-use crate::utils::{create_timestamped_output_dir, detect_format, get_format_from_string};
+use crate::image_jobs::run_image_batch;
+use crate::types::{BeautifyOptions, BeautifyResult, PipelineBeautifyParams};
+use crate::utils::{
+    detect_format, get_format_from_string, resolve_output_dir, resolve_output_path, ResolvedPath,
+    TemplateContext,
+};
 
 /// Convert RGB to HSL
 fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
@@ -362,6 +366,35 @@ fn apply_sharpness(img: &DynamicImage, sharpness: f32) -> DynamicImage {
     result
 }
 
+/// Pure transform: apply all beautify adjustments in-memory. No I/O.
+pub fn apply_beautify(img: DynamicImage, params: &PipelineBeautifyParams) -> DynamicImage {
+    let mut img = img;
+    apply_white_balance(&mut img, &params.white_balance);
+    apply_exposure(&mut img, params.exposure);
+
+    if params.brightness != 0 {
+        img = img.brighten(params.brightness);
+    }
+
+    apply_contrast(&mut img, params.contrast);
+    apply_saturation(&mut img, params.saturation);
+    apply_hue_shift(&mut img, params.hue_shift);
+    apply_temperature(&mut img, params.temperature);
+    apply_sharpness(&img, params.sharpness)
+}
+
+/// Returns true when no adjustment would change the image.
+pub fn beautify_is_noop(params: &PipelineBeautifyParams) -> bool {
+    params.brightness == 0
+        && params.contrast == 0.0
+        && params.saturation == 0.0
+        && params.sharpness == 0.0
+        && params.exposure == 0.0
+        && params.hue_shift == 0
+        && params.temperature == 0
+        && (params.white_balance == "auto" || params.white_balance == "daylight")
+}
+
 fn beautify_image_sync(
     input_path: String,
     options: &BeautifyOptions,
@@ -374,30 +407,48 @@ fn beautify_image_sync(
 
     let format_str = detect_format(input).unwrap_or_else(|| "png".to_string());
 
-    let mut img = ImageReader::open(&input_path)
+    let img = ImageReader::open(&input_path)
         .map_err(|e| e.to_string())?
         .decode()
         .map_err(|e| e.to_string())?;
 
-    // Apply adjustments in optimal order
-    apply_white_balance(&mut img, &options.white_balance);
-    apply_exposure(&mut img, options.exposure);
-
-    if options.brightness != 0 {
-        img = img.brighten(options.brightness);
-    }
-
-    apply_contrast(&mut img, options.contrast);
-    apply_saturation(&mut img, options.saturation);
-    apply_hue_shift(&mut img, options.hue_shift);
-    apply_temperature(&mut img, options.temperature);
-    img = apply_sharpness(&img, options.sharpness);
+    let params = PipelineBeautifyParams {
+        brightness: options.brightness,
+        contrast: options.contrast,
+        saturation: options.saturation,
+        sharpness: options.sharpness,
+        exposure: options.exposure,
+        hue_shift: options.hue_shift,
+        temperature: options.temperature,
+        white_balance: options.white_balance.clone(),
+    };
+    let img = apply_beautify(img, &params);
 
     let stem = input
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    let output_path = output_dir.join(format!("{}_beautified.{}", stem, format_str));
+    let (width, height) = img.dimensions();
+    let naming = options.naming.clone().unwrap_or_default();
+    let ctx = TemplateContext {
+        name: stem,
+        op: "beautified",
+        width: Some(width),
+        height: Some(height),
+    };
+    let output_path = match resolve_output_path(output_dir, &naming, &ctx, &format_str) {
+        ResolvedPath::Write(p) => p,
+        ResolvedPath::Skip(p) => {
+            return Ok(BeautifyResult {
+                success: false,
+                input_path,
+                output_path: Some(p.to_string_lossy().to_string()),
+                error: Some("skipped".to_string()),
+                original_size,
+                new_size: 0,
+            });
+        }
+    };
 
     let output_data = match format_str.as_str() {
         "jpg" | "jpeg" => compress_jpeg_mozjpeg(&img, 92)?,
@@ -436,46 +487,164 @@ pub async fn beautify_image(
     options: BeautifyOptions,
 ) -> Result<BeautifyResult, String> {
     let input = Path::new(&input_path);
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = create_timestamped_output_dir(&base_dir, "beautify");
+    let output_dir = resolve_output_dir(&options.output_dir, input);
     beautify_image_sync(input_path, &options, &output_dir)
 }
 
 #[tauri::command]
 pub async fn beautify_images_batch(
+    app: AppHandle,
     input_paths: Vec<String>,
     options: BeautifyOptions,
 ) -> Vec<BeautifyResult> {
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| {
-            input_paths
-                .first()
-                .and_then(|p| Path::new(p).parent())
-                .unwrap_or(Path::new("."))
-                .to_path_buf()
-        });
-    let output_dir = create_timestamped_output_dir(&base_dir, "beautify");
-
-    input_paths
-        .par_iter()
-        .map(|path| {
-            beautify_image_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
+    run_image_batch(
+        &app,
+        input_paths,
+        |path| {
+            let input = Path::new(path);
+            let output_dir = resolve_output_dir(&options.output_dir, input);
+            beautify_image_sync(path.to_string(), &options, &output_dir).unwrap_or_else(|e| {
                 BeautifyResult {
                     success: false,
-                    input_path: path.clone(),
+                    input_path: path.to_string(),
                     output_path: None,
                     error: Some(e),
                     original_size: 0,
                     new_size: 0,
                 }
             })
-        })
-        .collect()
+        },
+        |path| BeautifyResult {
+            success: false,
+            input_path: path.to_string(),
+            output_path: None,
+            error: Some("cancelled".into()),
+            original_size: 0,
+            new_size: 0,
+        },
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    fn default_params() -> PipelineBeautifyParams {
+        PipelineBeautifyParams {
+            brightness: 0,
+            contrast: 0.0,
+            saturation: 0.0,
+            sharpness: 0.0,
+            exposure: 0.0,
+            hue_shift: 0,
+            temperature: 0,
+            white_balance: "daylight".to_string(),
+        }
+    }
+
+    fn solid_rgba(width: u32, height: u32, color: [u8; 4]) -> DynamicImage {
+        DynamicImage::ImageRgba8(RgbaImage::from_pixel(width, height, Rgba(color)))
+    }
+
+    // ────────────── rgb_to_hsl / hsl_to_rgb round-trip ──────────────
+
+    fn round_trip_rgb(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
+        let (h, s, l) = rgb_to_hsl(r, g, b);
+        hsl_to_rgb(h, s, l)
+    }
+
+    #[test]
+    fn hsl_round_trips_pure_red() {
+        let (r, g, b) = round_trip_rgb(255, 0, 0);
+        // Rounding via u8 + f32 means we tolerate ±2.
+        assert!((r as i32 - 255).abs() <= 2);
+        assert!((g as i32 - 0).abs() <= 2);
+        assert!((b as i32 - 0).abs() <= 2);
+    }
+
+    #[test]
+    fn hsl_round_trips_pure_green() {
+        let (r, g, b) = round_trip_rgb(0, 255, 0);
+        assert!((r as i32 - 0).abs() <= 2);
+        assert!((g as i32 - 255).abs() <= 2);
+        assert!((b as i32 - 0).abs() <= 2);
+    }
+
+    #[test]
+    fn hsl_round_trips_pure_blue() {
+        let (r, g, b) = round_trip_rgb(0, 0, 255);
+        assert!((r as i32 - 0).abs() <= 2);
+        assert!((g as i32 - 0).abs() <= 2);
+        assert!((b as i32 - 255).abs() <= 2);
+    }
+
+    #[test]
+    fn hsl_collapses_grayscale_to_zero_saturation() {
+        let (_, s, l) = rgb_to_hsl(128, 128, 128);
+        assert_eq!(s, 0.0);
+        assert!((l - 128.0 / 255.0).abs() < 1e-3);
+    }
+
+    // ────────────── beautify_is_noop ──────────────
+
+    #[test]
+    fn is_noop_for_default_params() {
+        assert!(beautify_is_noop(&default_params()));
+    }
+
+    #[test]
+    fn is_noop_for_explicit_auto_white_balance() {
+        let mut p = default_params();
+        p.white_balance = "auto".to_string();
+        assert!(beautify_is_noop(&p));
+    }
+
+    #[test]
+    fn is_not_noop_when_any_adjustment_is_set() {
+        let mut p = default_params();
+        p.brightness = 5;
+        assert!(!beautify_is_noop(&p));
+
+        let mut p = default_params();
+        p.white_balance = "cloudy".to_string();
+        assert!(!beautify_is_noop(&p));
+    }
+
+    // ────────────── apply_beautify smoke ──────────────
+
+    #[test]
+    fn apply_beautify_noop_preserves_pixel_data() {
+        let img = solid_rgba(8, 8, [120, 60, 200, 255]);
+        let result = apply_beautify(img, &default_params());
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            // Daylight white-balance + zero adjustments = source untouched.
+            assert_eq!(*px, Rgba([120, 60, 200, 255]));
+        }
+    }
+
+    #[test]
+    fn apply_beautify_brightness_positive_brightens_pixels() {
+        let img = solid_rgba(4, 4, [100, 100, 100, 255]);
+        let mut params = default_params();
+        params.brightness = 40;
+        let result = apply_beautify(img, &params);
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert!(px[0] > 100, "channel R should increase, got {}", px[0]);
+            assert!(px[1] > 100);
+            assert!(px[2] > 100);
+        }
+    }
+
+    #[test]
+    fn apply_beautify_does_not_change_dimensions() {
+        let img = solid_rgba(7, 11, [50, 60, 70, 255]);
+        let mut params = default_params();
+        params.contrast = 30.0;
+        params.saturation = 20.0;
+        let result = apply_beautify(img, &params);
+        assert_eq!(result.dimensions(), (7, 11));
+    }
 }

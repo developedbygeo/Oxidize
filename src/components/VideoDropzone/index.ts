@@ -1,0 +1,1 @@
+export { VideoDropzone } from './VideoDropzone';

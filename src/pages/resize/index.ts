@@ -1,0 +1,1 @@
+export { ResizePage } from './ResizePage';

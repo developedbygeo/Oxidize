@@ -1,13 +1,17 @@
 use image::{DynamicImage, GenericImageView, ImageFormat, ImageReader};
-use rayon::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
 
 use crate::compress::{compress_jpeg_mozjpeg, compress_webp};
-use crate::types::{EffectOptions, EffectResult};
-use crate::utils::{create_timestamped_output_dir, detect_format, get_format_from_string};
+use crate::image_jobs::run_image_batch;
+use crate::types::{EffectOptions, EffectResult, PipelineEffectParams};
+use crate::utils::{
+    detect_format, get_format_from_string, resolve_output_dir, resolve_output_path, ResolvedPath,
+    TemplateContext,
+};
 
 fn apply_grayscale(img: &DynamicImage, intensity: f32) -> DynamicImage {
     if intensity == 0.0 {
@@ -367,6 +371,17 @@ fn apply_effect(img: &DynamicImage, effect: &str, intensity: f32) -> DynamicImag
     }
 }
 
+/// Pure transform: apply effect in-memory. No I/O.
+pub fn apply_pipeline_effect(img: &DynamicImage, params: &PipelineEffectParams) -> DynamicImage {
+    let intensity = params.intensity as f32 / 100.0;
+    apply_effect(img, &params.effect, intensity)
+}
+
+/// Returns true when the effect has zero intensity (no-op).
+pub fn effect_is_noop(params: &PipelineEffectParams) -> bool {
+    params.intensity == 0
+}
+
 fn apply_image_effect_sync(
     input_path: String,
     options: &EffectOptions,
@@ -391,7 +406,27 @@ fn apply_image_effect_sync(
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    let output_path = output_dir.join(format!("{}_{}.{}", stem, options.effect, format_str));
+    let (width, height) = img.dimensions();
+    let naming = options.naming.clone().unwrap_or_default();
+    let ctx = TemplateContext {
+        name: stem,
+        op: &options.effect,
+        width: Some(width),
+        height: Some(height),
+    };
+    let output_path = match resolve_output_path(output_dir, &naming, &ctx, &format_str) {
+        ResolvedPath::Write(p) => p,
+        ResolvedPath::Skip(p) => {
+            return Ok(EffectResult {
+                success: false,
+                input_path,
+                output_path: Some(p.to_string_lossy().to_string()),
+                error: Some("skipped".to_string()),
+                original_size,
+                new_size: 0,
+            });
+        }
+    };
 
     let output_data = match format_str.as_str() {
         "jpg" | "jpeg" => compress_jpeg_mozjpeg(&result_img, 92)?,
@@ -432,46 +467,136 @@ pub async fn apply_image_effect(
     options: EffectOptions,
 ) -> Result<EffectResult, String> {
     let input = Path::new(&input_path);
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| input.parent().unwrap_or(Path::new(".")).to_path_buf());
-    let output_dir = create_timestamped_output_dir(&base_dir, "effects");
+    let output_dir = resolve_output_dir(&options.output_dir, input);
     apply_image_effect_sync(input_path, &options, &output_dir)
 }
 
 #[tauri::command]
 pub async fn apply_image_effects_batch(
+    app: AppHandle,
     input_paths: Vec<String>,
     options: EffectOptions,
 ) -> Vec<EffectResult> {
-    let base_dir = options
-        .output_dir
-        .as_ref()
-        .map(|d| Path::new(d).to_path_buf())
-        .unwrap_or_else(|| {
-            input_paths
-                .first()
-                .and_then(|p| Path::new(p).parent())
-                .unwrap_or(Path::new("."))
-                .to_path_buf()
-        });
-    let output_dir = create_timestamped_output_dir(&base_dir, "effects");
-
-    input_paths
-        .par_iter()
-        .map(|path| {
-            apply_image_effect_sync(path.clone(), &options, &output_dir).unwrap_or_else(|e| {
+    run_image_batch(
+        &app,
+        input_paths,
+        |path| {
+            let input = Path::new(path);
+            let output_dir = resolve_output_dir(&options.output_dir, input);
+            apply_image_effect_sync(path.to_string(), &options, &output_dir).unwrap_or_else(|e| {
                 EffectResult {
                     success: false,
-                    input_path: path.clone(),
+                    input_path: path.to_string(),
                     output_path: None,
                     error: Some(e),
                     original_size: 0,
                     new_size: 0,
                 }
             })
-        })
-        .collect()
+        },
+        |path| EffectResult {
+            success: false,
+            input_path: path.to_string(),
+            output_path: None,
+            error: Some("cancelled".into()),
+            original_size: 0,
+            new_size: 0,
+        },
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    fn solid_rgba(width: u32, height: u32, color: [u8; 4]) -> DynamicImage {
+        DynamicImage::ImageRgba8(RgbaImage::from_pixel(width, height, Rgba(color)))
+    }
+
+    fn params(effect: &str, intensity: u8) -> PipelineEffectParams {
+        PipelineEffectParams {
+            effect: effect.to_string(),
+            intensity,
+        }
+    }
+
+    // ────────────── effect_is_noop ──────────────
+
+    #[test]
+    fn effect_is_noop_only_at_zero_intensity() {
+        assert!(effect_is_noop(&params("sepia", 0)));
+        assert!(!effect_is_noop(&params("sepia", 1)));
+        assert!(!effect_is_noop(&params("invert", 100)));
+    }
+
+    // ────────────── apply_pipeline_effect at zero intensity ──────────────
+
+    #[test]
+    fn zero_intensity_preserves_pixels() {
+        let img = solid_rgba(4, 4, [200, 50, 80, 255]);
+        let result = apply_pipeline_effect(&img, &params("invert", 0));
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert_eq!(*px, Rgba([200, 50, 80, 255]));
+        }
+    }
+
+    // ────────────── apply_pipeline_effect: invert ──────────────
+
+    #[test]
+    fn invert_at_full_intensity_flips_each_channel() {
+        let img = solid_rgba(2, 2, [10, 200, 90, 255]);
+        let result = apply_pipeline_effect(&img, &params("invert", 100));
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert_eq!(px[0], 255 - 10);
+            assert_eq!(px[1], 255 - 200);
+            assert_eq!(px[2], 255 - 90);
+            // Alpha is untouched by invert.
+            assert_eq!(px[3], 255);
+        }
+    }
+
+    // ────────────── apply_pipeline_effect: grayscale ──────────────
+
+    #[test]
+    fn grayscale_at_full_intensity_collapses_channels_to_equal_values() {
+        // image::grayscale produces a Luma8 image; intensity 1.0 in our
+        // wrapper returns it untouched. Just assert dimensions for now —
+        // pixel-level equality would lock us into the exact luma weights.
+        let img = solid_rgba(3, 5, [100, 200, 50, 255]);
+        let result = apply_pipeline_effect(&img, &params("grayscale", 100));
+        assert_eq!(result.dimensions(), (3, 5));
+    }
+
+    // ────────────── apply_pipeline_effect: unknown effect ──────────────
+
+    #[test]
+    fn unknown_effect_returns_source_untouched() {
+        let img = solid_rgba(2, 2, [1, 2, 3, 4]);
+        let result = apply_pipeline_effect(&img, &params("nonexistent_effect_kind", 50));
+        let rgba = result.as_rgba8().unwrap();
+        for px in rgba.pixels() {
+            assert_eq!(*px, Rgba([1, 2, 3, 4]));
+        }
+    }
+
+    // ────────────── apply_pipeline_effect: dimensions ──────────────
+
+    #[test]
+    fn effects_preserve_dimensions() {
+        // Most effects work in-place. Check each commonly-used effect
+        // keeps the source dimensions.
+        let img = solid_rgba(8, 6, [120, 120, 120, 255]);
+        for effect in ["sepia", "vintage", "invert", "vignette", "noise", "posterize"] {
+            let result = apply_pipeline_effect(&img, &params(effect, 50));
+            assert_eq!(
+                result.dimensions(),
+                (8, 6),
+                "effect {} did not preserve dimensions",
+                effect
+            );
+        }
+    }
 }

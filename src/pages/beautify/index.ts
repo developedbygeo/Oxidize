@@ -1,0 +1,1 @@
+export { BeautifyPage } from './BeautifyPage';

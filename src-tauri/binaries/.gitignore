@@ -1,0 +1,4 @@
+# Sidecar binaries are large and fetched per-platform; don't commit them.
+ffmpeg-*
+ffprobe-*
+*.exe

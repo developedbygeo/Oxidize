@@ -1,11 +1,20 @@
 mod beautify;
+mod clipboard_temp;
 mod commands;
 mod compress;
 mod convert;
+mod crop;
 mod effects;
+mod image_jobs;
 mod loader;
+mod metadata;
+mod pipeline;
+mod resize;
+mod rotate;
 mod types;
 mod utils;
+mod video;
+mod watermark;
 
 pub use types::*;
 
@@ -15,6 +24,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
+        .manage(video::VideoJobs::default())
+        .manage(image_jobs::ImageJobs::default())
+        .setup(|app| {
+            // One-shot: nuke any clipboard-paste blobs left over from a
+            // previous session. Best-effort; failures swallowed inside.
+            clipboard_temp::sweep_on_startup(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // Loader
             loader::load_image_info,
@@ -34,9 +52,41 @@ pub fn run() {
             // Effects
             effects::apply_image_effect,
             effects::apply_image_effects_batch,
+            // Crop
+            crop::crop_image,
+            crop::crop_images_batch,
+            // Rotate
+            rotate::rotate_image,
+            rotate::rotate_images_batch,
+            // Resize
+            resize::resize_image,
+            resize::resize_images_batch,
+            // Watermark
+            watermark::watermark_image,
+            watermark::watermark_images_batch,
+            // Pipeline
+            pipeline::process_pipeline_batch,
+            // Video
+            video::probe::load_video_info,
+            video::probe::load_videos_batch,
+            video::convert::convert_video,
+            video::convert::convert_videos_batch,
+            video::compress::compress_video,
+            video::compress::compress_videos_batch,
+            video::resize::resize_video,
+            video::resize::resize_videos_batch,
+            video::watermark::watermark_video,
+            video::watermark::watermark_videos_batch,
+            video::audio::extract_audio,
+            video::audio::extract_audio_batch,
+            video::trim::trim_video,
+            video::jobs::cancel_video_jobs,
+            // Image batch control
+            image_jobs::cancel_image_jobs,
             // Commands
             commands::open_folder,
             commands::reveal_file,
+            commands::delete_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

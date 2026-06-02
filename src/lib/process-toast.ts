@@ -1,7 +1,10 @@
 import { toast } from 'sonner';
 
 type ProcessToastOptions = {
-  action: string;
+  /** Present-progressive title shown during processing — e.g. "Converting", "Compressing". */
+  progressLabel: string;
+  /** Noun shown on completion / failure — e.g. "Conversion", "Compression". */
+  doneLabel: string;
   itemCount: number;
   itemName?: string;
 };
@@ -10,11 +13,25 @@ type ProcessResult = {
   successCount: number;
   failCount: number;
   extraInfo?: string;
+  /** A friendly one-line summary of the first failure — e.g. the title from
+   *  `humanizeImageError` or `humanizeFfmpegError`. Surfaces in the toast
+   *  description so the user gets at least one concrete reason for the
+   *  failure, not just a count. */
+  firstError?: string;
 };
 
-export const createProcessToast = ({ action, itemCount, itemName = 'image' }: ProcessToastOptions) => {
+export const createProcessToast = ({
+  progressLabel,
+  doneLabel,
+  itemCount,
+  itemName = 'image',
+}: ProcessToastOptions) => {
   const plural = itemCount !== 1 ? 's' : '';
-  const toastId = toast.loading(`${action} ${itemCount} ${itemName}${plural}...`);
+  const toastId = toast.loading(`${progressLabel} ${itemCount} ${itemName}${plural}...`);
+
+  const successTitle = `${doneLabel} complete`;
+  const failTitle = `${doneLabel} failed`;
+  const partialTitle = `${doneLabel} partially complete`;
 
   return {
     toastId,
@@ -22,49 +39,72 @@ export const createProcessToast = ({ action, itemCount, itemName = 'image' }: Pr
     success: ({ successCount, extraInfo }: { successCount: number; extraInfo?: string }) => {
       const plural = successCount !== 1 ? 's' : '';
       const description = extraInfo
-        ? `${successCount} ${itemName}${plural} processed • ${extraInfo}`
+        ? `${successCount} ${itemName}${plural} processed · ${extraInfo}`
         : `${successCount} ${itemName}${plural} processed successfully`;
 
-      toast.success(`${action} complete`, {
+      toast.success(successTitle, { id: toastId, description });
+    },
+
+    warning: ({ successCount, failCount, firstError }: ProcessResult) => {
+      const base = `${successCount} succeeded, ${failCount} failed`;
+      toast.warning(partialTitle, {
         id: toastId,
-        description,
+        description: firstError ? `${base} — ${firstError}` : base,
       });
     },
 
-    warning: ({ successCount, failCount }: ProcessResult) => {
-      toast.warning(`${action} partially complete`, {
+    error: (input?: string | { title?: string; description?: string }) => {
+      const { title, description } =
+        typeof input === 'string' ? { title: undefined, description: input } : input ?? {};
+      toast.error(title ?? failTitle, {
         id: toastId,
-        description: `${successCount} succeeded, ${failCount} failed`,
+        description: description || `No ${itemName}s were processed successfully`,
       });
     },
 
-    error: (message?: string) => {
-      toast.error(`${action} failed`, {
-        id: toastId,
-        description: message || `No ${itemName}s were processed successfully`,
-      });
+    cancelled: (successCount = 0) => {
+      const description =
+        successCount > 0
+          ? `${successCount} ${itemName}${successCount !== 1 ? 's' : ''} finished before cancel`
+          : `No ${itemName}s were processed before cancel`;
+      toast.warning(`${doneLabel} cancelled`, { id: toastId, description });
     },
 
-    finish: ({ successCount, failCount, extraInfo }: ProcessResult) => {
+    skipped: ({ successCount, skipCount }: { successCount: number; skipCount: number }) => {
+      const skipPlural = skipCount !== 1 ? 's' : '';
+      if (successCount === 0) {
+        toast.warning(`${doneLabel} skipped`, {
+          id: toastId,
+          description: `${skipCount} ${itemName}${skipPlural} skipped — output already exists`,
+        });
+      } else {
+        const successPlural = successCount !== 1 ? 's' : '';
+        toast.warning(`${doneLabel} partially complete`, {
+          id: toastId,
+          description: `${successCount} ${itemName}${successPlural} processed, ${skipCount} skipped`,
+        });
+      }
+    },
+
+    finish: ({ successCount, failCount, extraInfo, firstError }: ProcessResult) => {
       if (successCount > 0 && failCount === 0) {
         const plural = successCount !== 1 ? 's' : '';
         const description = extraInfo
-          ? `${successCount} ${itemName}${plural} processed • ${extraInfo}`
+          ? `${successCount} ${itemName}${plural} processed · ${extraInfo}`
           : `${successCount} ${itemName}${plural} processed successfully`;
 
-        toast.success(`${action} complete`, {
-          id: toastId,
-          description,
-        });
+        toast.success(successTitle, { id: toastId, description });
       } else if (successCount > 0 && failCount > 0) {
-        toast.warning(`${action} partially complete`, {
+        const base = `${successCount} succeeded, ${failCount} failed`;
+        toast.warning(partialTitle, {
           id: toastId,
-          description: `${successCount} succeeded, ${failCount} failed`,
+          description: firstError ? `${base} — ${firstError}` : base,
         });
       } else {
-        toast.error(`${action} failed`, {
+        const fallback = `No ${itemName}s were processed successfully`;
+        toast.error(failTitle, {
           id: toastId,
-          description: `No ${itemName}s were processed successfully`,
+          description: firstError ?? fallback,
         });
       }
     },
